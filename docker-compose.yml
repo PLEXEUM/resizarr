@@ -1,0 +1,16 @@
+services:
+  resizarr:
+    build: .
+    container_name: resizarr
+    ports:
+      - "7227:7227"
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+      - LOG_LEVEL=INFO
+      - MAX_LOG_FILES=5
+    restart: unless-stopped
+    cpu_count: 1
+    mem_limit: 512m
