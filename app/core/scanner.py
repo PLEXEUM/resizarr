@@ -207,11 +207,13 @@ async def run_resizarr(
 
             # Parse target size in GB
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
+            logger.info(f"DEBUG: target_threshold_gb = {target_threshold_gb}, type = {type(target_threshold_gb)}")
             
             # Get peer and language filters from rules
-            min_peers = rules.get("min_peers", 2)
-            preferred_language = rules.get("language", "English")
+            min_peers = rules.get("min_peers", 0)
+            preferred_language = rules.get("language", "Any")
             
+            logger.info(f"DEBUG: rules['target_operator'] = '{rules['target_operator']}', rules['target_size'] = {rules['target_size']}, rules['target_unit'] = '{rules['target_unit']}'")
             logger.info(f"Target size threshold: {rules['target_operator']} {target_threshold_gb} GB")
             logger.info(f"Peer requirement: >= {min_peers} peers")
             logger.info(f"Language requirement: {preferred_language}")
@@ -262,17 +264,18 @@ async def run_resizarr(
                     release_language = release_language.get("name", "Unknown")
                 
                 # Check if release matches target size condition
+                logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
                     # Check peer requirement
                     if peers < min_peers:
                         logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers}) - {release.get('title')}")
                         continue
-                    
+    
                     # Check language requirement (case-insensitive)
                     if preferred_language and preferred_language.lower() not in release_language.lower():
                         logger.debug(f"Skipping release - language mismatch ({release_language} != {preferred_language}) - {release.get('title')}") 
                         continue
-                    
+    
                     release_quality = client.get_release_quality_name(release)
                     candidate_releases.append({
                         "release": release,
