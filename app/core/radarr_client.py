@@ -120,6 +120,23 @@ class RadarrClient:
             "movieIds": movie_ids
         })
 
+    # ========== ADD THESE TWO NEW METHODS HERE ==========
+    async def search_for_releases(self, movie_id: int) -> list:
+        """Search for available releases for a movie."""
+        try:
+            logger.info(f"Searching for releases for movie ID: {movie_id}")
+            result = await self._request("GET", "release", params={"movieId": movie_id})
+            return result if isinstance(result, list) else []
+        except Exception as e:
+            logger.error(f"Failed to search releases for movie {movie_id}: {e}")
+            return []
+
+    def get_release_quality_name(self, release: dict) -> str:
+        """Extract quality name from a release."""
+        quality = release.get("quality", {})
+        return quality.get("name", "Unknown")
+    # ========== END OF NEW METHODS ==========
+
     async def check_existing_replacement(self, movie_id: int) -> bool:
         """Check if a replacement is already queued or in history."""
         try:

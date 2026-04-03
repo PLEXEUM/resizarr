@@ -204,11 +204,49 @@ async def run_resizarr(
             if already_queued and rules["trigger_logic"] == "auto":
                 logger.info(f"Skipping {movie_title} - replacement already queued")
                 continue
-            
-            # Quality check
-            # For now, we're using the same quality since we don't have a replacement file yet
-            found_quality = current_quality  # placeholder until Radarr returns found file
-            
+
+            # Search for available releases
+            logger.info(f"Searching for alternatives for: {movie_title}")
+            releases = await client.search_for_releases(movie_id)
+
+            if not releases:
+                logger.info(f"No releases found for: {movie_title}")
+                continue
+
+            # Parse target size in GB
+            target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
+
+            # Filter releases by target size rule
+            candidate_releases = []
+            for release in releases:
+                release_size_bytes = release.get("size", 0)
+                release_size_gb = release_size_bytes / (1024 ** 3)
+                
+                # Check if release matches target size condition
+                if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
+                    release_quality = client.get_release_quality_name(release)
+                    candidate_releases.append({
+                        "release": release,
+                        "size_gb": release_size_gb,
+                        "quality": release_quality,
+                        "guid": release.get("guid")
+                    })
+                    logger.debug(f"Found candidate release: {release.get('title')} ({release_size_gb:.2f} GB) - {release_quality}")
+
+            if not candidate_releases:
+                logger.info(f"No releases matching size criteria for: {movie_title}")
+                continue
+
+            # Sort candidates: prefer smaller size
+            candidate_releases.sort(key=lambda x: x["size_gb"])
+
+            # Get the best candidate (smallest)
+            best_candidate = candidate_releases[0]
+            found_size_gb = best_candidate["size_gb"]
+            found_quality = best_candidate["quality"]
+
+            logger.info(f"Best candidate for {movie_title}: {found_size_gb:.2f} GB, Quality: {found_quality}")
+
             # Get the minimum quality profile name if set
             min_profile_name = None
             if rules.get("min_quality_profile_id"):
@@ -216,7 +254,7 @@ async def run_resizarr(
                     if profile.get("profile_id") == rules["min_quality_profile_id"]:
                         min_profile_name = profile.get("profile_name")
                         break
-            
+
             is_allowed, is_downgrade, reason = check_quality(
                 current_quality,
                 found_quality,
@@ -231,11 +269,13 @@ async def run_resizarr(
                     "Movie": movie_title,
                     "Current Size (GB)": f"{size_gb:.2f}",
                     "Current Quality": current_quality,
+                    "Found Size (GB)": f"{found_size_gb:.2f}",
+                    "Found Quality": found_quality,
                     "Would Trigger": "Yes" if is_allowed else "No",
                     "Quality Decision": reason,
                     "Is Downgrade": "Yes" if is_downgrade else "No"
                 })
-                logger.info(f"[DRY RUN] {movie_title}: {reason}")
+                logger.info(f"[DRY RUN] {movie_title}: {reason} (Current: {size_gb:.2f}GB/{current_quality} → Found: {found_size_gb:.2f}GB/{found_quality})")
                 continue
             
             # Quality blocked in auto mode
@@ -244,18 +284,19 @@ async def run_resizarr(
                 summary["quality_skipped"] += 1
                 continue
             
-            # Manual approval mode
+                        # Manual approval mode
             if rules["trigger_logic"] == "manual" or (is_downgrade and not is_allowed):
                 try:
                     conn.execute("""
                         INSERT INTO pending_replacements
                         (movie_id, movie_title, current_size_gb, current_quality,
-                         found_size_gb, found_quality, quality_downgrade, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+                         found_size_gb, found_quality, quality_downgrade, status, release_guid)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
                     """, (
                         movie_id, movie_title, size_gb,
-                        str(current_quality), size_gb,
-                        str(found_quality), 1 if is_downgrade else 0
+                        str(current_quality), found_size_gb,
+                        str(found_quality), 1 if is_downgrade else 0,
+                        best_candidate.get("guid")
                     ))
                     conn.commit()
                     summary["pending_approval"] += 1

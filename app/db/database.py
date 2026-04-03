@@ -69,6 +69,7 @@ def init_db():
             queued_at DATETIME,
             completed_at DATETIME,
             fail_count INTEGER DEFAULT 0
+            release_guid TEXT,
         );
 
         CREATE TABLE IF NOT EXISTS run_history (
