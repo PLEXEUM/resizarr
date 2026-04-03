@@ -328,7 +328,9 @@ async def run_resizarr(
             writer = csv.DictWriter(output, fieldnames=csv_rows[0].keys())
             writer.writeheader()
             writer.writerows(csv_rows)
-            summary["csv_data"] = output.getvalue()
+            csv_content = output.getvalue()
+            summary["csv_data"] = csv_content
+            # Don't save to disk automatically
         
         # Save run to history
         completed_at = datetime.utcnow()

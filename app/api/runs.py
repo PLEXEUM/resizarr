@@ -62,38 +62,34 @@ async def get_status():
 
 @router.get("/run/csv")
 async def download_csv():
-    """Download the most recent dry run CSV."""
+    """Download the most recent dry run CSV (creates file on demand)."""
+    from app.db.database import get_connection
+    import os
+    from datetime import datetime
+    
+    # Get the most recent dry run from the database
     conn = get_connection()
     last_dry_run = conn.execute("""
-        SELECT * FROM run_history
-        WHERE dry_run = 1
-        ORDER BY started_at DESC
+        SELECT * FROM run_history 
+        WHERE dry_run = 1 
+        ORDER BY started_at DESC 
         LIMIT 1
     """).fetchone()
     conn.close()
-
-    if not last_dry_run:
+    
+    if not last_dry_run or not last_dry_run["csv_data"]:
         raise HTTPException(
             status_code=404,
-            detail="No dry run CSV available"
+            detail="No dry run CSV available. Run a dry scan first."
         )
-
-    # Read CSV from logs directory
-    import os
-    csv_path = "/app/logs/last_dry_run.csv"
-    if not os.path.exists(csv_path):
-        raise HTTPException(
-            status_code=404,
-            detail="CSV file not found"
-        )
-
-    with open(csv_path, "r") as f:
-        content = f.read()
-
+    
+    # Create CSV file on demand
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"resizarr_dryrun_{timestamp}.csv"
+    
+    # Return the CSV directly without saving to disk
     return StreamingResponse(
-        io.StringIO(content),
+        io.StringIO(last_dry_run["csv_data"]),
         media_type="text/csv",
-        headers={
-            "Content-Disposition": "attachment; filename=resizarr_dry_run.csv"
-        }
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
