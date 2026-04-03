@@ -109,7 +109,16 @@ async function testConnection() {
             status.textContent = '✓ ' + data.message;
             document.getElementById('quality-section').classList.remove('hidden');
             document.getElementById('save-btn').classList.remove('hidden');
-            await loadProfiles(false);
+            
+            // Try to load profiles
+            console.log('Test passed, loading profiles...');
+            const profilesLoaded = await loadProfiles(false);
+            console.log('Profiles loaded result:', profilesLoaded);
+            
+            if (!profilesLoaded) {
+                console.log('Profiles failed to load, trying with refresh...');
+                await loadProfiles(true);
+            }
         } else {
             status.className = 'text-sm px-4 py-3 rounded-lg bg-red-900 text-red-200';
             status.textContent = '✗ ' + (data.detail || 'Connection failed');
@@ -123,17 +132,27 @@ async function testConnection() {
 }
 
 async function loadProfiles(forceRefresh) {
-    console.log('Loading quality profiles on setup page...');
+    console.log('Loading quality profiles on setup page...', forceRefresh ? '(force refresh)' : '');
     try {
         const url = forceRefresh ? '/api/quality-profiles?refresh=true' : '/api/quality-profiles';
         const res = await fetch(url);
+        
+        console.log('Quality profiles response status:', res.status);
+        
+        if (!res.ok) {
+            const error = await res.json();
+            console.error('Error response:', error);
+            showToast('Failed to load quality profiles: ' + (error.detail || 'Unknown error'), 'error');
+            return false;
+        }
+        
         const data = await res.json();
         console.log('Profiles received on setup page:', data.length);
         
         const select = document.getElementById('quality-profile');
         if (!select) {
             console.error('Quality profile dropdown not found');
-            return;
+            return false;
         }
         
         // Clear existing options
@@ -147,9 +166,11 @@ async function loadProfiles(forceRefresh) {
             select.appendChild(opt);
         });
         console.log(`Added ${data.length} profiles to setup dropdown`);
+        return true;
     } catch (e) {
         console.error('Failed to load quality profiles:', e);
-        showToast('Failed to load quality profiles', 'error');
+        showToast('Failed to load quality profiles: ' + e.message, 'error');
+        return false;
     }
 }
 
