@@ -339,7 +339,7 @@ async def run_resizarr(
             INSERT INTO run_history
             (started_at, completed_at, total_movies_processed, candidates_found,
              replacements_queued, replacements_failed, quality_skipped, dry_run, mode)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             started_at, completed_at,
             summary["total_movies_processed"],
