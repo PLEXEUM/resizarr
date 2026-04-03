@@ -87,28 +87,30 @@ async def get_quality_profiles(refresh: bool = False):
     conn = get_connection()
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
     conn.close()
-
+    
     if not config or not config["radarr_url"]:
         raise HTTPException(status_code=400, detail="Radarr not configured")
-
+    
     client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
-
+    
     try:
         profiles = await client.get_quality_profiles(force_refresh=refresh)
-
+        
         # Cache profiles in DB
         conn = get_connection()
         conn.execute("DELETE FROM quality_profiles_cache")
         for rank, profile in enumerate(profiles):
             conn.execute("""
-                INSERT INTO quality_profiles_cache
-                (profile_id, profile_name, profile_rank, last_updated)
+                INSERT INTO quality_profiles_cache 
+                (profile_id, profile_name, profile_rank, last_updated) 
                 VALUES (?, ?, ?, datetime('now'))
             """, (profile.get("id"), profile.get("name"), rank))
         conn.commit()
         conn.close()
-
-        return {"profiles": profiles}
+        
+        # Return just the list of profiles without extra wrapper
+        return profiles
+        
     except Exception as e:
         logger.error(f"Failed to fetch quality profiles: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch quality profiles")
