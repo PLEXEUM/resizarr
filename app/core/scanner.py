@@ -216,22 +216,52 @@ async def run_resizarr(
             # Parse target size in GB
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
 
-            # Filter releases by target size rule
+            # Get peer and language filters from rules
+            min_peers = rules.get("min_peers", 2)
+            preferred_language = rules.get("language", "English")
+            
+            # Filter releases by target size rule, peers, and language
             candidate_releases = []
             for release in releases:
                 release_size_bytes = release.get("size", 0)
                 release_size_gb = release_size_bytes / (1024 ** 3)
                 
+                # Get peer count (seeders + leechers)
+                peers = release.get("seeders", 0) + release.get("leechers", 0)
+                if peers == 0:
+                    peers = release.get("peers", 0)
+                
+                # Get language
+                release_language = release.get("language", "Unknown")
+                if isinstance(release_language, dict):
+                    release_language = release_language.get("name", "Unknown")
+                
                 # Check if release matches target size condition
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
+                    # Check peer requirement
+                    if peers < min_peers:
+                        logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers})")
+                        continue
+                    
+                    # Check language requirement (case-insensitive)
+                    if preferred_language and preferred_language.lower() not in release_language.lower():
+                        logger.debug(f"Skipping release - language mismatch ({release_language} != {preferred_language})")
+                        continue
+                    
                     release_quality = client.get_release_quality_name(release)
                     candidate_releases.append({
                         "release": release,
                         "size_gb": release_size_gb,
                         "quality": release_quality,
-                        "guid": release.get("guid")
+                        "guid": release.get("guid"),
+                        "peers": peers,
+                        "language": release_language
                     })
-                    logger.debug(f"Found candidate release: {release.get('title')} ({release_size_gb:.2f} GB) - {release_quality}")
+                    logger.debug(f"Found candidate release: {release.get('title')} ({release_size_gb:.2f} GB, {peers} peers, {release_language}) - {release_quality}")
+            
+            if not candidate_releases:
+                logger.info(f"No releases matching size/peers/language criteria for: {movie_title}")
+                continue
 
             if not candidate_releases:
                 logger.info(f"No releases matching size criteria for: {movie_title}")

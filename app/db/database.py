@@ -42,7 +42,9 @@ def init_db():
             excluded_extensions TEXT,
             quality_rule TEXT CHECK(quality_rule IN ('equal_or_better', 'any', 'same_only')),
             min_quality_profile_id INTEGER,
-            trigger_logic TEXT CHECK(trigger_logic IN ('auto', 'manual', 'quality_match'))
+            trigger_logic TEXT CHECK(trigger_logic IN ('auto', 'manual', 'quality_match')),
+            min_peers INTEGER DEFAULT 2,
+            language TEXT DEFAULT 'English'
         );
 
         CREATE TABLE IF NOT EXISTS settings (

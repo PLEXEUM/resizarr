@@ -144,6 +144,47 @@
                 </div>
             </div>
 
+            <!-- Optional: Add a divider -->
+            <hr class="border-t" style="border-color: var(--border-color);">
+            
+            <!-- Peers and Language Filters -->
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
+                    style="color: var(--text-secondary)">Quality Filters</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Minimum Peers (Seeders + Leechers)</label>
+                        <input id="min-peers" type="number" min="0" max="100" value="2"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
+                            Only consider releases with at least this many peers (seeders + leechers)
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Preferred Language</label>
+                        <select id="language"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="English">English</option>
+                            <option value="Any">Any Language</option>
+                            <option value="French">French</option>
+                            <option value="German">German</option>
+                            <option value="Spanish">Spanish</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Russian">Russian</option>
+                            <option value="Japanese">Japanese</option>
+                            <option value="Chinese">Chinese</option>
+                        </select>
+                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
+                            Only consider releases in this language
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Save Button -->
             <button onclick="saveRules()"
                 class="w-full py-2 rounded-lg text-sm font-medium text-white"
@@ -215,6 +256,8 @@ async function loadRules() {
         document.getElementById('min-size-unit').value = data.min_size_unit;
         document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
         document.getElementById('min-quality-profile').value = data.min_quality_profile_id || '';
+        document.getElementById('min-peers').value = data.min_peers || 2;
+        document.getElementById('language').value = data.language || 'English';
         
         const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
         if (qualityRuleRadio) qualityRuleRadio.checked = true;
@@ -247,7 +290,9 @@ async function saveRules() {
         excluded_extensions: extensions,
         quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
         min_quality_profile_id: minQuality ? parseInt(minQuality) : null,
-        trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value
+        trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value,
+        min_peers: parseInt(document.getElementById('min-peers').value) || 2,
+        language: document.getElementById('language').value
     };
     
     try {
