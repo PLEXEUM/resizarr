@@ -180,8 +180,14 @@ async def run_resizarr(
                 f"{movie_title} ({size_gb:.2f} GB)"
             )
 
-            # Get current quality
-            current_quality = movie.get("qualityProfileId", "Unknown")
+            # Get current quality - fetch the actual profile name
+            current_profile_id = movie.get("qualityProfileId")
+            current_quality = "Unknown"
+            if current_profile_id:
+                for profile in profiles_cache:
+                    if profile.get("profile_id") == current_profile_id:
+                        current_quality = profile.get("profile_name", "Unknown")
+                        break
 
             # Check for existing replacement
             already_queued = await client.check_existing_replacement(movie_id)
@@ -190,13 +196,23 @@ async def run_resizarr(
                 continue
 
             # Quality check
+            # For now, we're using the same quality since we don't have a replacement file yet
             found_quality = current_quality  # placeholder until Radarr returns found file
+            
+            # Get the minimum quality profile name if set
+            min_profile_name = None
+            if rules["min_quality_profile_id"]:
+                for profile in profiles_cache:
+                    if profile.get("profile_id") == rules["min_quality_profile_id"]:
+                        min_profile_name = profile.get("profile_name")
+                        break
+
             is_allowed, is_downgrade, reason = check_quality(
-                str(current_quality),
-                str(found_quality),
+                current_quality,
+                found_quality,
                 rules["quality_rule"],
-                rules["min_quality_profile_id"],
-                profiles_cache
+                min_profile_name,
+                profiles_cache     
             )
 
             # Dry run - just log and collect CSV data
