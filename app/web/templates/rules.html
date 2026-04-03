@@ -158,95 +158,117 @@
 
 {% block scripts %}
 <script>
-    // Load existing rules and quality profiles on page load
-    window.addEventListener('DOMContentLoaded', async () => {
-        await loadProfiles();
-        await loadRules();
-    });
+// Load quality profiles and rules when page loads
+window.addEventListener('DOMContentLoaded', async () => {
+    console.log('Rules page loaded');
+    await loadProfiles();
+    await loadRules();
+});
 
-    async function loadProfiles() {
-        try {
-            const res = await fetch('/api/quality-profiles');
+async function loadProfiles() {
+    console.log('Loading quality profiles...');
+    try {
+        const res = await fetch('/api/quality-profiles');
+        const data = await res.json();
+        console.log('Profiles received:', data.length);
+        
+        const select = document.getElementById('min-quality-profile');
+        if (!select) {
+            console.error('Dropdown element not found');
+            return;
+        }
+        
+        // Clear existing options (keep the "No minimum" option)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+        
+        // Add new options
+        data.forEach(profile => {
+            const opt = document.createElement('option');
+            opt.value = profile.id;
+            opt.textContent = profile.name;
+            select.appendChild(opt);
+        });
+        console.log(`Added ${data.length} profiles to dropdown`);
+    } catch (e) {
+        console.error('Failed to load profiles:', e);
+    }
+}
+
+async function loadRules() {
+    console.log('Loading existing rules...');
+    try {
+        const res = await fetch('/api/rules');
+        const data = await res.json();
+        console.log('Rules received:', data);
+        
+        if (!data.configured) return;
+        
+        document.getElementById('current-operator').value = data.current_operator;
+        document.getElementById('current-size').value = data.current_size;
+        document.getElementById('current-unit').value = data.current_unit;
+        document.getElementById('target-operator').value = data.target_operator;
+        document.getElementById('target-size').value = data.target_size;
+        document.getElementById('target-unit').value = data.target_unit;
+        document.getElementById('min-size').value = data.min_size;
+        document.getElementById('min-size-unit').value = data.min_size_unit;
+        document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
+        document.getElementById('min-quality-profile').value = data.min_quality_profile_id || '';
+        
+        const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
+        if (qualityRuleRadio) qualityRuleRadio.checked = true;
+        
+        const triggerLogicRadio = document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`);
+        if (triggerLogicRadio) triggerLogicRadio.checked = true;
+        
+    } catch (e) {
+        console.error('Failed to load rules:', e);
+    }
+}
+
+async function saveRules() {
+    document.getElementById('save-label').textContent = 'Saving...';
+    document.getElementById('save-spinner').classList.remove('hidden');
+    
+    const extensions = document.getElementById('excluded-extensions').value
+        .split(',').map(e => e.trim()).filter(Boolean);
+    const minQuality = document.getElementById('min-quality-profile').value;
+    
+    const payload = {
+        current_operator: document.getElementById('current-operator').value,
+        current_size: parseFloat(document.getElementById('current-size').value),
+        current_unit: document.getElementById('current-unit').value,
+        target_operator: document.getElementById('target-operator').value,
+        target_size: parseFloat(document.getElementById('target-size').value),
+        target_unit: document.getElementById('target-unit').value,
+        min_size: parseFloat(document.getElementById('min-size').value),
+        min_size_unit: document.getElementById('min-size-unit').value,
+        excluded_extensions: extensions,
+        quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
+        min_quality_profile_id: minQuality ? parseInt(minQuality) : null,
+        trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value
+    };
+    
+    try {
+        const res = await fetch('/api/rules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            showToast('Rules saved successfully!', 'success');
+        } else {
             const data = await res.json();
-            const select = document.getElementById('min-quality-profile');
-            (data.profiles || []).forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.name;
-                select.appendChild(opt);
-            });
-        } catch (e) {
-            console.error('Failed to load profiles:', e);
+            showToast(data.detail || 'Failed to save rules', 'error');
         }
+    } catch (e) {
+        showToast('Request failed: ' + e.message, 'error');
+    } finally {
+        document.getElementById('save-label').textContent = 'Save Rules';
+        document.getElementById('save-spinner').classList.add('hidden');
     }
-
-    async function loadRules() {
-        try {
-            const res = await fetch('/api/rules');
-            const data = await res.json();
-            if (!data.configured) return;
-
-            document.getElementById('current-operator').value = data.current_operator;
-            document.getElementById('current-size').value = data.current_size;
-            document.getElementById('current-unit').value = data.current_unit;
-            document.getElementById('target-operator').value = data.target_operator;
-            document.getElementById('target-size').value = data.target_size;
-            document.getElementById('target-unit').value = data.target_unit;
-            document.getElementById('min-size').value = data.min_size;
-            document.getElementById('min-size-unit').value = data.min_size_unit;
-            document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
-            document.getElementById('min-quality-profile').value = data.min_quality_profile_id || '';
-
-            document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`).checked = true;
-            document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`).checked = true;
-        } catch (e) {
-            console.error('Failed to load rules:', e);
-        }
-    }
-
-    async function saveRules() {
-        document.getElementById('save-label').textContent = 'Saving...';
-        document.getElementById('save-spinner').classList.remove('hidden');
-
-        const extensions = document.getElementById('excluded-extensions').value
-            .split(',').map(e => e.trim()).filter(Boolean);
-
-        const minQuality = document.getElementById('min-quality-profile').value;
-
-        const payload = {
-            current_operator: document.getElementById('current-operator').value,
-            current_size: parseFloat(document.getElementById('current-size').value),
-            current_unit: document.getElementById('current-unit').value,
-            target_operator: document.getElementById('target-operator').value,
-            target_size: parseFloat(document.getElementById('target-size').value),
-            target_unit: document.getElementById('target-unit').value,
-            min_size: parseFloat(document.getElementById('min-size').value),
-            min_size_unit: document.getElementById('min-size-unit').value,
-            excluded_extensions: extensions,
-            quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
-            min_quality_profile_id: minQuality ? parseInt(minQuality) : null,
-            trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value
-        };
-
-        try {
-            const res = await fetch('/api/rules', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                showToast('Rules saved successfully!', 'success');
-            } else {
-                const data = await res.json();
-                showToast(data.detail || 'Failed to save rules', 'error');
-            }
-        } catch (e) {
-            showToast('Request failed: ' + e.message, 'error');
-        } finally {
-            document.getElementById('save-label').textContent = 'Save Rules';
-            document.getElementById('save-spinner').classList.add('hidden');
-        }
-    }
+}
 </script>
 {% endblock %}
