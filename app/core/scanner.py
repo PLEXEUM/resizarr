@@ -208,13 +208,28 @@ async def run_resizarr(
             # Search for available releases
             logger.info(f"Searching for alternatives for: {movie_title}")
             releases = await client.search_for_releases(movie_id)
+            logger.info(f"Found {len(releases)} total releases for {movie_title}")
 
             if not releases:
                 logger.info(f"No releases found for: {movie_title}")
                 continue
 
+            # Log first few releases for debugging
+            for idx, release in enumerate(releases[:5]):
+                release_size_gb_debug = release.get("size", 0) / (1024 ** 3)
+                peers_debug = release.get("seeders", 0) + release.get("leechers", 0)
+                if peers_debug == 0:
+                    peers_debug = release.get("peers", 0)
+                release_lang = release.get("language", "Unknown")
+                if isinstance(release_lang, dict):
+                    release_lang = release_lang.get("name", "Unknown")
+                logger.debug(f"Release {idx+1}: {release.get('title', 'Unknown')[:50]} - Size: {release_size_gb_debug:.2f}GB - Peers: {peers_debug} - Language: {release_lang}")
+
             # Parse target size in GB
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
+            logger.info(f"Target size threshold: {rules['target_operator']} {target_threshold_gb} GB")
+            logger.info(f"Peer requirement: >= {min_peers} peers")
+            logger.info(f"Language requirement: {preferred_language}")
 
             # Get peer and language filters from rules
             min_peers = rules.get("min_peers", 2)
@@ -240,12 +255,12 @@ async def run_resizarr(
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
                     # Check peer requirement
                     if peers < min_peers:
-                        logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers})")
+                        logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers}) - {release.get('title')}")
                         continue
                     
                     # Check language requirement (case-insensitive)
                     if preferred_language and preferred_language.lower() not in release_language.lower():
-                        logger.debug(f"Skipping release - language mismatch ({release_language} != {preferred_language})")
+                        logger.debug(f"Skipping release - language mismatch ({release_language} != {preferred_language}) - {release.get('title')}") 
                         continue
                     
                     release_quality = client.get_release_quality_name(release)
