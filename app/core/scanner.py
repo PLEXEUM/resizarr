@@ -220,6 +220,15 @@ async def run_resizarr(
             logger.info(f"Searching for alternatives for: {movie_title}")
             releases = await client.search_for_releases(movie_id)
             logger.info(f"Found {len(releases)} total releases for {movie_title}")
+            if releases:
+                # Log ALL releases with their sizes
+                all_sizes = []
+                for rel in releases:
+                    rel_size = rel.get("size", 0) / (1024 ** 3)
+                    all_sizes.append(rel_size)
+                    if rel_size < 5.0:  # Only log potentially interesting ones
+                        logger.info(f"  POTENTIAL: {rel_size:.2f}GB - {rel.get('title', 'Unknown')[:80]}")
+                logger.info(f"  Size stats: min={min(all_sizes):.2f}GB, max={max(all_sizes):.2f}GB, count={len(all_sizes)}")
 
             if not releases:
                 logger.info(f"No releases found for: {movie_title}")
