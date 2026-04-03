@@ -127,3 +127,30 @@ class RadarrClient:
             queue = await self._request("GET", "queue", params={"movieId": movie_id})
             records = queue.get("records", []) if isinstance(queue, dict) else queue
             if any(r.get("movieId") == movie_id for r in records):
+                return True
+
+            # Check history for recent grabs
+            history = await self._request(
+                "GET", "history/movie",
+                params={"movieId": movie_id, "eventType": 1}
+            )
+            if history:
+                return True
+
+        except Exception as e:
+            logger.warning(f"Could not check existing replacement for movie {movie_id}: {e}")
+
+        return False
+
+    async def get_movie_quality(self, movie_id: int) -> Optional[str]:
+        """Get the quality profile name of a movie's current file."""
+        try:
+            movie = await self.get_movie(movie_id)
+            profile_id = movie.get("qualityProfileId")
+            profiles = await self.get_quality_profiles()
+            for profile in profiles:
+                if profile.get("id") == profile_id:
+                    return profile.get("name")
+        except Exception as e:
+            logger.warning(f"Could not get quality for movie {movie_id}: {e}")
+        return None
