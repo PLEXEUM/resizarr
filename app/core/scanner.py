@@ -116,15 +116,27 @@ async def run_resizarr(
         candidates = []
         resume_processing = last_processed_id is None
 
+        # Get the selected quality profile from rules
+        selected_quality_profile_id = rules.get("min_quality_profile_id")
+        if selected_quality_profile_id:
+            logger.info(f"Filtering movies by quality profile ID: {selected_quality_profile_id}")
+
         for movie in movies:
             movie_id = movie.get("id")
-
+    
             # Handle batch resume
             if not resume_processing:
                 if movie_id == last_processed_id:
                     resume_processing = True
                 continue
-
+    
+            # Filter by quality profile if specified in rules
+            if selected_quality_profile_id:
+                movie_quality_id = movie.get("qualityProfileId")
+                if movie_quality_id != selected_quality_profile_id:
+                    logger.debug(f"Skipping movie '{movie.get('title')}' - quality profile ID {movie_quality_id} does not match selected {selected_quality_profile_id}")
+                    continue
+    
             movie_file = get_largest_file(movie)
             if not movie_file:
                 continue
