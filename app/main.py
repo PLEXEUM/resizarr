@@ -78,8 +78,8 @@ app = FastAPI(
 )
 
 # Static files and templates
-app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
-templates = Jinja2Templates(directory="app/web/templates")
+app.mount("/static", StaticFiles(directory="/app/app/web/static"), name="static")
+templates = Jinja2Templates(directory="/app/app/web/templates")
 
 # --- Health Check ---
 @app.get("/health")
