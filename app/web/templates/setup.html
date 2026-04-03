@@ -81,93 +81,112 @@
 
 {% block scripts %}
 <script>
-    async function testConnection() {
-        const url = document.getElementById('radarr-url').value.trim();
-        const apiKey = document.getElementById('radarr-api-key').value.trim();
+async function testConnection() {
+    const url = document.getElementById('radarr-url').value.trim();
+    const apiKey = document.getElementById('radarr-api-key').value.trim();
+    
+    if (!url || !apiKey) {
+        showToast('Please enter both URL and API key', 'warning');
+        return;
+    }
+    
+    document.getElementById('test-label').textContent = 'Testing...';
+    document.getElementById('test-spinner').classList.remove('hidden');
+    
+    try {
+        const res = await fetch('/api/config/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ radarr_url: url, radarr_api_key: apiKey })
+        });
+        
+        const data = await res.json();
+        const status = document.getElementById('connection-status');
+        status.classList.remove('hidden');
+        
+        if (res.ok) {
+            status.className = 'text-sm px-4 py-3 rounded-lg bg-green-900 text-green-200';
+            status.textContent = '✓ ' + data.message;
+            document.getElementById('quality-section').classList.remove('hidden');
+            document.getElementById('save-btn').classList.remove('hidden');
+            await loadProfiles(false);
+        } else {
+            status.className = 'text-sm px-4 py-3 rounded-lg bg-red-900 text-red-200';
+            status.textContent = '✗ ' + (data.detail || 'Connection failed');
+        }
+    } catch (e) {
+        showToast('Request failed: ' + e.message, 'error');
+    } finally {
+        document.getElementById('test-label').textContent = 'Test Connection';
+        document.getElementById('test-spinner').classList.add('hidden');
+    }
+}
 
-        if (!url || !apiKey) {
-            showToast('Please enter both URL and API key', 'warning');
+async function loadProfiles(forceRefresh) {
+    console.log('Loading quality profiles on setup page...');
+    try {
+        const url = forceRefresh ? '/api/quality-profiles?refresh=true' : '/api/quality-profiles';
+        const res = await fetch(url);
+        const data = await res.json();
+        console.log('Profiles received on setup page:', data.length);
+        
+        const select = document.getElementById('quality-profile');
+        if (!select) {
+            console.error('Quality profile dropdown not found');
             return;
         }
+        
+        // Clear existing options
+        select.innerHTML = '<option value="">Select a profile...</option>';
+        
+        // Add all profiles
+        data.forEach(profile => {
+            const opt = document.createElement('option');
+            opt.value = profile.id;
+            opt.textContent = profile.name;
+            select.appendChild(opt);
+        });
+        console.log(`Added ${data.length} profiles to setup dropdown`);
+    } catch (e) {
+        console.error('Failed to load quality profiles:', e);
+        showToast('Failed to load quality profiles', 'error');
+    }
+}
 
-        document.getElementById('test-label').textContent = 'Testing...';
-        document.getElementById('test-spinner').classList.remove('hidden');
-
-        try {
-            const res = await fetch('/api/config/test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ radarr_url: url, radarr_api_key: apiKey })
-            });
-
+async function saveConfig() {
+    const url = document.getElementById('radarr-url').value.trim();
+    const apiKey = document.getElementById('radarr-api-key').value.trim();
+    const profileSelect = document.getElementById('quality-profile');
+    const profileId = profileSelect.value;
+    const profileName = profileSelect.options[profileSelect.selectedIndex]?.text;
+    
+    try {
+        const res = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                radarr_url: url,
+                radarr_api_key: apiKey,
+                quality_profile_id: profileId ? parseInt(profileId) : null,
+                quality_profile_name: profileName || null
+            })
+        });
+        
+        if (res.ok) {
+            showToast('Configuration saved!', 'success');
+            setTimeout(() => window.location.href = '/rules', 1000);
+        } else {
             const data = await res.json();
-            const status = document.getElementById('connection-status');
-            status.classList.remove('hidden');
-
-            if (res.ok) {
-                status.className = 'text-sm px-4 py-3 rounded-lg bg-green-900 text-green-200';
-                status.textContent = '✓ ' + data.message;
-                document.getElementById('quality-section').classList.remove('hidden');
-                document.getElementById('save-btn').classList.remove('hidden');
-                await loadProfiles(false);
-            } else {
-                status.className = 'text-sm px-4 py-3 rounded-lg bg-red-900 text-red-200';
-                status.textContent = '✗ ' + (data.detail || 'Connection failed');
-            }
-        } catch (e) {
-            showToast('Request failed: ' + e.message, 'error');
-        } finally {
-            document.getElementById('test-label').textContent = 'Test Connection';
-            document.getElementById('test-spinner').classList.add('hidden');
+            showToast(data.detail || 'Failed to save', 'error');
         }
+    } catch (e) {
+        showToast('Request failed: ' + e.message, 'error');
     }
+}
 
-    async function loadProfiles(forceRefresh) {
-        try {
-            const res = await fetch('/api/quality-profiles' + (forceRefresh ? '?refresh=true' : ''));
-            const data = await res.json();
-            const select = document.getElementById('quality-profile');
-            select.innerHTML = '<option value="">Select a profile...</option>';
-            (data.profiles || []).forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.name;
-                select.appendChild(opt);
-            });
-        } catch (e) {
-            showToast('Failed to load quality profiles', 'error');
-        }
-    }
-
-    async function saveConfig() {
-        const url = document.getElementById('radarr-url').value.trim();
-        const apiKey = document.getElementById('radarr-api-key').value.trim();
-        const profileSelect = document.getElementById('quality-profile');
-        const profileId = profileSelect.value;
-        const profileName = profileSelect.options[profileSelect.selectedIndex]?.text;
-
-        try {
-            const res = await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    radarr_url: url,
-                    radarr_api_key: apiKey,
-                    quality_profile_id: profileId ? parseInt(profileId) : null,
-                    quality_profile_name: profileName || null
-                })
-            });
-
-            if (res.ok) {
-                showToast('Configuration saved!', 'success');
-                setTimeout(() => window.location.href = '/rules', 1000);
-            } else {
-                const data = await res.json();
-                showToast(data.detail || 'Failed to save', 'error');
-            }
-        } catch (e) {
-            showToast('Request failed: ' + e.message, 'error');
-        }
-    }
+// Make functions available globally
+window.testConnection = testConnection;
+window.loadProfiles = loadProfiles;
+window.saveConfig = saveConfig;
 </script>
 {% endblock %}
