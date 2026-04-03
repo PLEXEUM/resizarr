@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resizarr</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <style>
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --accent: #6366f1;
+        }
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #6366f1;
+        }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+        .nav-link {
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-primary);
+        }
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .spinner {
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 1rem;
+            height: 1rem;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="card border-b border-t-0 border-x-0 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-8">
+                <span class="text-xl font-bold text-indigo-400">⚙ Resizarr</span>
+                <div class="flex gap-6">
+                    <a href="/" class="nav-link text-sm font-medium">Dashboard</a>
+                    <a href="/rules" class="nav-link text-sm font-medium">Rules</a>
+                    <a href="/settings" class="nav-link text-sm font-medium">Settings</a>
+                    <a href="/pending" class="nav-link text-sm font-medium">Pending</a>
+                    <a href="/logs" class="nav-link text-sm font-medium">Logs</a>
+                </div>
+            </div>
+            <button onclick="toggleTheme()" class="text-sm nav-link px-3 py-1 rounded border border-current">
+                🌙 Theme
+            </button>
+        </div>
+    </nav>
+
+    <!-- Critical Error Banner -->
+    <div id="error-banner" class="hidden bg-red-900 border-b border-red-700 px-6 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <span id="error-banner-text" class="text-red-200 text-sm"></span>
+            <button onclick="document.getElementById('error-banner').classList.add('hidden')"
+                    class="text-red-400 hover:text-red-200">✕</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Toast notifications
+        function showToast(message, type = 'success', duration = 5000) {
+            const colors = {
+                success: 'bg-green-800 border-green-600 text-green-100',
+                error: 'bg-red-800 border-red-600 text-red-100',
+                warning: 'bg-yellow-800 border-yellow-600 text-yellow-100',
+                info: 'bg-blue-800 border-blue-600 text-blue-100'
+            };
+            const toast = document.createElement('div');
+            toast.className = `toast card border rounded-lg px-4 py-3 text-sm ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => toast.remove(), duration);
+        }
+
+        // Show critical error banner
+        function showErrorBanner(message) {
+            document.getElementById('error-banner-text').textContent = message;
+            document.getElementById('error-banner').classList.remove('hidden');
+        }
+
+        // Browser notifications
+        function requestNotifications() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function sendNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body, icon: '/static/icon.png' });
+            }
+        }
+
+        // Request notification permission on first visit
+        if (localStorage.getItem('notif_asked') !== 'true') {
+            requestNotifications();
+            localStorage.setItem('notif_asked', 'true');
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

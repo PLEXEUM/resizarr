@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="card rounded-xl p-8">
+        <h1 class="text-2xl font-bold mb-2">Settings</h1>
+        <p class="text-sm mb-8" style="color: var(--text-secondary)">
+            Configure scheduling, polling, and logging.
+        </p>
+
+        <div class="space-y-8">
+
+            <!-- Schedule -->
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
+                    style="color: var(--text-secondary)">Schedule</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Batch Size</label>
+                        <select id="batch-size"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="0">0 — No limit (process all)</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                        </select>
+                        <p id="batch-warning" class="hidden text-xs mt-1 text-yellow-400">
+                            ⚠ Processing all movies may take a long time.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Cron Schedule</label>
+                        <input id="cron-schedule" type="text" value="0 2 * * *"
+                            oninput="updateCronPreview()"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                        <p id="cron-preview" class="text-xs mt-1"
+                            style="color: var(--text-secondary)">Runs at 2:00 AM every day</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">
+                            Poller Interval (minutes)
+                        </label>
+                        <input id="poller-interval" type="number" min="1" max="60" value="5"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
+                            How often to check if pending replacements have completed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logging -->
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
+                    style="color: var(--text-secondary)">Logging</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Log Level</label>
+                        <select id="log-level"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="INFO" selected>Info</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">
+                            Max Log File Size (MB)
+                        </label>
+                        <input id="log-max-size" type="number" min="1" max="100" value="10"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">
+                            Max Log Files to Keep
+                        </label>
+                        <input id="log-max-files" type="number" min="1" max="20" value="5"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <button onclick="saveSettings()"
+                class="w-full py-2 rounded-lg text-sm font-medium text-white"
+                style="background: var(--accent);">
+                <span id="save-label">Save Settings</span>
+                <span id="save-spinner" class="spinner hidden ml-2"></span>
+            </button>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.addEventListener('DOMContentLoaded', loadSettings);
+
+    document.getElementById('batch-size').addEventListener('change', function() {
+        const warning = document.getElementById('batch-warning');
+        warning.classList.toggle('hidden', this.value !== '0');
+    });
+
+    async function loadSettings() {
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+
+            document.getElementById('batch-size').value = data.batch_size;
+            document.getElementById('cron-schedule').value = data.cron_schedule;
+            document.getElementById('poller-interval').value = data.poller_interval;
+            document.getElementById('log-level').value = data.log_level;
+            document.getElementById('log-max-size').value = data.log_max_size_mb;
+            document.getElementById('log-max-files').value = data.log_max_files;
+            updateCronPreview();
+        } catch (e) {
+            showToast('Failed to load settings', 'error');
+        }
+    }
+
+    function updateCronPreview() {
+        const cron = document.getElementById('cron-schedule').value.trim();
+        const parts = cron.split(' ');
+        const preview = document.getElementById('cron-preview');
+
+        if (parts.length !== 5) {
+            preview.textContent = 'Invalid cron expression (needs 5 fields)';
+            preview.style.color = '#f87171';
+            return;
+        }
+
+        preview.style.color = 'var(--text-secondary)';
+
+        const [min, hour, dom, month, dow] = parts;
+
+        if (min === '0' && dom === '*' && month === '*' && dow === '*') {
+            preview.textContent = `Runs at ${hour}:00 every day`;
+        } else if (dow !== '*') {
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            preview.textContent = `Runs at ${hour}:${min.padStart(2,'0')} on ${days[dow] || 'day ' + dow}`;
+        } else {
+            preview.textContent = `Custom schedule: ${cron}`;
+        }
+    }
+
+    async function saveSettings() {
+        document.getElementById('save-label').textContent = 'Saving...';
+        document.getElementById('save-spinner').classList.remove('hidden');
+
+        const payload = {
+            batch_size: parseInt(document.getElementById('batch-size').value),
+            cron_schedule: document.getElementById('cron-schedule').value.trim(),
+            poller_interval: parseInt(document.getElementById('poller-interval').value),
+            log_level: document.getElementById('log-level').value,
+            log_max_size_mb: parseInt(document.getElementById('log-max-size').value),
+            log_max_files: parseInt(document.getElementById('log-max-files').value)
+        };
+
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast('Settings saved!', 'success');
+            } else {
+                const data = await res.json();
+                showToast(data.detail || 'Failed to save', 'error');
+            }
+        } catch (e) {
+            showToast('Request failed: ' + e.message, 'error');
+        } finally {
+            document.getElementById('save-label').textContent = 'Save Settings';
+            document.getElementById('save-spinner').classList.add('hidden');
+        }
+    }
+</script>
+{% endblock %}

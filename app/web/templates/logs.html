@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">Logs</h1>
+            <p class="text-sm mt-1" style="color: var(--text-secondary)">
+                View and manage application logs.
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/api/logs/download"
+                class="px-4 py-2 rounded-lg text-sm border"
+                style="border-color: var(--border-color); color: var(--text-secondary);">
+                ⬇ Download
+            </a>
+            <button onclick="confirmClearLogs()"
+                class="px-4 py-2 rounded-lg text-sm border"
+                style="border-color: #ef4444; color: #ef4444;">
+                🗑 Clear Logs
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="card rounded-xl p-4 flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2">
+            <label class="text-sm">Filter:</label>
+            <select id="log-filter" onchange="filterLogs()"
+                class="px-3 py-1 rounded-lg text-sm border"
+                style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                <option value="ALL">All</option>
+                <option value="INFO">Info</option>
+                <option value="WARNING">Warning</option>
+                <option value="ERROR">Error</option>
+                <option value="DEBUG">Debug</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm">Lines:</label>
+            <select id="log-lines" onchange="loadLogs()"
+                class="px-3 py-1 rounded-lg text-sm border"
+                style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                <option value="100">100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer ml-auto">
+            <input type="checkbox" id="auto-scroll" checked class="accent-indigo-500" />
+            <span class="text-sm">Auto-scroll</span>
+        </label>
+        <button onclick="loadLogs()"
+            class="px-3 py-1 rounded-lg text-sm border"
+            style="border-color: var(--border-color); color: var(--text-secondary);">
+            ↻ Refresh
+        </button>
+    </div>
+
+    <!-- Log Viewer -->
+    <div class="card rounded-xl overflow-hidden">
+        <div id="log-viewer"
+            class="p-4 font-mono text-xs overflow-y-auto"
+            style="height: 600px; background: var(--bg-primary);">
+            <div id="log-content">Loading...</div>
+        </div>
+    </div>
+
+    <p id="log-meta" class="text-xs" style="color: var(--text-secondary)"></p>
+
+</div>
+
+<!-- Clear Logs Dialog -->
+<div id="clear-dialog" class="hidden fixed inset-0 flex items-center justify-center z-50"
+    style="background: rgba(0,0,0,0.6)">
+    <div class="card rounded-xl p-6 max-w-sm w-full mx-4">
+        <h3 class="font-semibold mb-2">Clear Logs</h3>
+        <p class="text-sm mb-6" style="color: var(--text-secondary)">
+            This will permanently delete all log entries. Are you sure?
+        </p>
+        <div class="flex gap-3">
+            <button onclick="clearLogs()"
+                class="flex-1 py-2 rounded-lg text-sm font-medium"
+                style="background: #ef4444; color: white;">Clear</button>
+            <button onclick="document.getElementById('clear-dialog').classList.add('hidden')"
+                class="flex-1 py-2 rounded-lg text-sm border"
+                style="border-color: var(--border-color);">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allLines = [];
+
+    window.addEventListener('DOMContentLoaded', loadLogs);
+
+    async function loadLogs() {
+        const lines = document.getElementById('log-lines').value;
+        try {
+            const res = await fetch(`/api/logs?lines=${lines}`);
+            const data = await res.json();
+            allLines = data.lines || [];
+
+            document.getElementById('log-meta').textContent =
+                `Showing ${data.showing} of ${data.total_lines} total lines`;
+
+            filterLogs();
+        } catch (e) {
+            document.getElementById('log-content').textContent = 'Failed to load logs.';
+        }
+    }
+
+    function filterLogs() {
+        const filter = document.getElementById('log-filter').value;
+        const filtered = filter === 'ALL'
+            ? allLines
+            : allLines.filter(line => line.includes(`[${filter}]`));
+
+        const content = document.getElementById('log-content');
+        if (filtered.length === 0) {
+            content.innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
+            return;
+        }
+
+        content.innerHTML = filtered.map(line => {
+            let color = 'var(--text-primary)';
+            if (line.includes('[ERROR]')) color = '#f87171';
+            else if (line.includes('[WARNING]')) color = '#fbbf24';
+            else if (line.includes('[DEBUG]')) color = '#94a3b8';
+            else if (line.includes('[INFO]')) color = '#86efac';
+
+            return `<div style="color: ${color}; padding: 1px 0;">${escapeHtml(line)}</div>`;
+        }).join('');
+
+        if (document.getElementById('auto-scroll').checked) {
+            const viewer = document.getElementById('log-viewer');
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function confirmClearLogs() {
+        document.getElementById('clear-dialog').classList.remove('hidden');
+    }
+
+    async function clearLogs() {
+        document.getElementById('clear-dialog').classList.add('hidden');
+        try {
+            const res = await fetch('/api/logs', { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Logs cleared', 'success');
+                allLines = [];
+                document.getElementById('log-content').innerHTML =
+                    '<span style="color: var(--text-secondary)">Log file cleared.</span>';
+            } else {
+                showToast('Failed to clear logs', 'error');
+            }
+        } catch (e) {
+            showToast('Request failed: ' + e.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

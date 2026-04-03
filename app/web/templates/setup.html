@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="card rounded-xl p-8">
+        <h1 class="text-2xl font-bold mb-2">Welcome to Resizarr</h1>
+        <p class="text-sm mb-8" style="color: var(--text-secondary)">
+            Connect your Radarr instance to get started.
+        </p>
+
+        <!-- Connection Form -->
+        <div class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium mb-2">Radarr URL</label>
+                <input
+                    id="radarr-url"
+                    type="url"
+                    placeholder="http://localhost:7878"
+                    class="w-full px-4 py-2 rounded-lg text-sm border"
+                    style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);"
+                />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-2">Radarr API Key</label>
+                <input
+                    id="radarr-api-key"
+                    type="password"
+                    placeholder="Your Radarr API key"
+                    class="w-full px-4 py-2 rounded-lg text-sm border"
+                    style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);"
+                />
+            </div>
+
+            <!-- Test Connection -->
+            <button
+                onclick="testConnection()"
+                class="w-full py-2 rounded-lg text-sm font-medium border"
+                style="border-color: var(--accent); color: var(--accent);"
+            >
+                <span id="test-label">Test Connection</span>
+                <span id="test-spinner" class="spinner hidden ml-2"></span>
+            </button>
+
+            <!-- Connection Status -->
+            <div id="connection-status" class="hidden text-sm px-4 py-3 rounded-lg"></div>
+
+            <!-- Quality Profile (shown after successful test) -->
+            <div id="quality-section" class="hidden space-y-3">
+                <label class="block text-sm font-medium">Default Quality Profile</label>
+                <div class="flex gap-2">
+                    <select
+                        id="quality-profile"
+                        class="flex-1 px-4 py-2 rounded-lg text-sm border"
+                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);"
+                    >
+                        <option value="">Select a profile...</option>
+                    </select>
+                    <button
+                        onclick="loadProfiles(true)"
+                        class="px-4 py-2 rounded-lg text-sm border"
+                        style="border-color: var(--border-color); color: var(--text-secondary);"
+                    >↻</button>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <button
+                id="save-btn"
+                onclick="saveConfig()"
+                class="hidden w-full py-2 rounded-lg text-sm font-medium text-white"
+                style="background: var(--accent);"
+            >
+                Save & Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function testConnection() {
+        const url = document.getElementById('radarr-url').value.trim();
+        const apiKey = document.getElementById('radarr-api-key').value.trim();
+
+        if (!url || !apiKey) {
+            showToast('Please enter both URL and API key', 'warning');
+            return;
+        }
+
+        document.getElementById('test-label').textContent = 'Testing...';
+        document.getElementById('test-spinner').classList.remove('hidden');
+
+        try {
+            const res = await fetch('/api/config/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ radarr_url: url, radarr_api_key: apiKey })
+            });
+
+            const data = await res.json();
+            const status = document.getElementById('connection-status');
+            status.classList.remove('hidden');
+
+            if (res.ok) {
+                status.className = 'text-sm px-4 py-3 rounded-lg bg-green-900 text-green-200';
+                status.textContent = '✓ ' + data.message;
+                document.getElementById('quality-section').classList.remove('hidden');
+                document.getElementById('save-btn').classList.remove('hidden');
+                await loadProfiles(false);
+            } else {
+                status.className = 'text-sm px-4 py-3 rounded-lg bg-red-900 text-red-200';
+                status.textContent = '✗ ' + (data.detail || 'Connection failed');
+            }
+        } catch (e) {
+            showToast('Request failed: ' + e.message, 'error');
+        } finally {
+            document.getElementById('test-label').textContent = 'Test Connection';
+            document.getElementById('test-spinner').classList.add('hidden');
+        }
+    }
+
+    async function loadProfiles(forceRefresh) {
+        try {
+            const res = await fetch('/api/quality-profiles' + (forceRefresh ? '?refresh=true' : ''));
+            const data = await res.json();
+            const select = document.getElementById('quality-profile');
+            select.innerHTML = '<option value="">Select a profile...</option>';
+            (data.profiles || []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            showToast('Failed to load quality profiles', 'error');
+        }
+    }
+
+    async function saveConfig() {
+        const url = document.getElementById('radarr-url').value.trim();
+        const apiKey = document.getElementById('radarr-api-key').value.trim();
+        const profileSelect = document.getElementById('quality-profile');
+        const profileId = profileSelect.value;
+        const profileName = profileSelect.options[profileSelect.selectedIndex]?.text;
+
+        try {
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    radarr_url: url,
+                    radarr_api_key: apiKey,
+                    quality_profile_id: profileId ? parseInt(profileId) : null,
+                    quality_profile_name: profileName || null
+                })
+            });
+
+            if (res.ok) {
+                showToast('Configuration saved!', 'success');
+                setTimeout(() => window.location.href = '/rules', 1000);
+            } else {
+                const data = await res.json();
+                showToast(data.detail || 'Failed to save', 'error');
+            }
+        } catch (e) {
+            showToast('Request failed: ' + e.message, 'error');
+        }
+    }
+</script>
+{% endblock %}
