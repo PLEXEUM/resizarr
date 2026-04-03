@@ -66,31 +66,45 @@ async def download_csv():
     from app.db.database import get_connection
     import io
     from datetime import datetime
+    import logging
+    
+    logger = logging.getLogger("resizarr")
     
     conn = get_connection()
     
-    # Get the most recent dry run
+    # First, let's see what's in the run_history table
+    count_cursor = conn.execute("SELECT COUNT(*) FROM run_history WHERE dry_run = 1")
+    count = count_cursor.fetchone()[0]
+    logger.info(f"Found {count} dry run entries in run_history")
+    
+    # Get the most recent dry run with CSV data
     cursor = conn.execute("""
         SELECT csv_data, started_at FROM run_history 
-        WHERE dry_run = 1 AND csv_data IS NOT NULL
+        WHERE dry_run = 1 
         ORDER BY started_at DESC 
         LIMIT 1
     """)
     
     row = cursor.fetchone()
+    
+    if row:
+        logger.info(f"Row found! CSV data length: {len(row[0]) if row[0] else 0}")
+    else:
+        logger.info("No row found")
+    
     conn.close()
     
-    if not row:
+    if not row or not row[0]:
         raise HTTPException(
             status_code=404,
             detail="No dry run CSV available. Please run a dry scan first."
         )
     
-    csv_data = row[0]  # csv_data is the first column
+    csv_data = row[0]
     started_at = row[1]
     
     # Create filename with timestamp from the run
-    timestamp = started_at.replace(":", "-").replace(".", "-") if started_at else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = started_at.replace(":", "-").replace(".", "-")[:19] if started_at else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"resizarr_dryrun_{timestamp}.csv"
     
     return StreamingResponse(
