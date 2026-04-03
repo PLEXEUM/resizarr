@@ -64,32 +64,35 @@ async def get_status():
 async def download_csv():
     """Download the most recent dry run CSV (creates file on demand)."""
     from app.db.database import get_connection
-    import os
+    import io
     from datetime import datetime
     
     # Get the most recent dry run from the database
     conn = get_connection()
-    last_dry_run = conn.execute("""
-        SELECT * FROM run_history 
+    cursor = conn.execute("""
+        SELECT csv_data FROM run_history 
         WHERE dry_run = 1 
         ORDER BY started_at DESC 
         LIMIT 1
-    """).fetchone()
+    """)
+    row = cursor.fetchone()
     conn.close()
     
-    if not last_dry_run or not last_dry_run["csv_data"]:
+    if not row or not row[0]:  # row[0] is the csv_data column
         raise HTTPException(
             status_code=404,
             detail="No dry run CSV available. Run a dry scan first."
         )
     
-    # Create CSV file on demand
+    csv_data = row[0]
+    
+    # Create filename with timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"resizarr_dryrun_{timestamp}.csv"
     
     # Return the CSV directly without saving to disk
     return StreamingResponse(
-        io.StringIO(last_dry_run["csv_data"]),
+        io.StringIO(csv_data),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )

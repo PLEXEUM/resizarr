@@ -82,7 +82,8 @@ def init_db():
             replacements_failed INTEGER,
             quality_skipped INTEGER,
             dry_run BOOLEAN,
-            mode TEXT
+            mode TEXT,
+            csv_data TEXT
         );
 
         CREATE TABLE IF NOT EXISTS run_state (
