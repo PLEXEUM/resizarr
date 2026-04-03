@@ -205,6 +205,17 @@ async def run_resizarr(
                 logger.info(f"Skipping {movie_title} - replacement already queued")
                 continue
 
+            # Parse target size in GB
+            target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
+            
+            # Get peer and language filters from rules
+            min_peers = rules.get("min_peers", 2)
+            preferred_language = rules.get("language", "English")
+            
+            logger.info(f"Target size threshold: {rules['target_operator']} {target_threshold_gb} GB")
+            logger.info(f"Peer requirement: >= {min_peers} peers")
+            logger.info(f"Language requirement: {preferred_language}")
+            
             # Search for available releases
             logger.info(f"Searching for alternatives for: {movie_title}")
             releases = await client.search_for_releases(movie_id)
@@ -224,16 +235,6 @@ async def run_resizarr(
                 if isinstance(release_lang, dict):
                     release_lang = release_lang.get("name", "Unknown")
                 logger.debug(f"Release {idx+1}: {release.get('title', 'Unknown')[:50]} - Size: {release_size_gb_debug:.2f}GB - Peers: {peers_debug} - Language: {release_lang}")
-
-            # Parse target size in GB
-            target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
-            logger.info(f"Target size threshold: {rules['target_operator']} {target_threshold_gb} GB")
-            logger.info(f"Peer requirement: >= {min_peers} peers")
-            logger.info(f"Language requirement: {preferred_language}")
-
-            # Get peer and language filters from rules
-            min_peers = rules.get("min_peers", 2)
-            preferred_language = rules.get("language", "English")
             
             # Filter releases by target size rule, peers, and language
             candidate_releases = []
@@ -276,10 +277,6 @@ async def run_resizarr(
             
             if not candidate_releases:
                 logger.info(f"No releases matching size/peers/language criteria for: {movie_title}")
-                continue
-
-            if not candidate_releases:
-                logger.info(f"No releases matching size criteria for: {movie_title}")
                 continue
 
             # Sort candidates: prefer smaller size
