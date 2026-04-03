@@ -13,28 +13,25 @@ logger = get_logger()
 # Extensions to ignore when checking file sizes
 IGNORED_EXTENSIONS = {'.nfo', '.jpg', '.png', '.srt', '.idx', '.sub', '.iso', '.exe'}
 
-
 def get_largest_file(movie: dict) -> Optional[dict]:
     """Get the largest movie file, ignoring excluded extensions."""
     movie_file = movie.get("movieFile")
     if not movie_file:
         return None
-
+    
     # Check extension
     path = movie_file.get("relativePath", "")
     ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
     if ext in IGNORED_EXTENSIONS:
         return None
-
+    
     return movie_file
-
 
 def size_to_gb(size: float, unit: str) -> float:
     """Convert size to GB."""
     if unit == "MB":
         return size / 1024
     return size
-
 
 def matches_condition(file_size_gb: float, operator: str, threshold_gb: float) -> bool:
     """Check if a file size matches the condition."""
@@ -43,7 +40,6 @@ def matches_condition(file_size_gb: float, operator: str, threshold_gb: float) -
     elif operator == "<":
         return file_size_gb < threshold_gb
     return False
-
 
 async def run_resizarr(
     dry_run: bool = False,
@@ -66,9 +62,9 @@ async def run_resizarr(
         "pending_approval": 0,
         "csv_data": None
     }
-
+    
     conn = get_connection()
-
+    
     try:
         # Load config
         config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
@@ -76,34 +72,37 @@ async def run_resizarr(
             logger.error("Radarr not configured. Aborting run.")
             summary["error"] = "Radarr not configured"
             return summary
-
-        # Load rules
-        rules = conn.execute("SELECT * FROM rules WHERE id = 1").fetchone()
-        if not rules:
+        
+        # Load rules and convert to dict
+        rules_row = conn.execute("SELECT * FROM rules WHERE id = 1").fetchone()
+        if not rules_row:
             logger.error("No rules configured. Aborting run.")
             summary["error"] = "No rules configured"
             return summary
-
+        
+        # Convert rules to dict for easy access
+        rules = dict(rules_row)
+        
         # Load quality profiles cache
         profiles_cache = conn.execute(
             "SELECT * FROM quality_profiles_cache"
         ).fetchall()
         profiles_cache = [dict(p) for p in profiles_cache]
-
+        
         # Load run state for batch resume
         run_state = conn.execute(
             "SELECT * FROM run_state WHERE id = 1"
         ).fetchone()
         last_processed_id = run_state["last_processed_movie_id"] if run_state else None
-
+        
         # Initialize Radarr client
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
-
+        
         # Fetch all movies
         logger.info("Fetching movies from Radarr...")
         movies = await client.get_movies()
         logger.info(f"Found {len(movies)} movies")
-
+        
         # Parse rules
         current_threshold_gb = size_to_gb(rules["current_size"], rules["current_unit"])
         excluded_extensions = json.loads(rules["excluded_extensions"] or "[]")
@@ -111,50 +110,50 @@ async def run_resizarr(
             rules["min_size"] or 0,
             rules["min_size_unit"] or "GB"
         )
-
+        
         # Filter candidates
         candidates = []
         resume_processing = last_processed_id is None
-
+        
         # Get the selected quality profile from rules
         selected_quality_profile_id = rules.get("min_quality_profile_id")
         if selected_quality_profile_id:
             logger.info(f"Filtering movies by quality profile ID: {selected_quality_profile_id}")
-
+        
         for movie in movies:
             movie_id = movie.get("id")
-    
+            
             # Handle batch resume
             if not resume_processing:
                 if movie_id == last_processed_id:
                     resume_processing = True
                 continue
-    
+            
             # Filter by quality profile if specified in rules
             if selected_quality_profile_id:
                 movie_quality_id = movie.get("qualityProfileId")
                 if movie_quality_id != selected_quality_profile_id:
                     logger.debug(f"Skipping movie '{movie.get('title')}' - quality profile ID {movie_quality_id} does not match selected {selected_quality_profile_id}")
                     continue
-    
+            
             movie_file = get_largest_file(movie)
             if not movie_file:
                 continue
-
+            
             # Get file size in GB
             size_bytes = movie_file.get("size", 0)
             size_gb = size_bytes / (1024 ** 3)
-
+            
             # Apply minimum size filter
             if size_gb < min_size_gb:
                 continue
-
+            
             # Check extension
             path = movie_file.get("relativePath", "")
             ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
             if ext in excluded_extensions:
                 continue
-
+            
             # Check if matches condition
             if matches_condition(size_gb, rules["current_operator"], current_threshold_gb):
                 candidates.append({
@@ -162,36 +161,35 @@ async def run_resizarr(
                     "movie_file": movie_file,
                     "size_gb": size_gb
                 })
-
+        
         logger.info(f"Found {len(candidates)} candidates matching condition")
         summary["candidates_found"] = len(candidates)
-
+        
         # Apply batch limit
         if batch_limit > 0:
             candidates = candidates[:batch_limit]
             logger.info(f"Batch limit applied: processing {len(candidates)} candidates")
-
+        
         # CSV rows for dry run
         csv_rows = []
-
+        
         # Process each candidate
         for i, candidate in enumerate(candidates):
             movie = candidate["movie"]
             movie_id = movie.get("id")
             movie_title = movie.get("title", "Unknown")
             size_gb = candidate["size_gb"]
-
             summary["total_movies_processed"] += 1
-
+            
             # Emit progress
             if progress_callback:
                 await progress_callback(i + 1, len(candidates), movie_title)
-
+            
             logger.info(
                 f"Processing ({i+1}/{len(candidates)}): "
                 f"{movie_title} ({size_gb:.2f} GB)"
             )
-
+            
             # Get current quality - fetch the actual profile name
             current_profile_id = movie.get("qualityProfileId")
             current_quality = "Unknown"
@@ -200,33 +198,33 @@ async def run_resizarr(
                     if profile.get("profile_id") == current_profile_id:
                         current_quality = profile.get("profile_name", "Unknown")
                         break
-
+            
             # Check for existing replacement
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
                 logger.info(f"Skipping {movie_title} - replacement already queued")
                 continue
-
+            
             # Quality check
             # For now, we're using the same quality since we don't have a replacement file yet
             found_quality = current_quality  # placeholder until Radarr returns found file
             
             # Get the minimum quality profile name if set
             min_profile_name = None
-            if rules["min_quality_profile_id"]:
+            if rules.get("min_quality_profile_id"):
                 for profile in profiles_cache:
                     if profile.get("profile_id") == rules["min_quality_profile_id"]:
                         min_profile_name = profile.get("profile_name")
                         break
-
+            
             is_allowed, is_downgrade, reason = check_quality(
                 current_quality,
                 found_quality,
                 rules["quality_rule"],
                 min_profile_name,
-                profiles_cache     
+                profiles_cache    
             )
-
+            
             # Dry run - just log and collect CSV data
             if dry_run:
                 csv_rows.append({
@@ -239,13 +237,13 @@ async def run_resizarr(
                 })
                 logger.info(f"[DRY RUN] {movie_title}: {reason}")
                 continue
-
+            
             # Quality blocked in auto mode
             if not is_allowed and rules["trigger_logic"] == "auto":
                 logger.info(f"Quality skipped: {movie_title} - {reason}")
                 summary["quality_skipped"] += 1
                 continue
-
+            
             # Manual approval mode
             if rules["trigger_logic"] == "manual" or (is_downgrade and not is_allowed):
                 try:
@@ -266,7 +264,7 @@ async def run_resizarr(
                     logger.error(f"Failed to add pending approval for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
                 continue
-
+            
             # Auto queue mode - trigger search
             try:
                 await client.trigger_movie_search([movie_id])
@@ -275,14 +273,14 @@ async def run_resizarr(
             except Exception as e:
                 logger.error(f"Failed to trigger search for {movie_title}: {e}")
                 summary["replacements_failed"] += 1
-
+            
             # Save last processed ID for resume
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_movie_id, last_run_date)
                 VALUES (1, ?, ?)
             """, (movie_id, datetime.utcnow()))
             conn.commit()
-
+        
         # Generate CSV for dry run
         if dry_run and csv_rows:
             output = io.StringIO()
@@ -290,11 +288,10 @@ async def run_resizarr(
             writer.writeheader()
             writer.writerows(csv_rows)
             summary["csv_data"] = output.getvalue()
-
+        
         # Save run to history
         completed_at = datetime.utcnow()
         summary["completed_at"] = completed_at.isoformat()
-
         conn.execute("""
             INSERT INTO run_history
             (started_at, completed_at, total_movies_processed, candidates_found,
@@ -311,19 +308,19 @@ async def run_resizarr(
             "shrink" if rules["current_operator"] == ">" else "upgrade"
         ))
         conn.commit()
-
+        
         # Clear run state if completed fully
         if batch_limit == 0 or len(candidates) < batch_limit:
             conn.execute("DELETE FROM run_state WHERE id = 1")
             conn.commit()
-
+        
         logger.info(
             f"Run complete: {summary['total_movies_processed']} processed, "
             f"{summary['replacements_queued']} queued, "
             f"{summary['quality_skipped']} quality skipped, "
             f"{summary['replacements_failed']} failed"
         )
-
+        
     except ConnectionError as e:
         logger.error(f"Radarr connection lost during run: {e}")
         summary["error"] = str(e)
@@ -332,5 +329,5 @@ async def run_resizarr(
         summary["error"] = str(e)
     finally:
         conn.close()
-
+    
     return summary
