@@ -1,6 +1,6 @@
 services:
   resizarr:
-    build: .
+    image: plexeum/resizarr:latest
     container_name: resizarr
     ports:
       - "7227:7227"
@@ -8,9 +8,25 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
     environment:
-      - TZ=UTC
+      - TZ=America/New_York
       - LOG_LEVEL=INFO
       - MAX_LOG_FILES=5
     restart: unless-stopped
-    cpu_count: 1
     mem_limit: 512m
+```
+
+Save with **Ctrl+S**.
+
+---
+
+Now let's push everything to GitHub — this push will also trigger the GitHub Action to build and publish your Docker image for the first time!
+
+In CMD:
+```
+git add .
+```
+```
+git commit -m "Add GitHub Actions workflow and update docker-compose to use Docker Hub image"
+```
+```
+git push
