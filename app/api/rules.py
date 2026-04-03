@@ -50,7 +50,9 @@ async def get_rules():
         "excluded_extensions": json.loads(rules["excluded_extensions"] or "[]"),
         "quality_rule": rules["quality_rule"],
         "min_quality_profile_id": rules["min_quality_profile_id"],
-        "trigger_logic": rules["trigger_logic"]
+        "trigger_logic": rules["trigger_logic"],
+        "min_peers": rules["min_peers"] if rules["min_peers"] is not None else 0,
+        "language": rules["language"] if rules["language"] is not None else "Any"
     }
 
 
