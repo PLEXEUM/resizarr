@@ -271,8 +271,8 @@ async def run_resizarr(
                         logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers}) - {release.get('title')}")
                         continue
     
-                    # Check language requirement (case-insensitive)
-                    if preferred_language and preferred_language.lower() not in release_language.lower():
+                    # Check language requirement (case-insensitive) - skip if language is "Any"
+                    if preferred_language and preferred_language.lower() != "any" and preferred_language.lower() not in release_language.lower():
                         logger.debug(f"Skipping release - language mismatch ({release_language} != {preferred_language}) - {release.get('title')}") 
                         continue
     
