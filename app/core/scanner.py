@@ -348,7 +348,7 @@ async def run_resizarr(
             summary["replacements_failed"],
             summary["quality_skipped"],
             1 if dry_run else 0,
-            "shrink" if rules["current_operator"] == ">" else "upgrade"
+            "shrink" if rules["current_operator"] == ">" else "upgrade",
             summary.get("csv_data")  # Add this line
         ))
         conn.commit()
