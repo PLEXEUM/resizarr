@@ -256,8 +256,8 @@ async function loadRules() {
         document.getElementById('min-size-unit').value = data.min_size_unit;
         document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
         document.getElementById('min-quality-profile').value = data.min_quality_profile_id || '';
-        document.getElementById('min-peers').value = data.min_peers || 2;
-        document.getElementById('language').value = data.language || 'English';
+        document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
+        document.getElementById('language').value = data.language || 'Any';
         
         const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
         if (qualityRuleRadio) qualityRuleRadio.checked = true;
