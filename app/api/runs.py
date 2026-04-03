@@ -62,35 +62,37 @@ async def get_status():
 
 @router.get("/run/csv")
 async def download_csv():
-    """Download the most recent dry run CSV (creates file on demand)."""
+    """Download the most recent dry run CSV."""
     from app.db.database import get_connection
     import io
     from datetime import datetime
     
-    # Get the most recent dry run from the database
     conn = get_connection()
+    
+    # Get the most recent dry run
     cursor = conn.execute("""
-        SELECT csv_data FROM run_history 
-        WHERE dry_run = 1 
+        SELECT csv_data, started_at FROM run_history 
+        WHERE dry_run = 1 AND csv_data IS NOT NULL
         ORDER BY started_at DESC 
         LIMIT 1
     """)
+    
     row = cursor.fetchone()
     conn.close()
     
-    if not row or not row[0]:  # row[0] is the csv_data column
+    if not row:
         raise HTTPException(
             status_code=404,
-            detail="No dry run CSV available. Run a dry scan first."
+            detail="No dry run CSV available. Please run a dry scan first."
         )
     
-    csv_data = row[0]
+    csv_data = row[0]  # csv_data is the first column
+    started_at = row[1]
     
-    # Create filename with timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # Create filename with timestamp from the run
+    timestamp = started_at.replace(":", "-").replace(".", "-") if started_at else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"resizarr_dryrun_{timestamp}.csv"
     
-    # Return the CSV directly without saving to disk
     return StreamingResponse(
         io.StringIO(csv_data),
         media_type="text/csv",
