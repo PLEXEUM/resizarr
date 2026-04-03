@@ -68,7 +68,7 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             queued_at DATETIME,
             completed_at DATETIME,
-            fail_count INTEGER DEFAULT 0
+            fail_count INTEGER DEFAULT 0,
             release_guid TEXT,
         );
 
