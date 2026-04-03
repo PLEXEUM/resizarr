@@ -155,7 +155,7 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Minimum Peers (Seeders + Leechers)</label>
-                        <input id="min-peers" type="number" min="0" max="100" value="2"
+                        <input id="min-peers" type="number" min="0" max="100" value="0"
                             class="w-full px-3 py-2 rounded-lg text-sm border"
                             style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
                         <p class="text-xs mt-1" style="color: var(--text-secondary)">
@@ -168,8 +168,8 @@
                         <select id="language"
                             class="w-full px-3 py-2 rounded-lg text-sm border"
                             style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                            <option value="English">English</option>
                             <option value="Any">Any Language</option>
+                            <option value="English">English</option>
                             <option value="French">French</option>
                             <option value="German">German</option>
                             <option value="Spanish">Spanish</option>
@@ -291,7 +291,7 @@ async function saveRules() {
         quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
         min_quality_profile_id: minQuality ? parseInt(minQuality) : null,
         trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value,
-        min_peers: parseInt(document.getElementById('min-peers').value) || 2,
+        min_peers: parseInt(document.getElementById('min-peers').value) || 0,
         language: document.getElementById('language').value
     };
     
