@@ -90,7 +90,12 @@ async def get_progress():
     
     current = get_progress.progress_data.get("current", 0)
     total = get_progress.progress_data.get("total", 0)
-    percent = int((current / max(total, 1)) * 100)
+    
+    # Only calculate percent if total > 0 and run is running
+    if is_running() and total > 0:
+        percent = int((current / total) * 100)
+    else:
+        percent = 0
     
     return {
         "is_running": is_running(),
