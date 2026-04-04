@@ -126,6 +126,17 @@ class RadarrClient:
         try:
             logger.info(f"Searching for releases for movie ID: {movie_id}")
             result = await self._request("GET", "release", params={"movieId": movie_id})
+            
+            # TEMPORARY DEBUG - remove after testing
+            if result and len(result) > 0:
+                # Log the first release's structure to see available fields
+                first_release = result[0]
+                logger.info(f"DEBUG - Release keys: {list(first_release.keys())}")
+                logger.info(f"DEBUG - Language field value: {first_release.get('language')}")
+                logger.info(f"DEBUG - Language type: {type(first_release.get('language'))}")
+                if isinstance(first_release.get('language'), dict):
+                    logger.info(f"DEBUG - Language dict contents: {first_release.get('language')}")
+            
             return result if isinstance(result, list) else []
         except Exception as e:
             logger.error(f"Failed to search releases for movie {movie_id}: {e}")
