@@ -17,13 +17,32 @@ async def trigger_run(dry_run: bool = False):
             status_code=409,
             detail="A run is already in progress"
         )
-
+    
     logger.info(f"Manual run triggered (dry_run={dry_run})")
-
-    # Run in background
+    
+    # Create a background task with progress tracking
     import asyncio
-    asyncio.create_task(execute_run(dry_run=dry_run))
-
+    from app.core.scanner import run_resizarr
+    
+    # Set up progress tracking
+    progress = {"current": 0, "total": 0, "movie": ""}
+    
+    async def progress_callback(current, total, movie_title):
+        progress["current"] = current
+        progress["total"] = total
+        progress["movie"] = movie_title
+        # Also update the global progress data for the /progress endpoint
+        from app.api.runs import get_progress
+        if not hasattr(get_progress, "progress_data"):
+            get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
+        get_progress.progress_data["current"] = current
+        get_progress.progress_data["total"] = total
+        get_progress.progress_data["movie"] = movie_title
+        logger.debug(f"Progress: {current}/{total} - {movie_title}")
+    
+    # Run the scanner in background
+    asyncio.create_task(run_resizarr(dry_run=dry_run, progress_callback=progress_callback))
+    
     return {
         "success": True,
         "message": "Run started",
@@ -59,6 +78,28 @@ async def get_status():
         "history": [dict(r) for r in history]
     }
 
+# ========== ADD THIS NEW ENDPOINT HERE ==========
+@router.get("/run/progress")
+async def get_progress():
+    """Get current run progress."""
+    from app.core.scheduler import is_running
+    
+    # Store progress in a global variable (simple approach)
+    if not hasattr(get_progress, "progress_data"):
+        get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
+    
+    current = get_progress.progress_data.get("current", 0)
+    total = get_progress.progress_data.get("total", 0)
+    percent = int((current / max(total, 1)) * 100)
+    
+    return {
+        "is_running": is_running(),
+        "current": current,
+        "total": total,
+        "movie": get_progress.progress_data.get("movie", ""),
+        "percent": percent
+    }
+# ========== END OF NEW ENDPOINT ==========
 
 @router.get("/run/csv")
 async def download_csv():

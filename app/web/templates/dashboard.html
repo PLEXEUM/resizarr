@@ -169,8 +169,29 @@
                 document.getElementById('progress-section').classList.remove('hidden');
                 document.getElementById('run-btn').disabled = true;
                 document.getElementById('run-btn').textContent = '⏳ Running...';
+                
+                // Poll for progress updates every second
                 if (!pollInterval) {
-                    pollInterval = setInterval(loadStatus, 3000);
+                    pollInterval = setInterval(async () => {
+                        try {
+                            const progressRes = await fetch('/api/run/progress');
+                            const progressData = await progressRes.json();
+                            
+                            const percent = progressData.percent || 0;
+                            document.getElementById('progress-bar').style.width = `${percent}%`;
+                            document.getElementById('progress-pct').textContent = `${percent}%`;
+                            document.getElementById('progress-label').textContent = 
+                                `Processing ${progressData.current} of ${progressData.total}: ${progressData.movie || '...'}`;
+                            
+                            if (!progressData.is_running) {
+                                clearInterval(pollInterval);
+                                pollInterval = null;
+                                loadStatus(); // Refresh final status
+                            }
+                        } catch(e) {
+                            console.error('Progress poll error:', e);
+                        }
+                    }, 1000);
                 }
             } else {
                 document.getElementById('progress-section').classList.add('hidden');
@@ -250,19 +271,29 @@
     async function startRun() {
         closeDialog();
         const isDryRun = document.getElementById('dry-run-toggle').checked;
-
+        
+        // Show progress section immediately
+        document.getElementById('progress-section').classList.remove('hidden');
+        document.getElementById('progress-bar').style.width = '0%';
+        document.getElementById('progress-pct').textContent = '0%';
+        document.getElementById('progress-label').textContent = 'Starting scan...';
+        
         try {
             const res = await fetch(`/api/run?dry_run=${isDryRun}`, { method: 'POST' });
             if (res.ok) {
                 showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
                 sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
-                setTimeout(loadStatus, 1000);
+                // Start polling for status and progress
+                loadStatus();
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to start run', 'error');
+                // Hide progress section if failed
+                document.getElementById('progress-section').classList.add('hidden');
             }
         } catch (e) {
             showToast('Request failed: ' + e.message, 'error');
+            document.getElementById('progress-section').classList.add('hidden');
         }
     }
 </script>
