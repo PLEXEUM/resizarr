@@ -127,6 +127,20 @@ class RadarrClient:
             "downloadClientId": None,
             "downloadUrl": download_url
         })
+    
+    async def download_release(self, guid: str) -> dict:
+        """Download a specific release by GUID."""
+        logger.info(f"Downloading release with GUID: {guid}")
+        return await self._request("POST", "release", json={
+            "guid": guid
+        })
+
+    async def download_release_by_url(self, download_url: str) -> dict:
+        """Download a specific release by its download URL."""
+        logger.info(f"Downloading release from URL: {download_url}")
+        return await self._request("POST", "release", json={
+            "downloadUrl": download_url
+        })
 
     # ========== ADD THESE TWO NEW METHODS HERE ==========
     async def search_for_releases(self, movie_id: int) -> list:
