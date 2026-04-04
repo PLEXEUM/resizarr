@@ -132,8 +132,8 @@ class RadarrClient:
                 # Log the first release's structure to see available fields
                 first_release = result[0]
                 logger.info(f"DEBUG - Release keys: {list(first_release.keys())}")
-                logger.info(f"DEBUG - Language field value: {first_release.get('language')}")
-                logger.info(f"DEBUG - Language type: {type(first_release.get('language'))}")
+                logger.info(f"DEBUG - Languages field value: {first_release.get('languages')}")
+                logger.info(f"DEBUG - Languages type: {type(first_release.get('languages'))}")
                 if isinstance(first_release.get('language'), dict):
                     logger.info(f"DEBUG - Language dict contents: {first_release.get('language')}")
             

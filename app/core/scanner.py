@@ -260,10 +260,17 @@ async def run_resizarr(
                 if peers == 0:
                     peers = release.get("peerCount", 0)  # ADD THIS LINE
                 
-                # Get language
-                release_language = release.get("language", "Unknown")
-                if isinstance(release_language, dict):
-                    release_language = release_language.get("name", "Unknown")
+                # Get language - Radarr uses 'languages' array
+                languages = release.get("languages", [])
+                if languages and len(languages) > 0:
+                    # Get the first language's name
+                    first_lang = languages[0]
+                    if isinstance(first_lang, dict):
+                        release_language = first_lang.get("name", "Unknown")
+                    else:
+                        release_language = str(first_lang)
+                else:
+                    release_language = "Unknown"
                 
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
