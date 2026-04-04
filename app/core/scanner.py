@@ -257,6 +257,8 @@ async def run_resizarr(
                 peers = release.get("seeders", 0) + release.get("leechers", 0)
                 if peers == 0:
                     peers = release.get("peers", 0)
+                if peers == 0:
+                    peers = release.get("peerCount", 0)  # ADD THIS LINE
                 
                 # Get language
                 release_language = release.get("language", "Unknown")
@@ -266,6 +268,7 @@ async def run_resizarr(
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
+                    logger.info(f"Size passed: {release_size_gb:.2f}GB, peers={peers}, lang={release_language}")
                     # Check peer requirement
                     if peers < min_peers:
                         logger.debug(f"Skipping release - insufficient peers ({peers} < {min_peers}) - {release.get('title')}")
