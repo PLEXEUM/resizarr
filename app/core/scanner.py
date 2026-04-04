@@ -221,6 +221,19 @@ async def run_resizarr(
             # Search for available releases
             logger.info(f"Searching for alternatives for: {movie_title}")
             releases = await client.search_for_releases(movie_id)
+            
+            # ========== DEBUG: Log first release immediately ==========
+            if releases and not hasattr(run_resizarr, '_releases_checked'):
+                run_resizarr._releases_checked = True
+                first_rel = releases[0]
+                logger.info("=" * 80)
+                logger.info("DEBUG - Raw Release Object (first):")
+                logger.info(f"  All keys: {list(first_rel.keys())}")
+                logger.info(f"  GUID value: {first_rel.get('guid')}")
+                logger.info(f"  GUID exists: {'guid' in first_rel}")
+                logger.info("=" * 80)
+            # ========== END DEBUG ==========           
+            
             logger.info(f"Found {len(releases)} total releases for {movie_title}")
             if releases:
                 # Log ALL releases with their sizes
@@ -271,22 +284,24 @@ async def run_resizarr(
                         release_language = str(first_lang)
                 else:
                     release_language = "Unknown"
-    
-                    # ========== ADD DEBUG HERE ==========
-                    # Log the guid field for the first few releases
-                    if not hasattr(run_resizarr, '_guid_logged'):
-                        run_resizarr._guid_logged = True
-                        logger.info(f"DEBUG GUID: {release.get('guid')}")
-                        logger.info(f"DEBUG downloadUrl: {release.get('downloadUrl')}")
-                        logger.info(f"DEBUG infoUrl: {release.get('infoUrl')}")
-                    # ========== END DEBUG ==========
-  
-                    # Print GUID for first release only (generic debug)
-                    if not hasattr(run_resizarr, '_guid_printed'):
-                        run_resizarr._guid_printed = True
-                        logger.info(f"DEBUG - Release guid field: {release.get('guid')}")
-                        logger.info(f"DEBUG - Release downloadUrl field: {release.get('downloadUrl')}")
-                        logger.info(f"DEBUG - Release infoHash field: {release.get('infoHash')}")
+
+                # ========== DEBUG: Log GUID for first release ==========
+                if not hasattr(run_resizarr, '_guid_printed'):
+                    run_resizarr._guid_printed = True
+                    logger.info("=" * 80)
+                    logger.info("DEBUG - First Release Details:")
+                    logger.info(f"  GUID: {release.get('guid')}")
+                    logger.info(f"  GUID type: {type(release.get('guid'))}")
+                    logger.info(f"  downloadUrl: {release.get('downloadUrl')}")
+                    logger.info(f"  infoHash: {release.get('infoHash')}")
+                    logger.info(f"  magnetUrl: {release.get('magnetUrl')}")
+                    logger.info(f"  indexerId: {release.get('indexerId')}")
+                    logger.info(f"  indexer: {release.get('indexer')}")
+                    logger.info("=" * 80)
+                # ========== END DEBUG ==========
+
+                # Check if release matches target size condition
+                logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
 
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
