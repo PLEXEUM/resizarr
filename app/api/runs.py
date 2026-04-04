@@ -4,6 +4,7 @@ from app.db.database import get_connection
 from app.core.scheduler import execute_run, is_running, get_next_run_time
 from app.utils.logger import get_logger
 import io
+from datetime import datetime  # ADD THIS LINE
 
 router = APIRouter()
 logger = get_logger()
@@ -12,7 +13,11 @@ logger = get_logger()
 @router.post("/run")
 async def trigger_run(dry_run: bool = False):
     """Manually trigger a scanner run."""
-    if is_running():
+    from app.core.scheduler import _run_in_progress, _run_started_at
+    import asyncio
+    from app.core.scanner import run_resizarr
+    
+    if _run_in_progress:
         raise HTTPException(
             status_code=409,
             detail="A run is already in progress"
@@ -20,9 +25,9 @@ async def trigger_run(dry_run: bool = False):
     
     logger.info(f"Manual run triggered (dry_run={dry_run})")
     
-    # Create a background task with progress tracking
-    import asyncio
-    from app.core.scanner import run_resizarr
+    # Set running state
+    _run_in_progress = True
+    _run_started_at = datetime.utcnow()
     
     # Set up progress tracking
     progress = {"current": 0, "total": 0, "movie": ""}
@@ -31,7 +36,6 @@ async def trigger_run(dry_run: bool = False):
         progress["current"] = current
         progress["total"] = total
         progress["movie"] = movie_title
-        # Also update the global progress data for the /progress endpoint
         from app.api.runs import get_progress
         if not hasattr(get_progress, "progress_data"):
             get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
@@ -41,7 +45,19 @@ async def trigger_run(dry_run: bool = False):
         logger.debug(f"Progress: {current}/{total} - {movie_title}")
     
     # Run the scanner in background
-    asyncio.create_task(run_resizarr(dry_run=dry_run, progress_callback=progress_callback))
+    async def run_and_reset():
+        try:
+            await run_resizarr(dry_run=dry_run, progress_callback=progress_callback)
+        finally:
+            global _run_in_progress, _run_started_at
+            _run_in_progress = False
+            _run_started_at = None
+            # Also reset progress data
+            from app.api.runs import get_progress
+            if hasattr(get_progress, "progress_data"):
+                get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
+    
+    asyncio.create_task(run_and_reset())
     
     return {
         "success": True,
