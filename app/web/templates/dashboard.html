@@ -177,6 +177,9 @@
                             const progressRes = await fetch('/api/run/progress');
                             const progressData = await progressRes.json();
             
+                            // Add debug logging
+                            console.log('Progress data:', progressData);
+            
                             // Only update if total > 0
                             if (progressData.total > 0) {
                                 const percent = progressData.percent || 0;
@@ -184,14 +187,15 @@
                                 document.getElementById('progress-pct').textContent = `${percent}%`;
                                 document.getElementById('progress-label').textContent = 
                                     `Processing ${progressData.current} of ${progressData.total}: ${progressData.movie || '...'}`;
-                            } else {
-                                // Show indeterminate progress while scanning
+                            } else if (progressData.is_running) {
+                                // Show indeterminate progress while scanning (only if run is still running)
                                 document.getElementById('progress-bar').style.width = '10%';
                                 document.getElementById('progress-pct').textContent = 'starting...';
                                 document.getElementById('progress-label').textContent = 'Fetching movies from Radarr...';
                             }
             
                             if (!progressData.is_running) {
+                                console.log('Run completed, clearing interval');
                                 clearInterval(pollInterval);
                                 pollInterval = null;
                                 loadStatus(); // Refresh final status
@@ -277,32 +281,33 @@
     }
 
     async function startRun() {
-        closeDialog();
-        const isDryRun = document.getElementById('dry-run-toggle').checked;
-        
-        // Show progress section immediately
-        document.getElementById('progress-section').classList.remove('hidden');
-        document.getElementById('progress-bar').style.width = '0%';
-        document.getElementById('progress-pct').textContent = '0%';
-        document.getElementById('progress-label').textContent = 'Starting scan...';
-        
-        try {
-            const res = await fetch(`/api/run?dry_run=${isDryRun}`, { method: 'POST' });
-            if (res.ok) {
-                showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
-                sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
-                // Start polling for status and progress
-                loadStatus();
-            } else {
-                const data = await res.json();
-                showToast(data.detail || 'Failed to start run', 'error');
-                // Hide progress section if failed
-                document.getElementById('progress-section').classList.add('hidden');
-            }
-        } catch (e) {
-            showToast('Request failed: ' + e.message, 'error');
+    console.log('startRun called');
+    closeDialog();
+    const isDryRun = document.getElementById('dry-run-toggle').checked;
+    
+    // Show progress section immediately
+    document.getElementById('progress-section').classList.remove('hidden');
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-pct').textContent = '0%';
+    document.getElementById('progress-label').textContent = 'Starting scan...';
+    
+    try {
+        const res = await fetch(`/api/run?dry_run=${isDryRun}`, { method: 'POST' });
+        console.log('Run API response:', res.status);
+        if (res.ok) {
+            showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
+            sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
+            // Start polling for status and progress
+            loadStatus();
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'Failed to start run', 'error');
             document.getElementById('progress-section').classList.add('hidden');
         }
+    } catch (e) {
+        showToast('Request failed: ' + e.message, 'error');
+        document.getElementById('progress-section').classList.add('hidden');
     }
+}
 </script>
 {% endblock %}
