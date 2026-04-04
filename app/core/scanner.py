@@ -281,6 +281,13 @@ async def run_resizarr(
                         logger.info(f"DEBUG infoUrl: {release.get('infoUrl')}")
                     # ========== END DEBUG ==========
   
+                    # Print GUID for first release only (generic debug)
+                    if not hasattr(run_resizarr, '_guid_printed'):
+                        run_resizarr._guid_printed = True
+                        logger.info(f"DEBUG - Release guid field: {release.get('guid')}")
+                        logger.info(f"DEBUG - Release downloadUrl field: {release.get('downloadUrl')}")
+                        logger.info(f"DEBUG - Release infoHash field: {release.get('infoHash')}")
+
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
