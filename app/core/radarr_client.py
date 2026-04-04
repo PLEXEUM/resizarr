@@ -120,12 +120,17 @@ class RadarrClient:
             "movieIds": movie_ids
         })
     
-    async def download_release_by_guid(self, guid: str) -> dict:
-        """Download a specific release by GUID."""
-        logger.info(f"Downloading release with GUID: {guid}")
-        return await self._request("POST", "release", json={
-            "guid": guid
-        })
+    async def download_release_by_guid(self, movie_id: int, guid: str) -> dict:
+        """Download a specific release by GUID using the command endpoint."""
+        logger.info(f"Downloading release with GUID {guid} for movie {movie_id}")
+    
+        # Use the ReleaseGrabbingCommand endpoint
+        payload = {
+            "name": "ReleaseGrabbingCommand",
+            "releaseGuid": guid,
+            "movieId": movie_id
+    }
+        return await self._request("POST", "command", json=payload)
 
     async def download_release_by_url(self, download_url: str) -> dict:
         """Download a specific release by its download URL."""

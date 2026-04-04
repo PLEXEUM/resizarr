@@ -91,11 +91,22 @@ async def approve_pending(record_id: int, data: ApproveInput):
     
             # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
-                # It's a torrent URL, use the torrent URL method
-                await client.download_release_by_torrent_url(release_guid)
+                # It's a torrent URL, try to extract the ID
+                import re
+                match = re.search(r'torrentid=(\d+)', release_guid)
+                if match:
+                    torrent_id = match.group(1)
+                    # Construct the proper GUID format that Radarr expects
+                    proper_guid = f"Prowlarr:{torrent_id}"
+                    logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
+                    await client.download_release_by_guid(record["movie_id"], proper_guid)
+                else:
+                    # Fall back to generic search
+                    logger.info(f"Could not extract ID from URL, falling back to generic search")
+                    await client.trigger_movie_search([record["movie_id"]])
             else:
-                # It's a GUID, use the GUID method
-                await client.download_release_by_guid(release_guid)
+                # It's already a GUID, use the GUID method
+                await client.download_release_by_guid(record["movie_id"], release_guid)
         else:
             # Fall back to generic search
             logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")

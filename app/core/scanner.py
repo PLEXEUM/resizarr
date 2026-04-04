@@ -271,7 +271,16 @@ async def run_resizarr(
                         release_language = str(first_lang)
                 else:
                     release_language = "Unknown"
-                
+    
+                    # ========== ADD DEBUG HERE ==========
+                    # Log the first release's GUID field to see what it contains
+                    if not hasattr(run_resizarr, '_logged_guid'):
+                        run_resizarr._logged_guid = True
+                        logger.info(f"Sample release GUID field: {release.get('guid')}")
+                        logger.info(f"Sample release keys containing 'guid': {[k for k in release.keys() if 'guid' in k.lower()]}")
+                        logger.info(f"Sample release keys: {list(release.keys())[:20]}")  # First 20 keys
+                    # ========== END DEBUG ==========
+  
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
