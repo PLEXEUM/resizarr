@@ -41,6 +41,30 @@ def matches_condition(file_size_gb: float, operator: str, threshold_gb: float) -
         return file_size_gb < threshold_gb
     return False
 
+def extract_proper_guid(release: dict) -> str:
+    """Extract the proper GUID format that Radarr expects for downloads."""
+    guid = release.get('guid', '')
+    
+    # If it's already in short format (contains colon but not http), return as-is
+    if ':' in guid and not guid.startswith('http'):
+        return guid
+    
+    # If it's a URL (starts with http), try to extract proper format
+    if guid.startswith('http'):
+        indexer = release.get('indexer', '')
+        
+        # Try to extract numeric ID from URL
+        import re
+        match = re.search(r'/(\d+)(?:\.|$)', guid)
+        if match and indexer:
+            torrent_id = match.group(1)
+            proper_guid = f"{indexer}:{torrent_id}"
+            logger.info(f"Converted URL GUID '{guid[:50]}...' to '{proper_guid}'")
+            return proper_guid
+    
+    # Fallback to original GUID
+    return guid
+
 async def run_resizarr(
     dry_run: bool = False,
     batch_limit: int = 0,
@@ -414,6 +438,9 @@ async def run_resizarr(
                         # Manual approval mode
             if rules["trigger_logic"] == "manual" or (is_downgrade and not is_allowed):
                 try:
+                    # Extract proper GUID format
+                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+
                     conn.execute("""
                         INSERT INTO pending_replacements
                         (movie_id, movie_title, current_size_gb, current_quality,
@@ -423,11 +450,11 @@ async def run_resizarr(
                         movie_id, movie_title, size_gb,
                         str(current_quality), found_size_gb,
                         str(found_quality), 1 if is_downgrade else 0,
-                        best_candidate.get("guid")
+                        proper_guid  # Use the extracted proper GUID
                     ))
                     conn.commit()
                     summary["pending_approval"] += 1
-                    logger.info(f"Added to pending approvals: {movie_title}")
+                    logger.info(f"Added to pending approvals: {movie_title} with GUID: {proper_guid}")
                 except Exception as e:
                     logger.error(f"Failed to add pending approval for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
