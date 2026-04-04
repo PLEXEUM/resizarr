@@ -221,6 +221,37 @@ async def run_resizarr(
             # Search for available releases
             logger.info(f"Searching for alternatives for: {movie_title}")
             releases = await client.search_for_releases(movie_id)
+
+            # ========== FORCE DEBUG - Print first release GUID ==========
+            if releases and len(releases) > 0:
+                first_rel = releases[0]
+                logger.info("=" * 80)
+                logger.info("FIRST RELEASE RAW DATA:")
+                logger.info(f"  GUID: {first_rel.get('guid')}")
+                logger.info(f"  GUID raw: {first_rel.get('guid', 'NOT FOUND')}")
+                logger.info(f"  Has 'guid' key: {'guid' in first_rel}")
+                logger.info(f"  downloadUrl: {first_rel.get('downloadUrl', 'NOT FOUND')[:100] if first_rel.get('downloadUrl') else 'NOT FOUND'}")
+                logger.info(f"  magnetUrl: {first_rel.get('magnetUrl', 'NOT FOUND')[:100] if first_rel.get('magnetUrl') else 'NOT FOUND'}")
+                logger.info(f"  infoHash: {first_rel.get('infoHash', 'NOT FOUND')}")
+                logger.info("=" * 80)
+            # ========== END DEBUG ==========
+
+            # ========== DEBUG: Dump entire first release ==========
+            if releases and len(releases) > 0 and not hasattr(run_resizarr, '_dumped_release'):
+                run_resizarr._dumped_release = True
+                first_rel = releases[0]
+                logger.info("=" * 80)
+                logger.info("COMPLETE FIRST RELEASE OBJECT:")
+                for key, value in first_rel.items():
+                    if key in ['guid', 'downloadUrl', 'magnetUrl', 'infoHash']:
+                        logger.info(f"  {key}: {value}")
+                    elif key == 'size':
+                        size_gb = value / (1024 ** 3)
+                        logger.info(f"  {key}: {value} bytes ({size_gb:.2f} GB)")
+                    else:
+                        logger.info(f"  {key}: {value}")
+                logger.info("=" * 80)
+            # ========== END DEBUG ==========
             
             # ========== DEBUG: Log first release immediately ==========
             if releases and not hasattr(run_resizarr, '_releases_checked'):
