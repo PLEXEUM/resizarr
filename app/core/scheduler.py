@@ -102,15 +102,25 @@ def is_running() -> bool:
     """Check if a run is currently in progress."""
     return _run_in_progress
 
+def set_running(state: bool):
+    """Set the running state (called from API)."""
+    global _run_in_progress, _run_started_at
+    _run_in_progress = state
+    if state:
+        _run_started_at = datetime.utcnow()
+    else:
+        _run_started_at = None
+
+def get_running_state() -> bool:
+    """Get the current running state."""
+    return _run_in_progress
 
 def start_scheduler(cron_expression: str = "0 2 * * *"):
     """Start the scheduler with the given cron expression."""
     if not scheduler.running:
         scheduler.start()
         logger.info("Scheduler started")
-
     update_schedule(cron_expression)
-
 
 def stop_scheduler():
     """Stop the scheduler."""

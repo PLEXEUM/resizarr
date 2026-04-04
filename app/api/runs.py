@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from app.db.database import get_connection
-from app.core.scheduler import execute_run, is_running, get_next_run_time
+from app.core.scheduler import execute_run, is_running, get_next_run_time, set_running
 from app.utils.logger import get_logger
 import io
 from datetime import datetime  # ADD THIS LINE
@@ -13,11 +13,10 @@ logger = get_logger()
 @router.post("/run")
 async def trigger_run(dry_run: bool = False):
     """Manually trigger a scanner run."""
-    from app.core.scheduler import _run_in_progress, _run_started_at
     import asyncio
     from app.core.scanner import run_resizarr
     
-    if _run_in_progress:
+    if is_running():
         raise HTTPException(
             status_code=409,
             detail="A run is already in progress"
@@ -26,8 +25,7 @@ async def trigger_run(dry_run: bool = False):
     logger.info(f"Manual run triggered (dry_run={dry_run})")
     
     # Set running state
-    _run_in_progress = True
-    _run_started_at = datetime.utcnow()
+    set_running(True)
     
     # Set up progress tracking
     progress = {"current": 0, "total": 0, "movie": ""}
@@ -49,9 +47,7 @@ async def trigger_run(dry_run: bool = False):
         try:
             await run_resizarr(dry_run=dry_run, progress_callback=progress_callback)
         finally:
-            global _run_in_progress, _run_started_at
-            _run_in_progress = False
-            _run_started_at = None
+            set_running(False)
             # Also reset progress data
             from app.api.runs import get_progress
             if hasattr(get_progress, "progress_data"):
