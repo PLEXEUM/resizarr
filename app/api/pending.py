@@ -92,21 +92,35 @@ async def approve_pending(record_id: int, data: ApproveInput):
     
             # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
-                # It's a torrent URL, use the download_release_by_url method
-                logger.info(f"Using download URL: {release_guid}")
-                await client.download_release_by_url(
-                    movie_id=record["movie_id"],
-                    download_url=release_guid,
-                    title=record["movie_title"]
-                )
+                # It's a torrent URL, extract the torrent ID and use proper format
+                import re
+                match = re.search(r'torrentid=(\d+)', release_guid)
+                if match:
+                    torrent_id = match.group(1)
+                    proper_guid = f"Prowlarr:{torrent_id}"
+                    download_url = release_guid.replace("torrents.php?id=", "download.php?torrent=")
+                    
+                    logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
+                    logger.info(f"Using download URL: {download_url}")
+                    
+                    await client.download_release_by_guid(
+                        movie_id=record["movie_id"],
+                        guid=proper_guid,
+                        indexer_id=1,  # You may need to get this from config
+                        download_url=download_url,
+                        title=record["movie_title"],
+                        publish_date=datetime.utcnow().isoformat()
+                    )
+                else:
+                    # Fall back to generic search
+                    logger.info(f"Could not extract ID from URL, falling back to generic search")
+                    await client.trigger_movie_search([record["movie_id"]])
             else:
-                # It's already a GUID, use the GUID method with all required fields
-                # Try to get the download URL from the record if available
-                download_url = record.get("download_url", None)
+                # It's already a GUID, use the GUID method
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
                     guid=release_guid,
-                    download_url=download_url,
+                    indexer_id=1,
                     title=record["movie_title"],
                     publish_date=datetime.utcnow().isoformat()
                 )
