@@ -166,6 +166,7 @@
 
             // Show/hide progress
             if (data.is_running) {
+                console.log('loadStatus: run is running, setting up progress polling');
                 document.getElementById('progress-section').classList.remove('hidden');
                 document.getElementById('run-btn').disabled = true;
                 document.getElementById('run-btn').textContent = '⏳ Running...';
@@ -297,8 +298,11 @@
         if (res.ok) {
             showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
             sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
-            // Start polling for status and progress
-            loadStatus();
+            // Start polling for status and progress after a short delay
+            setTimeout(() => {
+                console.log('Starting status polling');
+                loadStatus();
+            }, 500);
         } else {
             const data = await res.json();
             showToast(data.detail || 'Failed to start run', 'error');
