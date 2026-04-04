@@ -91,11 +91,11 @@ async def approve_pending(record_id: int, data: ApproveInput):
     
             # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
-                # It's a URL, use the download URL method
-                await client.download_release_by_url(release_guid)
+                # It's a torrent URL, use the torrent URL method
+                await client.download_release_by_torrent_url(release_guid)
             else:
                 # It's a GUID, use the GUID method
-                await client.download_release(release_guid)
+                await client.download_release_by_guid(release_guid)
         else:
             # Fall back to generic search
             logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")

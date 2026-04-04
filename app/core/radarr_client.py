@@ -120,15 +120,7 @@ class RadarrClient:
             "movieIds": movie_ids
         })
     
-    async def download_release(self, download_url: str) -> dict:
-        """Download a specific release by its download URL."""
-        logger.info(f"Downloading release from URL: {download_url}")
-        return await self._request("POST", "release", json={
-            "downloadClientId": None,
-            "downloadUrl": download_url
-        })
-    
-    async def download_release(self, guid: str) -> dict:
+    async def download_release_by_guid(self, guid: str) -> dict:
         """Download a specific release by GUID."""
         logger.info(f"Downloading release with GUID: {guid}")
         return await self._request("POST", "release", json={
@@ -141,6 +133,30 @@ class RadarrClient:
         return await self._request("POST", "release", json={
             "downloadUrl": download_url
         })
+
+    async def download_release_by_torrent_url(self, torrent_url: str) -> dict:
+        """Download a specific release from a torrent URL."""
+        logger.info(f"Downloading release from torrent URL: {torrent_url}")
+        
+        # Extract torrent ID from URL
+        import re
+        match = re.search(r'torrentid=(\d+)', torrent_url)
+        if not match:
+            raise ValueError(f"Could not extract torrent ID from URL: {torrent_url}")
+        
+        torrent_id = match.group(1)
+        
+        # Construct the download URL that Radarr expects
+        download_url = torrent_url.replace("torrents.php?id=", "download.php?torrent=")
+        
+        # Try to add the release via Radarr's release endpoint
+        payload = {
+            "downloadClientId": 1,  # Default download client
+            "downloadUrl": download_url
+        }
+        
+        logger.info(f"Attempting to download torrent ID {torrent_id} via URL: {download_url}")
+        return await self._request("POST", "release", json=payload)
 
     # ========== ADD THESE TWO NEW METHODS HERE ==========
     async def search_for_releases(self, movie_id: int) -> list:
