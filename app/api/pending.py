@@ -52,22 +52,21 @@ async def get_pending(page: int = 1, per_page: int = 20):
 async def approve_pending(record_id: int, data: ApproveInput):
     """Approve a single pending replacement."""
     conn = get_connection()
-
     record = conn.execute("""
         SELECT * FROM pending_replacements WHERE id = ?
     """, (record_id,)).fetchone()
-
+    
     if not record:
         conn.close()
         raise HTTPException(status_code=404, detail="Record not found")
-
+    
     if record["status"] != "pending":
         conn.close()
         raise HTTPException(
             status_code=400,
             detail=f"Record is not pending (status: {record['status']})"
         )
-
+    
     # Check quality downgrade without override
     if record["quality_downgrade"] and not data.override_quality:
         conn.close()
@@ -75,18 +74,27 @@ async def approve_pending(record_id: int, data: ApproveInput):
             status_code=400,
             detail="Quality downgrade detected. Set override_quality=true to approve anyway."
         )
-
+    
     # Get Radarr config
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
     if not config or not config["radarr_url"]:
         conn.close()
         raise HTTPException(status_code=400, detail="Radarr not configured")
-
+    
     try:
-        # Trigger search in Radarr
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
-        await client.trigger_movie_search([record["movie_id"]])
-
+        
+        # If we have a specific release GUID, download it directly
+        release_guid = record["release_guid"]
+        if release_guid:
+            logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
+            # Use the release endpoint to download the specific release
+            await client.download_release(release_guid)
+        else:
+            # Fall back to generic search
+            logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")
+            await client.trigger_movie_search([record["movie_id"]])
+        
         # Update status
         conn.execute("""
             UPDATE pending_replacements
@@ -94,13 +102,13 @@ async def approve_pending(record_id: int, data: ApproveInput):
             WHERE id = ?
         """, (record_id,))
         conn.commit()
-
+        
         logger.info(f"Approved pending replacement for '{record['movie_title']}'")
         return {"success": True, "message": f"Approved: {record['movie_title']}"}
-
+        
     except Exception as e:
         logger.error(f"Failed to approve replacement: {e}")
-        raise HTTPException(status_code=500, detail="Failed to trigger replacement")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger replacement: {str(e)}")
     finally:
         conn.close()
 
