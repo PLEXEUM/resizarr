@@ -292,6 +292,7 @@ async def run_resizarr(
                         "size_gb": release_size_gb,
                         "quality": release_quality,
                         "guid": release.get("guid"),
+                        "download_url": release.get("downloadUrl") or release.get("magnetUrl"),
                         "peers": peers,
                         "language": release_language
                     })

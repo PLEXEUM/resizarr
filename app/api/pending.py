@@ -88,8 +88,14 @@ async def approve_pending(record_id: int, data: ApproveInput):
         release_guid = record["release_guid"]
         if release_guid:
             logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
-            # Use the release endpoint to download the specific release
-            await client.download_release(release_guid)
+    
+            # Check if it's a URL or a GUID
+            if release_guid.startswith("http"):
+                # It's a URL, use the download URL method
+                await client.download_release_by_url(release_guid)
+            else:
+                # It's a GUID, use the GUID method
+                await client.download_release(release_guid)
         else:
             # Fall back to generic search
             logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")
