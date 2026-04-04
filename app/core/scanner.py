@@ -273,12 +273,12 @@ async def run_resizarr(
                     release_language = "Unknown"
     
                     # ========== ADD DEBUG HERE ==========
-                    # Log the first release's GUID field to see what it contains
-                    if not hasattr(run_resizarr, '_logged_guid'):
-                        run_resizarr._logged_guid = True
-                        logger.info(f"Sample release GUID field: {release.get('guid')}")
-                        logger.info(f"Sample release keys containing 'guid': {[k for k in release.keys() if 'guid' in k.lower()]}")
-                        logger.info(f"Sample release keys: {list(release.keys())[:20]}")  # First 20 keys
+                    # Log the guid field for the first few releases
+                    if not hasattr(run_resizarr, '_guid_logged'):
+                        run_resizarr._guid_logged = True
+                        logger.info(f"DEBUG GUID: {release.get('guid')}")
+                        logger.info(f"DEBUG downloadUrl: {release.get('downloadUrl')}")
+                        logger.info(f"DEBUG infoUrl: {release.get('infoUrl')}")
                     # ========== END DEBUG ==========
   
                 # Check if release matches target size condition
