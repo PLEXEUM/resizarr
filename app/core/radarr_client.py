@@ -120,23 +120,36 @@ class RadarrClient:
             "movieIds": movie_ids
         })
     
-    async def download_release_by_guid(self, movie_id: int, guid: str) -> dict:
-        """Download a specific release by GUID using the release/push endpoint."""
+    async def download_release_by_guid(self, movie_id: int, guid: str, download_url: str = None, title: str = None, publish_date: str = None) -> dict:
+        """Download a specific release by GUID using the release/push endpoint with all required fields."""
         logger.info(f"Downloading release with GUID {guid} for movie {movie_id}")
         
-        # Use the correct release/push endpoint
+        # Build payload with all required fields
         payload = {
-            "guid": guid,  # Correct field name
-            "movieId": movie_id
+            "guid": guid,
+            "movieId": movie_id,
+            "title": title or f"Release {guid}",
+            "protocol": "torrent",
+            "publishDate": publish_date or datetime.utcnow().isoformat()
         }
+        
+        # Add downloadUrl if provided
+        if download_url:
+            payload["downloadUrl"] = download_url
+        
+        logger.debug(f"Push payload: {payload}")
         return await self._request("POST", "release/push", json=payload)
 
-    async def download_release_by_url(self, download_url: str) -> dict:
+    async def download_release_by_url(self, movie_id: int, download_url: str, title: str = None) -> dict:
         """Download a specific release by its download URL."""
-        logger.info(f"Downloading release from URL: {download_url}")
-        return await self._request("POST", "release", json={
-            "downloadUrl": download_url
-        })
+        logger.info(f"Downloading release from URL: {download_url} for movie {movie_id}")
+        
+        payload = {
+            "downloadUrl": download_url,
+            "movieId": movie_id,
+            "title": title or "Release from URL"
+        }
+        return await self._request("POST", "release", json=payload)
 
     async def download_release_by_torrent_url(self, torrent_url: str) -> dict:
         """Download a specific release from a torrent URL."""
