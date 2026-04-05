@@ -73,13 +73,9 @@ async def approve_pending(record_id: int, data: ApproveInput):
             detail=f"Record is not pending (status: {record['status']})"
         )
     
-    # Check quality downgrade without override
-    if record["quality_downgrade"] and not data.override_quality:
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Quality downgrade detected. Set override_quality=true to approve anyway."
-        )
+    # Allow all approvals (ignore quality downgrade)
+    if record["quality_downgrade"]:
+        logger.info(f"Quality downgrade detected for '{record['movie_title']}', but proceeding anyway")
     
     # Get Radarr config
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
@@ -89,6 +85,19 @@ async def approve_pending(record_id: int, data: ApproveInput):
     
     try:
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
+
+        # Always delete existing file before replacement
+        logger.info(f"Deleting existing file for '{record['movie_title']}' before replacement")
+        try:
+            delete_result = await client.delete_movie_file_only(record["movie_id"])
+            if delete_result["success"]:
+                logger.info(f"Successfully deleted existing file")
+                import asyncio
+                await asyncio.sleep(2)
+            else:
+                logger.warning(f"Could not delete file: {delete_result['message']}")
+        except Exception as e:
+            logger.warning(f"Error deleting file: {e}")
         
         # If we have a specific release GUID, download it directly
         release_guid = record["release_guid"]

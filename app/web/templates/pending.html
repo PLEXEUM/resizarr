@@ -43,13 +43,12 @@
                         <th class="text-left px-4 py-3 font-medium">Current</th>
                         <th class="text-left px-4 py-3 font-medium">Found</th>
                         <th class="text-left px-4 py-3 font-medium">Age</th>
-                        <th class="text-left px-4 py-3 font-medium">Override</th>
                         <th class="text-left px-4 py-3 font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="pending-table">
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center"
+                        <td colspan="6" class="px-4 py-8 text-center"
                             style="color: var(--text-secondary)">Loading...</td>
                     </tr>
                 </tbody>
@@ -69,10 +68,6 @@
         <h3 class="font-semibold mb-2">Confirm Batch Approve</h3>
         <p id="batch-dialog-text" class="text-sm mb-6"
             style="color: var(--text-secondary)"></p>
-        <label class="flex items-center gap-2 mb-6 cursor-pointer">
-            <input type="checkbox" id="batch-override" class="accent-indigo-500" />
-            <span class="text-sm">Override quality downgrades</span>
-        </label>
         <div class="flex gap-3">
             <button onclick="executeBatchApprove()"
                 class="flex-1 py-2 rounded-lg text-sm font-medium text-white"
@@ -121,7 +116,7 @@
             if (!data.records || data.records.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center"
+                        <td colspan="6" class="px-4 py-8 text-center"
                             style="color: var(--text-secondary)">
                             No pending approvals.
                         </td>
@@ -131,17 +126,13 @@
             }
 
             tbody.innerHTML = data.records.map(r => `
-                <tr style="border-top: 1px solid var(--border-color)"
-                    class="${r.quality_downgrade ? 'bg-yellow-900 bg-opacity-10' : ''}">
+               <tr style="border-top: 1px solid var(--border-color)" class="${r.quality_downgrade ? 'bg-yellow-900 bg-opacity-10' : ''}">
                     <td class="px-4 py-3">
-                        <input type="checkbox" class="accent-indigo-500 row-checkbox"
-                            data-id="${r.id}" onchange="updateSelectedCount()" />
+                        <input type="checkbox" class="accent-indigo-500 row-checkbox" data-id="${r.id}" onchange="updateSelectedCount()" />
                     </td>
                     <td class="px-4 py-3">
                         <div class="font-medium">${r.movie_title}</div>
-                        ${r.quality_downgrade
-                            ? '<span class="text-xs px-2 py-0.5 rounded bg-yellow-800 text-yellow-200">⚠ Quality Downgrade</span>'
-                            : ''}
+                        ${r.quality_downgrade ? '<span class="text-xs px-2 py-0.5 rounded bg-yellow-800 text-yellow-200">⚠ Quality Downgrade</span>' : ''}
                     </td>
                     <td class="px-4 py-3">
                         <div>${r.current_size_gb ? r.current_size_gb.toFixed(2) + ' GB' : 'N/A'}</div>
@@ -155,22 +146,12 @@
                         ${getAge(r.created_at)}
                     </td>
                     <td class="px-4 py-3">
-                        ${r.quality_downgrade
-                            ? `<input type="checkbox" class="accent-indigo-500 override-checkbox"
-                                data-id="${r.id}" />`
-                            : '—'}
-                    </td>
-                    <td class="px-4 py-3">
                         <div class="flex gap-2">
-                            <button onclick="approveSingle(${r.id})"
-                                class="px-3 py-1 rounded text-xs font-medium text-white"
-                                style="background: var(--accent);">Approve</button>
-                            <button onclick="deleteRecord(${r.id})"
-                                class="px-3 py-1 rounded text-xs border"
-                                style="border-color: #ef4444; color: #ef4444;">Reject</button>
+                            <button onclick="approveSingle(${r.id})" class="px-3 py-1 rounded text-xs font-medium text-white" style="background: var(--accent);">Approve</button>
+                            <button onclick="deleteRecord(${r.id})" class="px-3 py-1 rounded text-xs border" style="border-color: #ef4444; color: #ef4444;">Reject</button>
                         </div>
-                    </td>
-                </tr>
+                    </td>   
+                </tr> 
             `).join('');
 
             // Pagination
@@ -211,27 +192,23 @@
     }
 
     async function approveSingle(id) {
-        const overrideEl = document.querySelector(`.override-checkbox[data-id="${id}"]`);
-        const override = overrideEl ? overrideEl.checked : false;
-
-        try {
-            const res = await fetch(`/api/pending/${id}/approve`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ override_quality: override })
-            });
-
-            if (res.ok) {
-                showToast('Approved!', 'success');
-                loadPending(currentPage);
-            } else {
-                const data = await res.json();
-                showToast(data.detail || 'Failed to approve', 'error');
-            }
-        } catch (e) {
-            showToast('Request failed: ' + e.message, 'error');
+    try {
+        const res = await fetch(`/api/pending/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ override_quality: true })
+        });
+        if (res.ok) {
+            showToast('Approved!', 'success');
+            loadPending(currentPage);
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'Failed to approve', 'error');
         }
+    } catch (e) {
+        showToast('Request failed: ' + e.message, 'error');
     }
+}
 
     async function deleteRecord(id) {
         try {
@@ -262,7 +239,7 @@
         closeBatchDialog();
         const ids = [...document.querySelectorAll('.row-checkbox:checked')]
             .map(cb => parseInt(cb.dataset.id));
-        const override = document.getElementById('batch-override').checked;
+        const override = true;
 
         try {
             const res = await fetch('/api/pending/approve-batch', {
