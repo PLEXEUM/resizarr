@@ -136,7 +136,7 @@ class RadarrClient:
             "title": title or f"Release {guid}",
             "protocol": "torrent",
             "publishDate": publish_date or datetime.utcnow().isoformat(),
-            "allowUpgrade": true  # Force Radarr to allow the downgrade
+            "allowUpgrade": True  # Force Radarr to allow the downgrade
         }
     
         # Add downloadUrl if provided (Radarr requires this or magnetUrl)
