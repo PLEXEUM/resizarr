@@ -37,6 +37,10 @@ class RadarrClient:
                     return response.json()
             except httpx.HTTPStatusError as e:
                 last_error = e
+                # Log the response body for debugging
+                error_body = e.response.text if hasattr(e.response, 'text') else str(e)
+                logger.warning(f"Radarr API error (attempt {attempt}/3): {e.response.status_code}")
+                logger.warning(f"Error response body: {error_body[:500]}")  # Log first 500 chars
                 logger.warning(f"Radarr API error (attempt {attempt}/3): {e.response.status_code}")
             except httpx.RequestError as e:
                 last_error = e
