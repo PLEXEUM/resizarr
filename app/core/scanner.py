@@ -88,6 +88,16 @@ async def run_resizarr(
     }
     
     conn = get_connection()
+
+    try:
+        cursor = conn.execute("PRAGMA table_info(pending_replacements)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'download_url' not in columns:
+            conn.execute("ALTER TABLE pending_replacements ADD COLUMN download_url TEXT")
+            conn.commit()  # Make sure you have this line
+            logger.info("Added missing 'download_url' column to pending_replacements table")
+    except Exception as e:
+        logger.warning(f"Could not verify/add download_url column: {e}")
     
     try:
         # Load config
@@ -444,13 +454,14 @@ async def run_resizarr(
                     conn.execute("""
                         INSERT INTO pending_replacements
                         (movie_id, movie_title, current_size_gb, current_quality,
-                         found_size_gb, found_quality, quality_downgrade, status, release_guid)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                        found_size_gb, found_quality, quality_downgrade, status, release_guid, download_url)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                     """, (
                         movie_id, movie_title, size_gb,
                         str(current_quality), found_size_gb,
                         str(found_quality), 1 if is_downgrade else 0,
-                        proper_guid  # Use the extracted proper GUID
+                        proper_guid,  # Use the extracted proper GUID
+                        best_candidate.get("download_url")  # Add this line
                     ))
                     conn.commit()
                     summary["pending_approval"] += 1

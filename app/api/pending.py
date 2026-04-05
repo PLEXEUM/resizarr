@@ -90,54 +90,64 @@ async def approve_pending(record_id: int, data: ApproveInput):
         release_guid = record["release_guid"]
         if release_guid:
             logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
-    
+
             # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
                 # It's a torrent URL, extract the torrent ID
                 import re
-                from urllib.parse import urlparse  # Move import here or add to top
-                
+                from urllib.parse import urlparse
+        
                 match = re.search(r'torrentid=(\d+)', release_guid)
                 if match:
                     torrent_id = match.group(1)
                     proper_guid = f"Prowlarr:{torrent_id}"
-                    
+            
                     # Extract the base URL from the original release_guid
                     parsed_url = urlparse(release_guid)
                     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-                    
-                    # Construct download URL based on common patterns
+            
+                    # Construct download URL based on common patterns (fallback)
                     if 'torrents.php' in release_guid:
-                        download_url = f"{base_url}/download.php?torrent={torrent_id}"
+                        constructed_url = f"{base_url}/download.php?torrent={torrent_id}"
                     elif 'download' in release_guid:
-                        download_url = release_guid
+                        constructed_url = release_guid
                     else:
-                        download_url = release_guid.replace('torrents.php', 'download.php')
-                        if 'id=' in download_url:
-                            download_url = download_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
-        
+                        constructed_url = release_guid.replace('torrents.php', 'download.php')
+                        if 'id=' in constructed_url:
+                            constructed_url = constructed_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
+            
+                    # Get the stored download_url from the record (Prowlarr URL)
+                    stored_download_url = record.get("download_url")
+            
+                    # Use stored URL if available (preferred), otherwise use constructed one
+                    final_download_url = stored_download_url if stored_download_url else constructed_url
+
                     logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
                     logger.info(f"Base URL: {base_url}")
-                    logger.info(f"Download URL: {download_url}")
-        
+                    logger.info(f"Constructed URL: {constructed_url}")
+                    logger.info(f"Stored URL: {stored_download_url}")
+                    logger.info(f"Final download URL: {final_download_url}")
+            
                     await client.download_release_by_guid(
                         movie_id=record["movie_id"],
                         guid=proper_guid,
                         indexerId=1,
-                        download_url=download_url,
-                        title=f"{record['movie_title']} 2025",  # Add the year
+                        download_url=final_download_url,  # Use final_download_url here!
+                        title=f"{record['movie_title']} 2025",
                         publish_date=datetime.utcnow().isoformat()
                     )
                 else:
-                    logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")
+                    logger.info(f"Could not extract ID from URL, falling back to generic search")
                     await client.trigger_movie_search([record["movie_id"]])
             else:
                 # It's already a GUID, use the GUID method
+                stored_download_url = record.get("download_url")
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
                     guid=release_guid,
                     indexerId=1,
-                    title=f"{record['movie_title']} 2025",  # Add the year here too
+                    download_url=stored_download_url,
+                    title=f"{record['movie_title']} 2025",
                     publish_date=datetime.utcnow().isoformat()
                 )
         # Update status
