@@ -124,7 +124,7 @@ async def approve_pending(record_id: int, data: ApproveInput):
                         guid=proper_guid,
                         indexerId=1,
                         download_url=download_url,
-                        title=record["movie_title"],
+                        title=f"{record['movie_title']} 2025",  # Add the year
                         publish_date=datetime.utcnow().isoformat()
                     )
                 else:
@@ -136,7 +136,7 @@ async def approve_pending(record_id: int, data: ApproveInput):
                     movie_id=record["movie_id"],
                     guid=release_guid,
                     indexerId=1,
-                    title=record["movie_title"],
+                    title=f"{record['movie_title']} 2025",  # Add the year here too
                     publish_date=datetime.utcnow().isoformat()
                 )
         # Update status
