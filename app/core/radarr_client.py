@@ -120,23 +120,24 @@ class RadarrClient:
             "movieIds": movie_ids
         })
     
-    async def download_release_by_guid(self, movie_id: int, guid: str, download_url: str = None, title: str = None, publish_date: str = None) -> dict:
+    async def download_release_by_guid(self, movie_id: int, guid: str, indexerId: int = 1, download_url: str = None, title: str = None, publish_date: str = None) -> dict:
         """Download a specific release by GUID using the release/push endpoint with all required fields."""
         logger.info(f"Downloading release with GUID {guid} for movie {movie_id}")
-        
+    
         # Build payload with all required fields
         payload = {
             "guid": guid,
+            "indexerId": indexerId,  # Add this required field
             "movieId": movie_id,
             "title": title or f"Release {guid}",
             "protocol": "torrent",
             "publishDate": publish_date or datetime.utcnow().isoformat()
         }
-        
+    
         # Add downloadUrl if provided
         if download_url:
             payload["downloadUrl"] = download_url
-        
+    
         logger.debug(f"Push payload: {payload}")
         return await self._request("POST", "release/push", json=payload)
 
