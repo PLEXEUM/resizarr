@@ -92,27 +92,24 @@ async def approve_pending(record_id: int, data: ApproveInput):
     
             # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
-                # It's a torrent URL, extract the torrent ID and use proper format
+                # It's a torrent URL, extract the torrent ID
                 import re
                 match = re.search(r'torrentid=(\d+)', release_guid)
                 if match:
                     torrent_id = match.group(1)
                     proper_guid = f"Prowlarr:{torrent_id}"
-                    download_url = release_guid.replace("torrents.php?id=", "download.php?torrent=")
                     
                     logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
-                    logger.info(f"Using download URL: {download_url}")
                     
+                    # Let Radarr handle the download using GUID and indexerId (no download_url needed)
                     await client.download_release_by_guid(
                         movie_id=record["movie_id"],
                         guid=proper_guid,
-                        indexer_id=1,  # You may need to get this from config
-                        download_url=download_url,
+                        indexerId=1,
                         title=record["movie_title"],
                         publish_date=datetime.utcnow().isoformat()
                     )
                 else:
-                    # Fall back to generic search
                     logger.info(f"Could not extract ID from URL, falling back to generic search")
                     await client.trigger_movie_search([record["movie_id"]])
             else:
@@ -120,7 +117,7 @@ async def approve_pending(record_id: int, data: ApproveInput):
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
                     guid=release_guid,
-                    indexer_id=1,
+                    indexerId=1,
                     title=record["movie_title"],
                     publish_date=datetime.utcnow().isoformat()
                 )
@@ -145,7 +142,6 @@ async def approve_pending(record_id: int, data: ApproveInput):
         raise HTTPException(status_code=500, detail=f"Failed to trigger replacement: {str(e)}")
     finally:
         conn.close()
-
 
 @router.post("/pending/approve-batch")
 async def approve_batch(data: BatchApproveInput):
