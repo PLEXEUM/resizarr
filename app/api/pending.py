@@ -110,42 +110,68 @@ async def approve_pending(record_id: int, data: ApproveInput):
                 import re
                 from urllib.parse import urlparse
         
+                # Universal torrent ID extraction - tries multiple patterns
+                torrent_id = None
+                proper_guid = None
+                
+                # Pattern 1: torrentid=12345
                 match = re.search(r'torrentid=(\d+)', release_guid)
                 if match:
                     torrent_id = match.group(1)
                     proper_guid = f"Prowlarr:{torrent_id}"
-            
-                    # Extract the base URL from the original release_guid
-                    parsed_url = urlparse(release_guid)
-                    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-            
-                    # Construct download URL based on common patterns (fallback)
-                    if 'torrents.php' in release_guid:
-                        constructed_url = f"{base_url}/download.php?torrent={torrent_id}"
-                    elif 'download' in release_guid:
-                        constructed_url = release_guid
-                    else:
-                        constructed_url = release_guid.replace('torrents.php', 'download.php')
-                        if 'id=' in constructed_url:
-                            constructed_url = constructed_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
-            
-                    # Get the stored download_url from the record (Prowlarr URL)
+                
+                # Pattern 2: .123456 at end of URL (Beyond-HD, etc.)
+                if not torrent_id:
+                    match = re.search(r'\.(\d+)$', release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                
+                # Pattern 3: /123456/ or /123456 in path
+                if not torrent_id:
+                    match = re.search(r'/(\d+)(?:/|$)', release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                
+                # Pattern 4: id=12345
+                if not torrent_id:
+                    match = re.search(r'id=(\d+)', release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                
+                if torrent_id:
+                    # Use the stored download_url from database (Prowlarr URL) - most reliable
                     stored_download_url = record.get("download_url")
-            
-                    # Use stored URL if available (preferred), otherwise use constructed one
-                    final_download_url = stored_download_url if stored_download_url else constructed_url
-
+                    
+                    if stored_download_url:
+                        # Use the Prowlarr URL from the database
+                        final_download_url = stored_download_url
+                        logger.info(f"Using stored Prowlarr URL")
+                    else:
+                        # Fallback: construct a download URL (less reliable)
+                        parsed_url = urlparse(release_guid)
+                        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                        
+                        if 'torrents.php' in release_guid:
+                            final_download_url = f"{base_url}/download.php?torrent={torrent_id}"
+                        elif 'download' in release_guid:
+                            final_download_url = release_guid
+                        else:
+                            final_download_url = release_guid.replace('torrents.php', 'download.php')
+                            if 'id=' in final_download_url:
+                                final_download_url = final_download_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
+                        logger.info(f"No stored URL, using constructed URL")
+                    
                     logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
-                    logger.info(f"Base URL: {base_url}")
-                    logger.info(f"Constructed URL: {constructed_url}")
-                    logger.info(f"Stored URL: {stored_download_url}")
-                    logger.info(f"Final download URL: {final_download_url}")
-            
+                    logger.info(f"Final download URL: {final_download_url[:100]}...")
+                    
                     await client.download_release_by_guid(
                         movie_id=record["movie_id"],
                         guid=proper_guid,
                         indexerId=1,
-                        download_url=final_download_url,  # Use final_download_url here!
+                        download_url=final_download_url,
                         title=f"{record['movie_title']} 2025",
                         publish_date=datetime.utcnow().isoformat()
                     )
