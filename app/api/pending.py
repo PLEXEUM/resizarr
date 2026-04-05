@@ -101,6 +101,7 @@ async def approve_pending(record_id: int, data: ApproveInput):
                 if match:
                     torrent_id = match.group(1)
                     proper_guid = f"Prowlarr:{torrent_id}"
+                    
                     # Extract the base URL from the original release_guid
                     parsed_url = urlparse(release_guid)
                     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"

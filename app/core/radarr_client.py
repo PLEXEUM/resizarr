@@ -135,22 +135,14 @@ class RadarrClient:
             "movieId": movie_id,
             "title": title or f"Release {guid}",
             "protocol": "torrent",
-            "publishDate": publish_date or datetime.utcnow().isoformat()
+            "publishDate": publish_date or datetime.utcnow().isoformat(),
+            "allowUpgrade": true  # Force Radarr to allow the downgrade
         }
     
         # Add downloadUrl if provided (Radarr requires this or magnetUrl)
         if download_url:
             payload["downloadUrl"] = download_url
-        else:
-            # If no download_url, try to construct from guid
-            # Extract torrent ID from guid (format: Prowlarr:12345)
-            import re
-            match = re.search(r':(\d+)', guid)
-            if match:
-                torrent_id = match.group(1)
-                # You may need to adjust this URL based on your indexer
-                payload["downloadUrl"] = f"https://pixelhd.me/download.php?torrent={torrent_id}"
-                logger.info(f"Constructed download URL: {payload['downloadUrl']}")
+            logger.info(f"Using provided download URL: {download_url}")
     
         logger.debug(f"Push payload: {payload}")
         return await self._request("POST", "release/push", json=payload)
@@ -165,6 +157,20 @@ class RadarrClient:
             "title": title or "Release from URL"
         }
         return await self._request("POST", "release", json=payload)
+    
+    async def force_grab_release(self, movie_id: int, guid: str) -> dict:
+        """Force grab a release regardless of quality cutoff using the command endpoint."""
+        logger.info(f"Forcing grab of release with GUID {guid} for movie {movie_id}")
+    
+        # Use the command endpoint which allows forced grabs regardless of cutoff
+        payload = {
+            "name": "ReleaseGrabbingCommand",
+            "guid": guid,
+            "movieId": movie_id
+        }
+    
+        logger.debug(f"Force grab payload: {payload}")
+        return await self._request("POST", "command", json=payload)
 
     async def download_release_by_torrent_url(self, torrent_url: str) -> dict:
         """Download a specific release from a torrent URL."""
