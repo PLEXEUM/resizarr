@@ -97,6 +97,28 @@ class RadarrClient:
     async def get_movie(self, movie_id: int) -> dict:
         """Fetch a single movie by ID."""
         return await self._request("GET", f"movie/{movie_id}")
+    
+    async def delete_movie_file_only(self, movie_id: int) -> dict:
+        """Delete only the movie file, keep the movie entry in Radarr."""
+        try:
+            # Get the movie details to find the file ID
+            movie = await self.get_movie(movie_id)
+            movie_file = movie.get("movieFile")
+
+            if not movie_file:
+                logger.info(f"No movie file found for movie {movie_id}")
+                return {"success": False, "message": "No file to delete"}
+            
+            file_id = movie_file.get("id")
+
+            # Delete only the file, not the movie
+            await self._request("DELETE", f"moviefile/{file_id}")
+            logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
+            return {"success": True, "message": f"Deleted file ID: {file_id}"}
+        
+        except Exception as e:
+            logger.error(f"Failed to delete movie file: {e}")
+            return {"success": False, "message": str(e)}
 
     async def get_quality_profiles(self, force_refresh: bool = False) -> list:
         """Fetch quality profiles with 1-hour cache."""
