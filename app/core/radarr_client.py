@@ -111,10 +111,16 @@ class RadarrClient:
             
             file_id = movie_file.get("id")
 
-            # Delete only the file, not the movie
-            await self._request("DELETE", f"moviefile/{file_id}")
-            logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
-            return {"success": True, "message": f"Deleted file ID: {file_id}"}
+            # Delete the file directly (Radarr doesn't return JSON for this endpoint)
+            url = f"{self.base_url}/api/v3/moviefile/{file_id}"
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.delete(url, headers=self.headers)
+                if response.status_code == 200:
+                    logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
+                    return {"success": True, "message": f"Deleted file ID: {file_id}"}
+                else:
+                    logger.warning(f"Delete returned status: {response.status_code}")
+                    return {"success": False, "message": f"Status: {response.status_code}"}
         
         except Exception as e:
             logger.error(f"Failed to delete movie file: {e}")
