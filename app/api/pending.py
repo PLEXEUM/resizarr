@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime  # Add this line
+from urllib.parse import urlparse  # ADD THIS LINE
 from app.db.database import get_connection
 from app.core.radarr_client import RadarrClient
 from app.utils.logger import get_logger
@@ -94,23 +95,40 @@ async def approve_pending(record_id: int, data: ApproveInput):
             if release_guid.startswith("http"):
                 # It's a torrent URL, extract the torrent ID
                 import re
+                from urllib.parse import urlparse  # Move import here or add to top
+                
                 match = re.search(r'torrentid=(\d+)', release_guid)
                 if match:
                     torrent_id = match.group(1)
                     proper_guid = f"Prowlarr:{torrent_id}"
+                    # Extract the base URL from the original release_guid
+                    parsed_url = urlparse(release_guid)
+                    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
                     
+                    # Construct download URL based on common patterns
+                    if 'torrents.php' in release_guid:
+                        download_url = f"{base_url}/download.php?torrent={torrent_id}"
+                    elif 'download' in release_guid:
+                        download_url = release_guid
+                    else:
+                        download_url = release_guid.replace('torrents.php', 'download.php')
+                        if 'id=' in download_url:
+                            download_url = download_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
+        
                     logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
-                    
-                    # Let Radarr handle the download using GUID and indexerId (no download_url needed)
+                    logger.info(f"Base URL: {base_url}")
+                    logger.info(f"Download URL: {download_url}")
+        
                     await client.download_release_by_guid(
                         movie_id=record["movie_id"],
                         guid=proper_guid,
                         indexerId=1,
+                        download_url=download_url,
                         title=record["movie_title"],
                         publish_date=datetime.utcnow().isoformat()
                     )
                 else:
-                    logger.info(f"Could not extract ID from URL, falling back to generic search")
+                    logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")
                     await client.trigger_movie_search([record["movie_id"]])
             else:
                 # It's already a GUID, use the GUID method
@@ -121,11 +139,6 @@ async def approve_pending(record_id: int, data: ApproveInput):
                     title=record["movie_title"],
                     publish_date=datetime.utcnow().isoformat()
                 )
-        else:
-            # Fall back to generic search
-            logger.info(f"No specific release GUID, triggering generic search for '{record['movie_title']}'")
-            await client.trigger_movie_search([record["movie_id"]])
-        
         # Update status
         conn.execute("""
             UPDATE pending_replacements

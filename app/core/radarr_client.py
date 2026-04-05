@@ -131,16 +131,26 @@ class RadarrClient:
         # Build payload with all required fields
         payload = {
             "guid": guid,
-            "indexerId": indexerId,  # Add this required field
+            "indexerId": indexerId,
             "movieId": movie_id,
             "title": title or f"Release {guid}",
             "protocol": "torrent",
             "publishDate": publish_date or datetime.utcnow().isoformat()
         }
     
-        # Add downloadUrl if provided
+        # Add downloadUrl if provided (Radarr requires this or magnetUrl)
         if download_url:
             payload["downloadUrl"] = download_url
+        else:
+            # If no download_url, try to construct from guid
+            # Extract torrent ID from guid (format: Prowlarr:12345)
+            import re
+            match = re.search(r':(\d+)', guid)
+            if match:
+                torrent_id = match.group(1)
+                # You may need to adjust this URL based on your indexer
+                payload["downloadUrl"] = f"https://pixelhd.me/download.php?torrent={torrent_id}"
+                logger.info(f"Constructed download URL: {payload['downloadUrl']}")
     
         logger.debug(f"Push payload: {payload}")
         return await self._request("POST", "release/push", json=payload)
