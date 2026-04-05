@@ -57,6 +57,10 @@ async def approve_pending(record_id: int, data: ApproveInput):
     record = conn.execute("""
         SELECT * FROM pending_replacements WHERE id = ?
     """, (record_id,)).fetchone()
+
+    # Convert sqlite3.Row to dict for easier access
+    if record:
+        record = dict(record)
     
     if not record:
         conn.close()
