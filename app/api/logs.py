@@ -22,14 +22,14 @@ LOG_DIR = Path("/app/logs")
 def get_todays_log_path() -> Path:
     """Get today's dated log file path."""
     date_str = datetime.now().strftime("%Y-%m-%d")
-    return LOG_DIR / f"resizarr_{date_str}.log"
+    return LOG_DIR / f"resizarr_{date_str}"  # ← No .log extension
 
 def get_all_log_files() -> list:
     """Get all dated log files sorted by date (newest first)."""
     if not LOG_DIR.exists():
         return []
     
-    log_files = list(LOG_DIR.glob("resizarr_*.log"))
+    log_files = list(LOG_DIR.glob("resizarr_*"))
     # Sort by date extracted from filename (newest first)
     log_files.sort(reverse=True)
     return log_files
@@ -82,7 +82,7 @@ async def download_logs():
     return FileResponse(
         path=log_path,
         media_type="text/plain",
-        filename=log_path.name
+        filename=log_path.name + ".log"  # Add .log for download only
     )
 
 
