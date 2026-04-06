@@ -67,11 +67,12 @@
                 </div>
                 <button id="cancel-run-btn" 
                     onclick="cancelCurrentRun()"
-                    class="hidden p-1 rounded text-gray-400 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                    class="hidden items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-500 hover:text-red-600 hover:bg-gray-100 transition-colors"
                     title="Cancel Scan">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
+                    <span>Cancel</span>
                 </button>
             </div>
         </div>
@@ -196,13 +197,16 @@
             const cancelBtn = document.getElementById('cancel-run-btn');
             cancelBtn.classList.remove('hidden');
             cancelBtn.disabled = false;
-            // Don't set textContent - the SVG icon is already there
-            cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>`;
+            // Icon + Cancel text
+            cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span>Cancel</span>
+            </div>`;
             cancelBtn.classList.remove('text-green-600');
             cancelBtn.classList.add('text-gray-400');
-        }
+}
     
         // Poll for progress updates every second
         if (!pollInterval) {
@@ -256,9 +260,12 @@
                     cancelBtn.classList.add('hidden');
                     cancelBtn.disabled = false;
                     // Keep the X icon (don't set textContent)
-                    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>`;
+                    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Cancel</span>
+                    </div>`;
                     cancelBtn.classList.remove('text-green-600');
                     cancelBtn.classList.add('text-gray-400');
     
@@ -279,9 +286,12 @@
     cancelBtn.classList.add('hidden');
     cancelBtn.disabled = false;
     // Keep the X icon (don't set textContent)
-    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-    </svg>`;
+    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        <span>Cancel</span>
+    </div>`;
     cancelBtn.classList.remove('text-green-600');
     cancelBtn.classList.add('text-gray-400');
     
@@ -442,9 +452,12 @@ function startStatusChecking() {
                     cancelBtn.classList.remove('hidden');
                     cancelBtn.disabled = false;
                     // Reset to X icon (in case it was changed to checkmark)
-                    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>`;
+                    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Cancel</span>
+                    </div>`;
                     cancelBtn.classList.remove('text-green-600');
                     cancelBtn.classList.add('text-gray-400');
                     console.log('Status check: Run active, showing cancel button');
@@ -487,9 +500,12 @@ async function cancelCurrentRun() {
             // Don't change progress bar color - keep it normal
             // Just update the cancel button to show success
             // Change the SVG icon to a checkmark when cancelled
-            cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>`;
+            cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span>Cancelling...</span>
+            </div>`;
             cancelBtn.classList.add('text-green-600');
             cancelBtn.classList.remove('text-gray-400');
             
@@ -529,9 +545,12 @@ function startCancelConfirmationPolling() {
                 const cancelBtn = document.getElementById('cancel-run-btn');
                 cancelBtn.classList.add('hidden');
                 cancelBtn.disabled = false;
-                cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>`;
+                cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    <span>Cancel</span>
+                </div>`;
                 cancelBtn.classList.remove('text-green-600');
                 
                 // Reset progress bar color
