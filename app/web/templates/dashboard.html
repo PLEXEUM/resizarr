@@ -250,13 +250,18 @@
                     console.log('Run completed, clearing interval');
                     clearInterval(pollInterval);
                     pollInterval = null;
-                    
+    
                     // Hide cancel button
                     const cancelBtn = document.getElementById('cancel-run-btn');
                     cancelBtn.classList.add('hidden');
                     cancelBtn.disabled = false;
-                    cancelBtn.textContent = '🛑 Cancel Scan';
-                    
+                    // Keep the X icon (don't set textContent)
+                    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>`;
+                    cancelBtn.classList.remove('text-green-600');
+                    cancelBtn.classList.add('text-gray-400');
+    
                     loadStatus(); // Refresh final status
                 }
             } catch(e) {
@@ -273,10 +278,16 @@
     const cancelBtn = document.getElementById('cancel-run-btn');
     cancelBtn.classList.add('hidden');
     cancelBtn.disabled = false;
-    cancelBtn.textContent = '🛑 Cancel Scan';
+    // Keep the X icon (don't set textContent)
+    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>`;
+    cancelBtn.classList.remove('text-green-600');
+    cancelBtn.classList.add('text-gray-400');
     
     // Reset progress bar color
     document.getElementById('progress-bar').style.background = 'var(--accent)';
+
     
     if (pollInterval) {
         clearInterval(pollInterval);
