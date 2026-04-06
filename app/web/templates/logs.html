@@ -49,9 +49,13 @@
                 <option value="1000">1000</option>
             </select>
         </div>
-        <label class="flex items-center gap-2 cursor-pointer ml-auto">
+        <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="auto-scroll" checked class="accent-indigo-500" />
             <span class="text-sm">Auto-scroll</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="auto-refresh-logs" checked class="accent-indigo-500" />
+            <span class="text-sm">Auto-refresh (5s)</span>
         </label>
         <button onclick="loadLogs()"
             class="px-3 py-1 rounded-lg text-sm border"
@@ -96,8 +100,17 @@
 {% block scripts %}
 <script>
     let allLines = [];
+    let autoRefreshInterval = null;
 
-    window.addEventListener('DOMContentLoaded', loadLogs);
+    window.addEventListener('DOMContentLoaded', () => {
+        loadLogs();
+        setupAutoRefresh();
+        setupAutoRefreshListener();
+    });
+
+    window.addEventListener('beforeunload', () => {
+        stopAutoRefresh();
+    });
 
     async function loadLogs() {
         const lines = document.getElementById('log-lines').value;
@@ -116,6 +129,45 @@
             document.getElementById('log-content').textContent = 'Failed to load logs.';
         }
     }
+
+    // ========== AUTO-REFRESH FUNCTIONS ==========
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => {
+            console.log('Auto-refreshing logs...');
+            loadLogs();
+        }, 5000); // Refresh every 5 seconds
+    }
+
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+
+    function setupAutoRefresh() {
+        const autoRefreshCheckbox = document.getElementById('auto-refresh-logs');
+        if (autoRefreshCheckbox && autoRefreshCheckbox.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    }
+
+    function setupAutoRefreshListener() {
+        const autoRefreshCheckbox = document.getElementById('auto-refresh-logs');
+        if (autoRefreshCheckbox) {
+            autoRefreshCheckbox.addEventListener('change', () => {
+                if (autoRefreshCheckbox.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+        }
+    }
+    // ========== END AUTO-REFRESH ==========
 
     function filterLogs() {
         const filter = document.getElementById('log-filter').value;
@@ -165,6 +217,7 @@
                 allLines = [];
                 document.getElementById('log-content').innerHTML =
                     '<span style="color: var(--text-secondary)">Log file cleared.</span>';
+                loadLogs(); // Reload to refresh the view
             } else {
                 showToast('Failed to clear logs', 'error');
             }
