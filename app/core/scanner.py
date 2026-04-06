@@ -1,7 +1,8 @@
 import json
 import csv
 import io
-from typing import Optional
+import asyncio  # ADD THIS
+from typing import Optional, Dict  # ADD Dict
 from datetime import datetime
 from app.utils.logger import get_logger
 from app.core.radarr_client import RadarrClient
@@ -12,6 +13,19 @@ logger = get_logger()
 
 # Extensions to ignore when checking file sizes
 IGNORED_EXTENSIONS = {'.nfo', '.jpg', '.png', '.srt', '.idx', '.sub', '.iso', '.exe'}
+
+# ========== ADD GLOBAL TRACKING FOR CANCELLATION ==========
+_active_run: Dict = {
+    "is_running": False,
+    "run_id": None,
+    "cancel_event": None,
+    "cancelled": False,
+    "completed": False,
+    "current": 0,
+    "total": 0,
+    "current_movie": ""
+}
+# ========== END GLOBAL TRACKING ==========
 
 def get_largest_file(movie: dict) -> Optional[dict]:
     """Get the largest movie file, ignoring excluded extensions."""
@@ -65,10 +79,47 @@ def extract_proper_guid(release: dict) -> str:
     # Fallback to original GUID
     return guid
 
+# ========== ADD TRACKING FUNCTIONS FOR CANCELLATION ==========
+def get_active_run_id() -> Optional[str]:
+    """Get the current active run ID"""
+    return _active_run.get("run_id") if _active_run.get("is_running") else None
+
+def get_run_progress_data() -> dict:
+    """Get current run progress data"""
+    return {
+        "current": _active_run.get("current", 0),
+        "total": _active_run.get("total", 0),
+        "movie": _active_run.get("current_movie", ""),
+        "cancelled": _active_run.get("cancelled", False),
+        "completed": _active_run.get("completed", False)
+    }
+
+async def cancel_active_run(run_id: str) -> bool:
+    """Cancel the currently active run"""
+    global _active_run
+    
+    if not _active_run.get("is_running"):
+        return False
+    
+    if _active_run.get("run_id") != run_id:
+        return False
+    
+    # Set cancellation flag
+    _active_run["cancelled"] = True
+    
+    # If there's a cancel event, set it
+    cancel_event = _active_run.get("cancel_event")
+    if cancel_event:
+        cancel_event.set()
+    
+    return True
+# ========== END TRACKING FUNCTIONS ==========
+
 async def run_resizarr(
     dry_run: bool = False,
     batch_limit: int = 0,
-    progress_callback=None
+    progress_callback=None,
+    run_id: Optional[str] = None  # ADD THIS PARAMETER
 ) -> dict:
     """
     Main scanner function.
@@ -86,6 +137,21 @@ async def run_resizarr(
         "pending_approval": 0,
         "csv_data": None
     }
+
+     # ========== ADD INITIALIZATION FOR CANCELLATION ==========
+    global _active_run
+    cancel_event = asyncio.Event() if run_id else None
+    
+    if run_id:
+        _active_run["is_running"] = True
+        _active_run["run_id"] = run_id
+        _active_run["cancel_event"] = cancel_event
+        _active_run["cancelled"] = False
+        _active_run["completed"] = False
+        _active_run["current"] = 0
+        _active_run["total"] = 0
+        _active_run["current_movie"] = ""
+    # ========== END INITIALIZATION ==========
     
     conn = get_connection()
 
@@ -209,6 +275,22 @@ async def run_resizarr(
         
         # Process each candidate
         for i, candidate in enumerate(candidates):
+            # ========== ADD CANCELLATION CHECK ==========
+            if cancel_event and cancel_event.is_set():
+                logger.info(f"Run cancelled by user after processing {i} movies")
+                summary["cancelled"] = True
+                if run_id:
+                    _active_run["cancelled"] = True
+                break
+            # ========== END CANCELLATION CHECK ==========
+
+             # ========== UPDATE PROGRESS TRACKING ==========
+            if run_id:
+                _active_run["current"] = i + 1
+                _active_run["total"] = len(candidates)
+                _active_run["current_movie"] = candidate["movie"].get("title", "Unknown")
+            # ========== END PROGRESS TRACKING ==========
+
             movie = candidate["movie"]
             movie_id = movie.get("id")
             movie_title = movie.get("title", "Unknown")
@@ -538,6 +620,11 @@ async def run_resizarr(
         logger.error(f"Unexpected error during run: {e}")
         summary["error"] = str(e)
     finally:
+        # ========== ADD CLEANUP FOR CANCELLATION ==========
+        if run_id:
+            _active_run["completed"] = not _active_run.get("cancelled", False)
+            _active_run["is_running"] = False
+        # ========== END CLEANUP ==========
         conn.close()
     
     return summary

@@ -60,6 +60,15 @@
                     class="h-2 rounded-full transition-all duration-300"
                     style="width: 0%; background: var(--accent)"></div>
             </div>
+
+            <!-- CANCEL BUTTON - Add this right here -->
+            <div class="mt-4">
+                <button id="cancel-run-btn" 
+                    onclick="cancelCurrentRun()"
+                    class="hidden w-full px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                    🛑 Cancel Scan
+                </button>
+            </div>
         </div>
     </div>
 
@@ -129,10 +138,15 @@
 {% block scripts %}
 <script>
     let pollInterval = null;
+    // Add these variables at the top of your script section (after window.addEventListener)
+    let currentRunId = null;
+    let cancelPollInterval = null;
+    let statusCheckInterval = null;  // ADD THIS LINE
 
     window.addEventListener('DOMContentLoaded', () => {
         loadRuleSummary();
         loadStatus();
+        startStatusChecking();  // ADD THIS LINE
     });
 
     async function loadRuleSummary() {
@@ -164,57 +178,105 @@
 
             document.getElementById('next-run').textContent = data.next_run || 'Not scheduled';
 
-            // Show/hide progress
-            if (data.is_running) {
-                console.log('loadStatus: run is running, setting up progress polling');
-                document.getElementById('progress-section').classList.remove('hidden');
-                document.getElementById('run-btn').disabled = true;
-                document.getElementById('run-btn').textContent = '⏳ Running...';
+    // Show/hide progress
+    if (data.is_running) {
+        console.log('loadStatus: run is running, setting up progress polling');
+        document.getElementById('progress-section').classList.remove('hidden');
+        document.getElementById('run-btn').disabled = true;
+        document.getElementById('run-btn').textContent = '⏳ Running...';
+    
+        // Store run_id if available
+        if (data.run_id) {
+            currentRunId = data.run_id;
+            const cancelBtn = document.getElementById('cancel-run-btn');
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = '🛑 Cancel Scan';
+        }
+    
+        // Poll for progress updates every second
+        if (!pollInterval) {
+            pollInterval = setInterval(async () => {
+            try {
+                const progressRes = await fetch('/api/run/progress');
+                const progressData = await progressRes.json();
                 
-                // Poll for progress updates every second
-                if (!pollInterval) {
-                    pollInterval = setInterval(async () => {
-                        try {
-                            const progressRes = await fetch('/api/run/progress');
-                            const progressData = await progressRes.json();
-            
-                            // Add debug logging
-                            console.log('Progress data:', progressData);
-            
-                            // Only update if total > 0
-                            if (progressData.total > 0) {
-                                const percent = progressData.percent || 0;
-                                document.getElementById('progress-bar').style.width = `${percent}%`;
-                                document.getElementById('progress-pct').textContent = `${percent}%`;
-                                document.getElementById('progress-label').textContent = 
-                                    `Processing ${progressData.current} of ${progressData.total}: ${progressData.movie || '...'}`;
-                            } else if (progressData.is_running) {
-                                // Show indeterminate progress while scanning (only if run is still running)
-                                document.getElementById('progress-bar').style.width = '10%';
-                                document.getElementById('progress-pct').textContent = 'starting...';
-                                document.getElementById('progress-label').textContent = 'Fetching movies from Radarr...';
-                            }
-            
-                            if (!progressData.is_running) {
-                                console.log('Run completed, clearing interval');
-                                clearInterval(pollInterval);
-                                pollInterval = null;
-                                loadStatus(); // Refresh final status
-                            }
-                        } catch(e) {
-                            console.error('Progress poll error:', e);
-                        }
-                    }, 1000);
+                console.log('Progress data:', progressData);
+                
+                // Only update if total > 0
+                if (progressData.total > 0) {
+                    const percent = progressData.percent || 0;
+                    document.getElementById('progress-bar').style.width = `${percent}%`;
+                    document.getElementById('progress-pct').textContent = `${percent}%`;
+                    document.getElementById('progress-label').textContent = 
+                        `Processing ${progressData.current} of ${progressData.total}: ${progressData.movie || '...'}`;
+                } else if (progressData.is_running) {
+                    // Show indeterminate progress while scanning
+                    document.getElementById('progress-bar').style.width = '10%';
+                    document.getElementById('progress-pct').textContent = 'starting...';
+                    document.getElementById('progress-label').textContent = 'Fetching movies from Radarr...';
                 }
-            } else {
-                document.getElementById('progress-section').classList.add('hidden');
-                document.getElementById('run-btn').disabled = false;
-                document.getElementById('run-btn').textContent = '▶ Run Now';
-                if (pollInterval) {
+                
+                // Check if run was cancelled
+                if (progressData.cancelled) {
+                    console.log('Run was cancelled');
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    }
+                    // Show cancellation in UI
+                    document.getElementById('progress-bar').style.background = '#ef4444';
+                    document.getElementById('progress-label').textContent = 
+                        `Cancelled after ${progressData.current} movies`;
+                    
+                    // Hide cancel button after delay
+                    setTimeout(() => {
+                        const cancelBtn = document.getElementById('cancel-run-btn');
+                        cancelBtn.classList.add('hidden');
+                        document.getElementById('progress-bar').style.background = 'var(--accent)';
+                    }, 3000);
+                }
+                
+                if (!progressData.is_running) {
+                    console.log('Run completed, clearing interval');
                     clearInterval(pollInterval);
                     pollInterval = null;
+                    
+                    // Hide cancel button
+                    const cancelBtn = document.getElementById('cancel-run-btn');
+                    cancelBtn.classList.add('hidden');
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = '🛑 Cancel Scan';
+                    
+                    loadStatus(); // Refresh final status
                 }
+            } catch(e) {
+                console.error('Progress poll error:', e);
             }
+        }, 1000);
+    }
+} else {
+    document.getElementById('progress-section').classList.add('hidden');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').textContent = '▶ Run Now';
+    
+    // Hide cancel button
+    const cancelBtn = document.getElementById('cancel-run-btn');
+    cancelBtn.classList.add('hidden');
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = '🛑 Cancel Scan';
+    
+    // Reset progress bar color
+    document.getElementById('progress-bar').style.background = 'var(--accent)';
+    
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+
+    // Clear status checking when no run is active (optional)
+    // Keep it running - it's fine to keep checking
+}
 
             // Last run summary
             if (data.last_run) {
@@ -263,6 +325,9 @@
                     </tr>
                 `).join('');
             }
+
+            // Add this line right here - before the closing catch
+            await checkRunStatus();
 
         } catch (e) {
             console.error('Failed to load status:', e);
@@ -313,5 +378,141 @@
         document.getElementById('progress-section').classList.add('hidden');
     }
 }
+
+// Add this function to check if a run is active and show/hide cancel button
+async function checkRunStatus() {
+    try {
+        const res = await fetch('/api/run/status');
+        const data = await res.json();
+        
+        const cancelBtn = document.getElementById('cancel-run-btn');
+        if (data.is_running && data.run_id) {
+            currentRunId = data.run_id;
+            cancelBtn.classList.remove('hidden');
+        } else {
+            cancelBtn.classList.add('hidden');
+            currentRunId = null;
+            // Stop cancel polling if no run active
+            if (cancelPollInterval) {
+                clearInterval(cancelPollInterval);
+                cancelPollInterval = null;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to check run status:', e);
+    }
+}
+
+// ========== ADD THIS NEW FUNCTION RIGHT HERE ==========
+// Start periodic status checking (every 2 seconds)
+function startStatusChecking() {
+    if (statusCheckInterval) clearInterval(statusCheckInterval);
+    
+    statusCheckInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/run/status');
+            const data = await res.json();
+            
+            const cancelBtn = document.getElementById('cancel-run-btn');
+            
+            if (data.is_running && data.run_id) {
+                // Run is active - show cancel button
+                if (currentRunId !== data.run_id) {
+                    currentRunId = data.run_id;
+                    cancelBtn.classList.remove('hidden');
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = '🛑 Cancel Scan';
+                    console.log('Status check: Run active, showing cancel button');
+                }
+            } else {
+                // No active run - hide cancel button
+                if (currentRunId !== null) {
+                    cancelBtn.classList.add('hidden');
+                    currentRunId = null;
+                    console.log('Status check: No active run, hiding cancel button');
+                }
+            }
+        } catch (e) {
+            console.error('Status check error:', e);
+        }
+    }, 2000); // Check every 2 seconds
+}
+// ========== END NEW FUNCTION ==========
+
+// Cancel the current run
+async function cancelCurrentRun() {
+    if (!currentRunId) {
+        showToast('No active run to cancel', 'warning');
+        return;
+    }
+    
+    const cancelBtn = document.getElementById('cancel-run-btn');
+    const originalText = cancelBtn.textContent;
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = '⏳ Cancelling...';
+    
+    try {
+        const res = await fetch(`/api/run/${currentRunId}/cancel`, { 
+            method: 'POST' 
+        });
+        
+        if (res.ok) {
+            showToast('Cancelling scan... will stop after current movie', 'info');
+            // Change progress bar color to indicate cancellation
+            document.getElementById('progress-bar').style.background = '#ef4444';
+            cancelBtn.textContent = '✓ Cancellation requested';
+            
+            // Start polling for cancellation confirmation
+            startCancelConfirmationPolling();
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'Failed to cancel', 'error');
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = originalText;
+        }
+    } catch (e) {
+        showToast('Error cancelling: ' + e.message, 'error');
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = originalText;
+    }
+}
+
+// Poll to confirm cancellation completed
+function startCancelConfirmationPolling() {
+    if (cancelPollInterval) clearInterval(cancelPollInterval);
+    
+    cancelPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/run/progress');
+            const data = await res.json();
+            
+            // Check if run is no longer active (cancelled or completed)
+            if (!data.is_running) {
+                clearInterval(cancelPollInterval);
+                cancelPollInterval = null;
+                
+                const cancelBtn = document.getElementById('cancel-run-btn');
+                cancelBtn.classList.add('hidden');
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = '🛑 Cancel Scan';
+                
+                // Reset progress bar color
+                document.getElementById('progress-bar').style.background = 'var(--accent)';
+                
+                if (data.cancelled) {
+                    showToast(`Scan cancelled after ${data.current} movies`, 'warning');
+                } else if (data.completed) {
+                    showToast('Scan completed!', 'success');
+                }
+                
+                currentRunId = null;
+                loadStatus(); // Refresh UI
+            }
+        } catch (e) {
+            console.error('Cancel polling error:', e);
+        }
+    }, 1000);
+}
+
 </script>
 {% endblock %}

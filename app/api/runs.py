@@ -14,6 +14,7 @@ logger = get_logger()
 async def trigger_run(dry_run: bool = False):
     """Manually trigger a scanner run."""
     import asyncio
+    import uuid  # ADD THIS IMPORT
     from app.core.scanner import run_resizarr
     
     if is_running():
@@ -23,6 +24,9 @@ async def trigger_run(dry_run: bool = False):
         )
     
     logger.info(f"Manual run triggered (dry_run={dry_run})")
+    
+    # Generate unique run ID for cancellation - ADD THIS
+    run_id = str(uuid.uuid4())
     
     # Set running state
     set_running(True)
@@ -45,7 +49,8 @@ async def trigger_run(dry_run: bool = False):
     # Run the scanner in background
     async def run_and_reset():
         try:
-            await run_resizarr(dry_run=dry_run, progress_callback=progress_callback)
+            # Pass run_id to run_resizarr - UPDATE THIS LINE
+            await run_resizarr(dry_run=dry_run, progress_callback=progress_callback, run_id=run_id)
         finally:
             set_running(False)
             # Also reset progress data
@@ -58,7 +63,8 @@ async def trigger_run(dry_run: bool = False):
     return {
         "success": True,
         "message": "Run started",
-        "dry_run": dry_run
+        "dry_run": dry_run,
+        "run_id": run_id  # ADD THIS LINE - critical for cancellation
     }
 
 
@@ -93,15 +99,22 @@ async def get_status():
 # ========== ADD THIS NEW ENDPOINT HERE ==========
 @router.get("/run/progress")
 async def get_progress():
-    """Get current run progress."""
+    """Get current run progress including cancellation status."""
     from app.core.scheduler import is_running
+    from app.core.scanner import get_run_progress_data
     
-    # Store progress in a global variable (simple approach)
+    # Get progress from scanner
+    progress_data = get_run_progress_data()
+    
+    # Store progress in a global variable (simple approach) - keep for backward compatibility
     if not hasattr(get_progress, "progress_data"):
         get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
     
-    current = get_progress.progress_data.get("current", 0)
-    total = get_progress.progress_data.get("total", 0)
+    current = progress_data.get("current", get_progress.progress_data.get("current", 0))
+    total = progress_data.get("total", get_progress.progress_data.get("total", 0))
+    movie = progress_data.get("movie", get_progress.progress_data.get("movie", ""))
+    cancelled = progress_data.get("cancelled", False)
+    completed = progress_data.get("completed", False)
     
     # Only calculate percent if total > 0 and run is running
     if is_running() and total > 0:
@@ -113,10 +126,44 @@ async def get_progress():
         "is_running": is_running(),
         "current": current,
         "total": total,
-        "movie": get_progress.progress_data.get("movie", ""),
-        "percent": percent
+        "movie": movie,
+        "percent": percent,
+        "cancelled": cancelled,  # ADD THIS
+        "completed": completed   # ADD THIS
     }
 # ========== END OF NEW ENDPOINT ==========
+
+# ========== ADD THESE CANCELLATION ENDPOINTS ==========
+
+@router.get("/run/status")
+async def get_run_status():
+    """Get current run status including run_id for cancellation."""
+    from app.core.scheduler import is_running
+    from app.core.scanner import get_active_run_id
+    
+    return {
+        "is_running": is_running(),
+        "run_id": get_active_run_id() if is_running() else None
+    }
+
+
+@router.post("/run/{run_id}/cancel")
+async def cancel_run_endpoint(run_id: str):
+    """Cancel a running scan."""
+    from app.core.scheduler import is_running
+    from app.core.scanner import cancel_active_run
+    
+    if not is_running():
+        raise HTTPException(status_code=400, detail="No active run in progress")
+    
+    success = await cancel_active_run(run_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to cancel run - run_id mismatch or already completing")
+    
+    logger.info(f"Run {run_id} cancellation requested")
+    return {"success": True, "message": "Cancellation requested"}
+
+# ========== END OF CANCELLATION ENDPOINTS ==========
 
 @router.get("/run/csv")
 async def download_csv():
