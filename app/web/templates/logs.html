@@ -113,10 +113,14 @@
     });
 
     async function loadLogs() {
+        console.log('loadLogs() called - manual refresh');
         const lines = document.getElementById('log-lines').value;
+        console.log('Loading logs with lines:', lines);
         try {
             const res = await fetch(`/api/logs?lines=${lines}`);
+            console.log('Fetch response status:', res.status);
             const data = await res.json();
+            console.log('Data received:', data);
             allLines = data.lines || [];
 
             // Show which log file is being displayed
@@ -125,7 +129,9 @@
                 `Showing ${data.showing} of ${data.total_lines} total lines${logFileInfo}`;
 
             filterLogs();
+            console.log('Logs refreshed successfully');
         } catch (e) {
+            console.error('Failed to load logs:', e);
             document.getElementById('log-content').textContent = 'Failed to load logs.';
         }
     }
