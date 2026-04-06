@@ -2,29 +2,49 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
+from datetime import datetime
 from app.db.database import get_connection
 from app.utils.logger import get_logger, setup_logger
 
 router = APIRouter()
 logger = get_logger()
 
-LOG_PATH = Path("/app/logs/resizarr.log")
+# Log directory path
+LOG_DIR = Path("/app/logs")
 
+def get_todays_log_path() -> Path:
+    """Get today's dated log file path."""
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    return LOG_DIR / f"resizarr_{date_str}.log"
 
-class LogSettingsInput(BaseModel):
-    log_level: str = "INFO"
-    log_max_size_mb: int = 10
-    log_max_files: int = 5
+def get_all_log_files() -> list:
+    """Get all dated log files sorted by date (newest first)."""
+    if not LOG_DIR.exists():
+        return []
+    
+    log_files = list(LOG_DIR.glob("resizarr_*.log"))
+    # Sort by date extracted from filename (newest first)
+    log_files.sort(reverse=True)
+    return log_files
 
 
 @router.get("/logs")
 async def get_logs(lines: int = 100):
-    """Return the last N lines of the log file."""
-    if not LOG_PATH.exists():
-        return {"lines": [], "message": "No log file found yet"}
+    """Return the last N lines of today's log file."""
+    log_path = get_todays_log_path()
+    
+    if not log_path.exists():
+        # Check if there are any log files
+        all_logs = get_all_log_files()
+        if all_logs:
+            # Use the most recent log file
+            log_path = all_logs[0]
+            logger.info(f"No log for today, using most recent: {log_path.name}")
+        else:
+            return {"lines": [], "message": "No log file found yet", "total_lines": 0, "showing": 0}
 
     try:
-        with open(LOG_PATH, "r", encoding="utf-8", errors="replace") as f:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
             all_lines = f.readlines()
 
         last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
@@ -32,7 +52,8 @@ async def get_logs(lines: int = 100):
         return {
             "lines": [line.rstrip("\n") for line in last_lines],
             "total_lines": len(all_lines),
-            "showing": len(last_lines)
+            "showing": len(last_lines),
+            "log_file": log_path.name
         }
     except Exception as e:
         logger.error(f"Failed to read logs: {e}")
@@ -41,26 +62,37 @@ async def get_logs(lines: int = 100):
 
 @router.get("/logs/download")
 async def download_logs():
-    """Download the full log file."""
-    if not LOG_PATH.exists():
-        raise HTTPException(status_code=404, detail="No log file found")
+    """Download today's log file (or most recent if today doesn't exist)."""
+    log_path = get_todays_log_path()
+    
+    if not log_path.exists():
+        all_logs = get_all_log_files()
+        if all_logs:
+            log_path = all_logs[0]
+        else:
+            raise HTTPException(status_code=404, detail="No log file found")
 
     return FileResponse(
-        path=LOG_PATH,
+        path=log_path,
         media_type="text/plain",
-        filename="resizarr.log"
+        filename=log_path.name
     )
 
 
 @router.delete("/logs")
 async def clear_logs():
-    """Clear the log file."""
+    """Clear today's log file (or all log files if specified)."""
+    log_path = get_todays_log_path()
+    
     try:
-        if LOG_PATH.exists():
-            with open(LOG_PATH, "w") as f:
+        if log_path.exists():
+            with open(log_path, "w") as f:
                 f.write("")
-            logger.info("Log file cleared by user")
-        return {"success": True, "message": "Logs cleared"}
+            logger.info(f"Cleared log file: {log_path.name}")
+            return {"success": True, "message": f"Cleared {log_path.name}"}
+        else:
+            # No log file exists
+            return {"success": True, "message": "No log file to clear"}
     except Exception as e:
         logger.error(f"Failed to clear logs: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear logs")

@@ -106,8 +106,10 @@
             const data = await res.json();
             allLines = data.lines || [];
 
+            // Show which log file is being displayed
+            const logFileInfo = data.log_file ? ` (from: ${data.log_file})` : '';
             document.getElementById('log-meta').textContent =
-                `Showing ${data.showing} of ${data.total_lines} total lines`;
+                `Showing ${data.showing} of ${data.total_lines} total lines${logFileInfo}`;
 
             filterLogs();
         } catch (e) {
