@@ -96,8 +96,14 @@
 
     <!-- Run History -->
     <div class="card rounded-xl p-6">
-        <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-            style="color: var(--text-secondary)">Run History</h2>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wide"
+                style="color: var(--text-secondary)">Run History</h2>
+            <button onclick="confirmClearHistory()"
+                class="text-xs px-2 py-1 rounded border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
+                Clear History
+            </button>
+        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
@@ -570,6 +576,30 @@ function startCancelConfirmationPolling() {
         }
     }, 1000);
 }
+
+// ========== CLEAR RUN HISTORY ==========
+function confirmClearHistory() {
+    if (confirm('Are you sure you want to clear ALL run history? This cannot be undone.')) {
+        clearRunHistory();
+    }
+}
+
+async function clearRunHistory() {
+    try {
+        const res = await fetch('/api/history/clear', { method: 'DELETE' });
+        if (res.ok) {
+            const data = await res.json();
+            showToast(`Cleared ${data.count} history records`, 'success');
+            loadStatus(); // Refresh the page
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'Failed to clear history', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+// ========== END CLEAR RUN HISTORY ==========
 
 </script>
 {% endblock %}

@@ -4,7 +4,7 @@ from app.db.database import get_connection
 from app.core.scheduler import execute_run, is_running, get_next_run_time, set_running
 from app.utils.logger import get_logger
 import io
-from datetime import datetime  # ADD THIS LINE
+from datetime import datetime
 
 router = APIRouter()
 logger = get_logger()
@@ -14,7 +14,7 @@ logger = get_logger()
 async def trigger_run(dry_run: bool = False):
     """Manually trigger a scanner run."""
     import asyncio
-    import uuid  # ADD THIS IMPORT
+    import uuid
     from app.core.scanner import run_resizarr
     
     if is_running():
@@ -25,7 +25,7 @@ async def trigger_run(dry_run: bool = False):
     
     logger.info(f"Manual run triggered (dry_run={dry_run})")
     
-    # Generate unique run ID for cancellation - ADD THIS
+    # Generate unique run ID for cancellation
     run_id = str(uuid.uuid4())
     
     # Set running state
@@ -49,11 +49,9 @@ async def trigger_run(dry_run: bool = False):
     # Run the scanner in background
     async def run_and_reset():
         try:
-            # Pass run_id to run_resizarr - UPDATE THIS LINE
             await run_resizarr(dry_run=dry_run, progress_callback=progress_callback, run_id=run_id)
         finally:
             set_running(False)
-            # Also reset progress data
             from app.api.runs import get_progress
             if hasattr(get_progress, "progress_data"):
                 get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
@@ -64,7 +62,7 @@ async def trigger_run(dry_run: bool = False):
         "success": True,
         "message": "Run started",
         "dry_run": dry_run,
-        "run_id": run_id  # ADD THIS LINE - critical for cancellation
+        "run_id": run_id
     }
 
 
@@ -96,7 +94,7 @@ async def get_status():
         "history": [dict(r) for r in history]
     }
 
-# ========== ADD THIS NEW ENDPOINT HERE ==========
+
 @router.get("/run/progress")
 async def get_progress():
     """Get current run progress including cancellation status."""
@@ -106,7 +104,7 @@ async def get_progress():
     # Get progress from scanner
     progress_data = get_run_progress_data()
     
-    # Store progress in a global variable (simple approach) - keep for backward compatibility
+    # Store progress in a global variable - keep for backward compatibility
     if not hasattr(get_progress, "progress_data"):
         get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
     
@@ -128,12 +126,10 @@ async def get_progress():
         "total": total,
         "movie": movie,
         "percent": percent,
-        "cancelled": cancelled,  # ADD THIS
-        "completed": completed   # ADD THIS
+        "cancelled": cancelled,
+        "completed": completed
     }
-# ========== END OF NEW ENDPOINT ==========
 
-# ========== ADD THESE CANCELLATION ENDPOINTS ==========
 
 @router.get("/run/status")
 async def get_run_status():
@@ -163,7 +159,6 @@ async def cancel_run_endpoint(run_id: str):
     logger.info(f"Run {run_id} cancellation requested")
     return {"success": True, "message": "Cancellation requested"}
 
-# ========== END OF CANCELLATION ENDPOINTS ==========
 
 @router.get("/run/csv")
 async def download_csv():
@@ -217,3 +212,23 @@ async def download_csv():
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+# ========== CLEAR RUN HISTORY ENDPOINT ==========
+@router.delete("/history/clear")
+async def clear_run_history():
+    """Clear all run history records."""
+    conn = get_connection()
+    
+    # Count before deleting
+    result = conn.execute("SELECT COUNT(*) FROM run_history")
+    count = result.fetchone()[0]
+    
+    # Delete all history
+    conn.execute("DELETE FROM run_history")
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"Cleared {count} run history records")
+    return {"success": True, "count": count}
+# ========== END CLEAR RUN HISTORY ENDPOINT ==========
