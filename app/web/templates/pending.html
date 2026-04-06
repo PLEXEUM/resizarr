@@ -17,19 +17,24 @@
     </div>
 
     <!-- Batch Actions -->
-    <div class="card rounded-xl p-4 flex items-center gap-4">
-        <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="select-all" class="accent-indigo-500"
-                onchange="toggleSelectAll()" />
-            <span class="text-sm">Select All (this page)</span>
-        </label>
-        <button onclick="confirmBatchApprove()"
-            id="batch-approve-btn"
-            class="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-            style="background: var(--accent);" disabled>
-            Approve Selected (<span id="selected-count">0</span>)
+    <div class="card rounded-xl p-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="select-all" class="accent-indigo-500"
+                    onchange="toggleSelectAll()" />
+                <span class="text-sm">Select All (this page)</span>
+            </label>
+            <button onclick="confirmBatchApprove()"
+                id="batch-approve-btn"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style="background: var(--accent);" disabled>
+                Approve Selected (<span id="selected-count">0</span>)
+            </button>
+        </div>
+        <button onclick="confirmClearList()"
+            class="px-4 py-2 rounded-lg text-sm font-medium border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
+            Clear List
         </button>
-        <span class="text-xs" style="color: var(--text-secondary)">Max 50 per batch</span>
     </div>
 
     <!-- Pending Table -->
@@ -264,5 +269,39 @@
             showToast('Request failed: ' + e.message, 'error');
         }
     }
+
+    // ========== CLEAR LIST FUNCTIONS ==========
+    function confirmClearList() {
+        // Get total count from the current page or fetch total
+        const rows = document.querySelectorAll('#pending-table .row-checkbox');
+        const count = rows.length;
+    
+        if (count === 0) {
+            showToast('No pending records to clear', 'info');
+            return;
+        }
+    
+        if (confirm(`Clear ${count} pending ${count === 1 ? 'record' : 'records'} from the list?\n\nThis only removes them from this list. Eligible movies will be re-added on the next scan.`)) {
+        clearPendingList();
+        }
+    }
+
+    async function clearPendingList() {
+        try {
+            const res = await fetch('/api/pending/clear-list', { method: 'DELETE' });
+            if (res.ok) {
+                const data = await res.json();
+                showToast(`Cleared ${data.count} pending ${data.count === 1 ? 'record' : 'records'}`, 'success');
+                loadPending(currentPage);
+            } else {
+                const data = await res.json();
+                showToast(data.detail || 'Failed to clear list', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
+        }
+    }
+    // ========== END CLEAR LIST FUNCTIONS ==========
+    
 </script>
 {% endblock %}

@@ -267,6 +267,24 @@ async def approve_batch(data: BatchApproveInput):
         "failed_ids": failed
     }
 
+# ========== NEW CLEAR LIST ENDPOINT ==========
+@router.delete("/pending/clear-list")
+async def clear_pending_list():
+    """Clear all pending replacement records from the list."""
+    conn = get_connection()
+    
+    # Count before deleting
+    result = conn.execute("SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'")
+    count = result.fetchone()[0]
+    
+    # Delete all pending records
+    conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"Cleared {count} pending records from list")
+    return {"success": True, "count": count}
+# ========== END CLEAR LIST ENDPOINT ==========
 
 @router.delete("/pending/{record_id}")
 async def delete_pending(record_id: int):
