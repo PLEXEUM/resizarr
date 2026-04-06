@@ -590,7 +590,10 @@ async function clearRunHistory() {
         if (res.ok) {
             const data = await res.json();
             showToast(`Cleared ${data.count} history records`, 'success');
-            loadStatus(); // Refresh the page
+            // Just refresh status - it will handle the table update
+            setTimeout(() => {
+                loadStatus();
+            }, 200);
         } else {
             const data = await res.json();
             showToast(data.detail || 'Failed to clear history', 'error');
