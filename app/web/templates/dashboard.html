@@ -67,8 +67,11 @@
                 </div>
                 <button id="cancel-run-btn" 
                     onclick="cancelCurrentRun()"
-                    class="hidden text-xs px-2 py-1 rounded text-gray-500 hover:text-red-600 hover:bg-gray-100 transition-colors">
-                    Cancel
+                    class="hidden p-1 rounded text-gray-400 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                    title="Cancel Scan">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -193,7 +196,12 @@
             const cancelBtn = document.getElementById('cancel-run-btn');
             cancelBtn.classList.remove('hidden');
             cancelBtn.disabled = false;
-            cancelBtn.textContent = '🛑 Cancel Scan';
+            // Don't set textContent - the SVG icon is already there
+            cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>`;
+            cancelBtn.classList.remove('text-green-600');
+            cancelBtn.classList.add('text-gray-400');
         }
     
         // Poll for progress updates every second
@@ -422,7 +430,12 @@ function startStatusChecking() {
                     currentRunId = data.run_id;
                     cancelBtn.classList.remove('hidden');
                     cancelBtn.disabled = false;
-                    cancelBtn.textContent = '🛑 Cancel Scan';
+                    // Reset to X icon (in case it was changed to checkmark)
+                    cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>`;
+                    cancelBtn.classList.remove('text-green-600');
+                    cancelBtn.classList.add('text-gray-400');
                     console.log('Status check: Run active, showing cancel button');
                 }
             } else {
@@ -448,11 +461,10 @@ async function cancelCurrentRun() {
     }
     
     const cancelBtn = document.getElementById('cancel-run-btn');
-    const originalText = cancelBtn.textContent;
     cancelBtn.disabled = true;
-    cancelBtn.textContent = 'Cancelling...';
     cancelBtn.classList.add('text-gray-400');
     cancelBtn.classList.remove('hover:text-red-600', 'hover:bg-gray-100');
+    // Keep the X icon visible while cancelling (don't change to text)
     
     try {
         const res = await fetch(`/api/run/${currentRunId}/cancel`, { 
@@ -463,7 +475,10 @@ async function cancelCurrentRun() {
             showToast('Cancelling scan... will stop after current movie', 'info');
             // Don't change progress bar color - keep it normal
             // Just update the cancel button to show success
-            cancelBtn.textContent = '✓';
+            // Change the SVG icon to a checkmark when cancelled
+            cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>`;
             cancelBtn.classList.add('text-green-600');
             cancelBtn.classList.remove('text-gray-400');
             
@@ -473,14 +488,14 @@ async function cancelCurrentRun() {
             const data = await res.json();
             showToast(data.detail || 'Failed to cancel', 'error');
             cancelBtn.disabled = false;
-            cancelBtn.textContent = originalText;
+            // Keep the X icon
             cancelBtn.classList.remove('text-gray-400');
             cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
         }
     } catch (e) {
         showToast('Error cancelling: ' + e.message, 'error');
         cancelBtn.disabled = false;
-        cancelBtn.textContent = originalText;
+        // Keep the X icon
         cancelBtn.classList.remove('text-gray-400');
         cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
     }
@@ -503,7 +518,10 @@ function startCancelConfirmationPolling() {
                 const cancelBtn = document.getElementById('cancel-run-btn');
                 cancelBtn.classList.add('hidden');
                 cancelBtn.disabled = false;
-                cancelBtn.textContent = '🛑 Cancel Scan';
+                cancelBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>`;
+                cancelBtn.classList.remove('text-green-600');
                 
                 // Reset progress bar color
                 document.getElementById('progress-bar').style.background = 'var(--accent)';
