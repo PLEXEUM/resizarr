@@ -55,18 +55,20 @@
                 <span id="progress-label">Starting...</span>
                 <span id="progress-pct">0%</span>
             </div>
-            <div class="w-full rounded-full h-2" style="background: var(--border-color)">
-                <div id="progress-bar"
-                    class="h-2 rounded-full transition-all duration-300"
-                    style="width: 0%; background: var(--accent)"></div>
-            </div>
-
-            <!-- CANCEL BUTTON - Add this right here -->
-            <div class="mt-4">
+        
+            <!-- Progress bar with inline cancel button -->
+            <div class="flex items-center gap-3">
+                <div class="flex-1">
+                    <div class="w-full rounded-full h-2" style="background: var(--border-color)">
+                        <div id="progress-bar"
+                            class="h-2 rounded-full transition-all duration-300"
+                            style="width: 0%; background: var(--accent)"></div>
+                    </div>
+                </div>
                 <button id="cancel-run-btn" 
                     onclick="cancelCurrentRun()"
-                    class="hidden w-full px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
-                    🛑 Cancel Scan
+                    class="hidden text-xs px-2 py-1 rounded text-gray-500 hover:text-red-600 hover:bg-gray-100 transition-colors">
+                    Cancel
                 </button>
             </div>
         </div>
@@ -220,22 +222,21 @@
                 // Check if run was cancelled
                 if (progressData.cancelled) {
                     console.log('Run was cancelled');
-                    if (pollInterval) {
-                        clearInterval(pollInterval);
-                        pollInterval = null;
-                    }
-                    // Show cancellation in UI
-                    document.getElementById('progress-bar').style.background = '#ef4444';
-                    document.getElementById('progress-label').textContent = 
-                        `Cancelled after ${progressData.current} movies`;
-                    
-                    // Hide cancel button after delay
-                    setTimeout(() => {
-                        const cancelBtn = document.getElementById('cancel-run-btn');
-                        cancelBtn.classList.add('hidden');
-                        document.getElementById('progress-bar').style.background = 'var(--accent)';
-                    }, 3000);
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
                 }
+                // Show cancellation in UI - NO RED PROGRESS BAR
+                document.getElementById('progress-label').textContent = 
+                    `⛔ Cancelled after ${progressData.current} movies`;
+    
+                // Hide cancel button after delay
+                setTimeout(() => {
+                    const cancelBtn = document.getElementById('cancel-run-btn');
+                    cancelBtn.classList.add('hidden');
+                    // No need to reset progress bar color since we never changed it
+                }, 3000);
+            }
                 
                 if (!progressData.is_running) {
                     console.log('Run completed, clearing interval');
@@ -449,7 +450,9 @@ async function cancelCurrentRun() {
     const cancelBtn = document.getElementById('cancel-run-btn');
     const originalText = cancelBtn.textContent;
     cancelBtn.disabled = true;
-    cancelBtn.textContent = '⏳ Cancelling...';
+    cancelBtn.textContent = 'Cancelling...';
+    cancelBtn.classList.add('text-gray-400');
+    cancelBtn.classList.remove('hover:text-red-600', 'hover:bg-gray-100');
     
     try {
         const res = await fetch(`/api/run/${currentRunId}/cancel`, { 
@@ -458,9 +461,11 @@ async function cancelCurrentRun() {
         
         if (res.ok) {
             showToast('Cancelling scan... will stop after current movie', 'info');
-            // Change progress bar color to indicate cancellation
-            document.getElementById('progress-bar').style.background = '#ef4444';
-            cancelBtn.textContent = '✓ Cancellation requested';
+            // Don't change progress bar color - keep it normal
+            // Just update the cancel button to show success
+            cancelBtn.textContent = '✓';
+            cancelBtn.classList.add('text-green-600');
+            cancelBtn.classList.remove('text-gray-400');
             
             // Start polling for cancellation confirmation
             startCancelConfirmationPolling();
@@ -469,11 +474,15 @@ async function cancelCurrentRun() {
             showToast(data.detail || 'Failed to cancel', 'error');
             cancelBtn.disabled = false;
             cancelBtn.textContent = originalText;
+            cancelBtn.classList.remove('text-gray-400');
+            cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
         }
     } catch (e) {
         showToast('Error cancelling: ' + e.message, 'error');
         cancelBtn.disabled = false;
         cancelBtn.textContent = originalText;
+        cancelBtn.classList.remove('text-gray-400');
+        cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
     }
 }
 
