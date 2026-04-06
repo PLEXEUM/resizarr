@@ -360,6 +360,15 @@
                         <td class="py-3">${r.dry_run ? '✓' : '—'}</td>
                     </tr>
                 `).join('');
+            } else {
+                // ADD THIS ELSE CLAUSE
+                document.getElementById('history-table').innerHTML = `
+                    <tr style="border-top: 1px solid var(--border-color)">
+                        <td colspan="7" class="py-4 text-center" style="color: var(--text-secondary)">
+                            No history yet.
+                        </td>
+                    </tr>
+                `;
             }
 
             // Add this line right here - before the closing catch
@@ -593,7 +602,7 @@ async function clearRunHistory() {
             // Just refresh status - it will handle the table update
             setTimeout(() => {
                 loadStatus();
-            }, 200);
+            }, 500);
         } else {
             const data = await res.json();
             showToast(data.detail || 'Failed to clear history', 'error');
