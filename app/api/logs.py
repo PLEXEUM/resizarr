@@ -9,6 +9,13 @@ from app.utils.logger import get_logger, setup_logger
 router = APIRouter()
 logger = get_logger()
 
+# ========== ADD THIS MISSING CLASS ==========
+class LogSettingsInput(BaseModel):
+    log_level: str = "INFO"
+    log_max_size_mb: int = 10
+    log_max_files: int = 5
+# ========== END ADDED CLASS ==========
+
 # Log directory path
 LOG_DIR = Path("/app/logs")
 
