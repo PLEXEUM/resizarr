@@ -182,6 +182,23 @@ async def run_resizarr(
         
         # Convert rules to dict for easy access
         rules = dict(rules_row)
+
+         # Convert rules to dict for easy access
+        rules = dict(rules_row)
+        
+        # ========== ADD AUTO-CLEANUP OF STALE QUEUED RECORDS ==========
+        try:
+            result = conn.execute("""
+                UPDATE pending_replacements 
+                SET status = 'pending', queued_at = NULL 
+                WHERE status = 'queued' AND queued_at < datetime('now', '-1 hour')
+            """)
+            if result.rowcount > 0:
+                logger.info(f"Auto-cleaned {result.rowcount} stale queued records")
+            conn.commit()
+        except Exception as e:
+            logger.warning(f"Could not auto-clean stale records: {e}")
+        # ========== END AUTO-CLEANUP ==========
         
         # Load quality profiles cache
         profiles_cache = conn.execute(
@@ -315,11 +332,22 @@ async def run_resizarr(
                         current_quality = profile.get("profile_name", "Unknown")
                         break
             
-            # Check for existing replacement
+            # Check for existing replacement - only skip if actively in Radarr queue
             already_queued = await client.check_existing_replacement(movie_id)
+            
+            # In auto mode, only skip if it's actively queued in Radarr
             if already_queued and rules["trigger_logic"] == "auto":
-                logger.info(f"Skipping {movie_title} - replacement already queued")
+                logger.info(f"Skipping {movie_title} - replacement actively in Radarr queue")
                 continue
+            
+            # If not actively queued, check for stale database record that needs cleanup
+            if rules["trigger_logic"] == "auto" and not already_queued:
+                conn.execute("""
+                    UPDATE pending_replacements 
+                    SET status = 'pending', queued_at = NULL 
+                    WHERE movie_id = ? AND status = 'queued'
+                """, (movie_id,))
+                conn.commit()
 
             # Parse target size in GB
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])

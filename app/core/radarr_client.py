@@ -253,26 +253,53 @@ class RadarrClient:
     # ========== END OF NEW METHODS ==========
 
     async def check_existing_replacement(self, movie_id: int) -> bool:
-        """Check if a replacement is already queued or in history."""
+        """Check if a replacement is actively in Radarr's queue (not just stale history)."""
         try:
-            # Check queue
+            # Check active download queue first
             queue = await self._request("GET", "queue", params={"movieId": movie_id})
             records = queue.get("records", []) if isinstance(queue, dict) else queue
-            if any(r.get("movieId") == movie_id for r in records):
-                return True
-
-            # Check history for recent grabs
+        
+            # If it's actively in the download queue, return True
+            for record in records:
+                if record.get("movieId") == movie_id:
+                    status = record.get("status", "")
+                    # Only skip if it's actively downloading or waiting
+                    if status in ["downloading", "queued", "paused"]:
+                        logger.debug(f"Movie {movie_id} is actively in download queue (status: {status})")
+                        return True
+        
+            # Check history for recent grabs (within last hour)
             history = await self._request(
                 "GET", "history/movie",
-                params={"movieId": movie_id, "eventType": 1}
+                params={"movieId": movie_id, "eventType": 1}  # 1 = Grabbed
             )
+        
             if history:
-                return True
-
+                from datetime import datetime, timedelta
+                one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+            
+                for item in history:
+                    date_str = item.get("date")
+                    if date_str:
+                        try:
+                            # Parse the date (Radarr uses ISO format)
+                            if isinstance(date_str, str):
+                                # Simple check - if it contains today's date, consider it recent
+                                if "T" in date_str:
+                                    # Extract just the date part and compare
+                                    item_date = date_str.split("T")[0]
+                                    today = datetime.utcnow().strftime("%Y-%m-%d")
+                                    if item_date == today:
+                                        logger.debug(f"Movie {movie_id} had a grab today")
+                                        return True
+                        except Exception as e:
+                            logger.debug(f"Could not parse date: {e}")
+        
+            return False
+        
         except Exception as e:
             logger.warning(f"Could not check existing replacement for movie {movie_id}: {e}")
-
-        return False
+            return False
 
     async def get_movie_quality(self, movie_id: int) -> Optional[str]:
         """Get the quality profile name of a movie's current file."""
