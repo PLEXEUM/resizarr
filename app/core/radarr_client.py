@@ -41,7 +41,6 @@ class RadarrClient:
                 error_body = e.response.text if hasattr(e.response, 'text') else str(e)
                 logger.warning(f"Radarr API error (attempt {attempt}/3): {e.response.status_code}")
                 logger.warning(f"Error response body: {error_body[:500]}")  # Log first 500 chars
-                logger.warning(f"Radarr API error (attempt {attempt}/3): {e.response.status_code}")
             except httpx.RequestError as e:
                 last_error = e
                 logger.warning(f"Radarr connection error (attempt {attempt}/3): {redact(str(e))}")
@@ -154,9 +153,6 @@ class RadarrClient:
     
     async def download_release_by_guid(self, movie_id: int, guid: str, indexerId: int = 1, download_url: str = None, title: str = None, publish_date: str = None) -> dict:
         """Download a specific release by GUID using the release/push endpoint with all required fields."""
-        logger.info(f"Downloading release with GUID {guid} for movie {movie_id}")
-    
-        # Build payload with all required fields
         payload = {
             "guid": guid,
             "indexerId": indexerId,
@@ -167,10 +163,8 @@ class RadarrClient:
             "allowUpgrade": True  # Force Radarr to allow the downgrade
         }
     
-        # Add downloadUrl if provided (Radarr requires this or magnetUrl)
         if download_url:
             payload["downloadUrl"] = download_url
-            logger.info(f"Using provided download URL: {download_url}")
     
         logger.debug(f"Push payload: {payload}")
         return await self._request("POST", "release/push", json=payload)
@@ -224,7 +218,6 @@ class RadarrClient:
         logger.info(f"Attempting to download torrent ID {torrent_id} via URL: {download_url}")
         return await self._request("POST", "release", json=payload)
 
-    # ========== ADD THESE TWO NEW METHODS HERE ==========
     async def search_for_releases(self, movie_id: int) -> list:
         """Search for available releases for a movie."""
         try:
@@ -250,7 +243,6 @@ class RadarrClient:
         """Extract quality name from a release."""
         quality = release.get("quality", {})
         return quality.get("name", "Unknown")
-    # ========== END OF NEW METHODS ==========
 
     async def check_existing_replacement(self, movie_id: int) -> bool:
         """Check if a replacement is actively in Radarr's queue (not just stale history)."""
@@ -299,6 +291,24 @@ class RadarrClient:
         
         except Exception as e:
             logger.warning(f"Could not check existing replacement for movie {movie_id}: {e}")
+            return False
+
+    async def trigger_specific_release(self, movie_id: int, guid: str) -> bool:
+        """Trigger download of a specific release by GUID."""
+        try:
+            payload = {
+                "guid": guid,
+                "movieId": movie_id,
+                "allowUpgrade": True  # Force Radarr to accept even if quality is lower
+            }
+            
+            logger.info(f"Triggering specific release {guid} for movie {movie_id}")
+            await self._request("POST", "release/push", json=payload)
+            logger.info(f"Successfully queued release {guid} for movie {movie_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to trigger specific release {guid} for movie {movie_id}: {e}")
             return False
 
     async def get_movie_quality(self, movie_id: int) -> Optional[str]:

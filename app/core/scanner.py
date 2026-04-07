@@ -182,9 +182,6 @@ async def run_resizarr(
         
         # Convert rules to dict for easy access
         rules = dict(rules_row)
-
-         # Convert rules to dict for easy access
-        rules = dict(rules_row)
         
         # ========== ADD AUTO-CLEANUP OF STALE QUEUED RECORDS ==========
         try:
@@ -477,9 +474,6 @@ async def run_resizarr(
 
                 # Check if release matches target size condition
                 logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
-
-                # Check if release matches target size condition
-                logger.info(f"COMPARE: {release_size_gb:.2f} {rules['target_operator']} {target_threshold_gb} = {matches_condition(release_size_gb, rules['target_operator'], target_threshold_gb)}")
                 if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
                     logger.info(f"Size passed: {release_size_gb:.2f}GB, peers={peers}, lang={release_language}")
                     # Check peer requirement
@@ -526,6 +520,7 @@ async def run_resizarr(
                         min_profile_name = profile.get("profile_name")
                         break
 
+            # Check quality (for logging only)
             is_allowed, is_downgrade, reason = check_quality(
                 current_quality,
                 found_quality,
@@ -533,7 +528,18 @@ async def run_resizarr(
                 min_profile_name,
                 profiles_cache    
             )
-            
+
+            # Determine if we should proceed based on mode
+            if rules["trigger_logic"] == "auto":
+                # Auto mode: ignore quality, only care about size reduction
+                should_proceed = True
+                quality_blocked = False
+                logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode")
+            else:
+                # Manual mode: respect quality rules
+                should_proceed = is_allowed
+                quality_blocked = not is_allowed
+
             # Dry run - just log and collect CSV data
             if dry_run:
                 csv_rows.append({
@@ -542,25 +548,19 @@ async def run_resizarr(
                     "Current Quality": current_quality,
                     "Found Size (GB)": f"{found_size_gb:.2f}",
                     "Found Quality": found_quality,
-                    "Would Trigger": "Yes" if is_allowed else "No",
+                    "Would Trigger": "Yes" if should_proceed else "No",
                     "Quality Decision": reason,
-                    "Is Downgrade": "Yes" if is_downgrade else "No"
+                    "Is Downgrade": "Yes" if is_downgrade else "No",
+                    "Mode": rules["trigger_logic"]
                 })
-                logger.info(f"[DRY RUN] {movie_title}: {reason} (Current: {size_gb:.2f}GB/{current_quality} → Found: {found_size_gb:.2f}GB/{found_quality})")
-                continue
-            
-            # Quality blocked in auto mode
-            if not is_allowed and rules["trigger_logic"] == "auto":
-                logger.info(f"Quality skipped: {movie_title} - {reason}")
-                summary["quality_skipped"] += 1
-                continue
-            
-                        # Manual approval mode
-            if rules["trigger_logic"] == "manual" or (is_downgrade and not is_allowed):
-                try:
-                    # Extract proper GUID format
-                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                logger.info(f"[DRY RUN] {movie_title}: {reason} (Mode: {rules['trigger_logic']}, Trigger: {should_proceed})")
+                if not should_proceed:
+                    continue  # Fixed indentation
 
+            # Manual approval mode - quality blocked in manual mode
+            if rules["trigger_logic"] == "manual" and not is_allowed:
+                try:
+                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     conn.execute("""
                         INSERT INTO pending_replacements
                         (movie_id, movie_title, current_size_gb, current_quality,
@@ -570,25 +570,28 @@ async def run_resizarr(
                         movie_id, movie_title, size_gb,
                         str(current_quality), found_size_gb,
                         str(found_quality), 1 if is_downgrade else 0,
-                        proper_guid,  # Use the extracted proper GUID
-                        best_candidate.get("download_url")  # Add this line
+                        proper_guid,
+                        best_candidate.get("download_url")
                     ))
                     conn.commit()
                     summary["pending_approval"] += 1
-                    logger.info(f"Added to pending approvals: {movie_title} with GUID: {proper_guid}")
+                    logger.info(f"Added to pending approvals: {movie_title} (quality blocked in manual mode)")
                 except Exception as e:
                     logger.error(f"Failed to add pending approval for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
                 continue
-            
-            # Auto queue mode - trigger search
-            try:
-                await client.trigger_movie_search([movie_id])
-                summary["replacements_queued"] += 1
-                logger.info(f"Triggered search for: {movie_title}")
-            except Exception as e:
-                logger.error(f"Failed to trigger search for {movie_title}: {e}")
-                summary["replacements_failed"] += 1
+
+            # Auto mode - trigger specific release
+            if rules["trigger_logic"] == "auto":
+                try:
+                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                    await client.trigger_specific_release(movie_id, proper_guid)
+                    summary["replacements_queued"] += 1
+                    logger.info(f"[AUTO MODE] Queued specific release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
+                except Exception as e:
+                    logger.error(f"Failed to queue release for {movie_title}: {e}")
+                    summary["replacements_failed"] += 1
+                # REMOVED the duplicate trigger_movie_search code below
             
             # Save last processed ID for resume
             conn.execute("""
