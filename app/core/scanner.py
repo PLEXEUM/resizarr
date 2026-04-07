@@ -582,9 +582,14 @@ async def run_resizarr(
                     summary["replacements_failed"] += 1
                 continue
 
-                        # Auto mode - trigger specific release immediately
+            # Auto mode - delete existing file then trigger release
             if rules["trigger_logic"] == "auto":
                 try:
+                    # Delete existing file first (same as manual mode)
+                    logger.info(f"Deleting existing file for '{movie_title}' before replacement")
+                    await client.delete_movie_file_only(movie_id)
+                    
+                    # Then trigger the download
                     release_data = best_candidate.get("release", {})
                     proper_guid = extract_proper_guid(release_data)
                     title = release_data.get("title", f"Release {proper_guid}")
