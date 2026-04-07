@@ -533,12 +533,10 @@ async def run_resizarr(
             if rules["trigger_logic"] == "auto":
                 # Auto mode: ignore quality, only care about size reduction
                 should_proceed = True
-                quality_blocked = False
                 logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode")
             else:
                 # Manual mode: respect quality rules
                 should_proceed = is_allowed
-                quality_blocked = not is_allowed
 
             # Dry run - just log and collect CSV data
             if dry_run:
@@ -555,10 +553,10 @@ async def run_resizarr(
                 })
                 logger.info(f"[DRY RUN] {movie_title}: {reason} (Mode: {rules['trigger_logic']}, Trigger: {should_proceed})")
                 if not should_proceed:
-                    continue  # Fixed indentation
+                    continue
 
-            # Manual approval mode - quality blocked in manual mode
-            if rules["trigger_logic"] == "manual" and not is_allowed:
+            # Manual mode - add ALL candidates to pending approvals for user review
+            if rules["trigger_logic"] == "manual":
                 try:
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     conn.execute("""
@@ -575,13 +573,16 @@ async def run_resizarr(
                     ))
                     conn.commit()
                     summary["pending_approval"] += 1
-                    logger.info(f"Added to pending approvals: {movie_title} (quality blocked in manual mode)")
+                    if is_allowed:
+                        logger.info(f"Added to pending approvals: {movie_title} (quality allowed - {found_size_gb:.2f}GB, {found_quality})")
+                    else:
+                        logger.info(f"Added to pending approvals: {movie_title} (quality blocked - {reason})")
                 except Exception as e:
                     logger.error(f"Failed to add pending approval for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
                 continue
 
-            # Auto mode - trigger specific release
+            # Auto mode - trigger specific release immediately
             if rules["trigger_logic"] == "auto":
                 try:
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
@@ -591,7 +592,7 @@ async def run_resizarr(
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
-                # REMOVED the duplicate trigger_movie_search code below
+                continue
             
             # Save last processed ID for resume
             conn.execute("""
