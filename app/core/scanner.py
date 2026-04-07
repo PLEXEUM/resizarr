@@ -588,7 +588,7 @@ async def run_resizarr(
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     title = best_candidate.get("release", {}).get("title", f"Release {proper_guid}")
                     download_url = best_candidate.get("download_url", "")
-                    await client.trigger_specific_release(movie_id, proper_guid, title, download_url)
+                    await client.download_release_by_guid(movie_id, proper_guid, download_url=download_url, title=title)
                     summary["replacements_queued"] += 1
                     logger.info(f"[AUTO MODE] Queued specific release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
                 except Exception as e:

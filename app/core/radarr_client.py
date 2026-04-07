@@ -298,8 +298,11 @@ class RadarrClient:
         try:
             payload = {
                 "guid": guid,
+                "indexerId": 1,  # Required - you may need to get this from the release
                 "movieId": movie_id,
                 "title": title or f"Release {guid}",
+                "protocol": "torrent",  # Required
+                "publishDate": datetime.utcnow().isoformat(),  # Required
                 "downloadUrl": download_url or "",
                 "allowUpgrade": True
             }
