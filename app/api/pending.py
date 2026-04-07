@@ -279,6 +279,14 @@ async def clear_pending_list():
     
     # Delete all pending records
     conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
+    
+    # OPTIONAL: Also reset stuck queued records (uncomment if desired)
+    conn.execute("""
+        UPDATE pending_replacements 
+        SET status = 'pending', queued_at = NULL 
+        WHERE status = 'queued'
+    """)
+    
     conn.commit()
     conn.close()
     
