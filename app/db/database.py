@@ -28,7 +28,7 @@ def init_db():
             quality_profile_id INTEGER,
             quality_profile_name TEXT
         );
-
+                         
         CREATE TABLE IF NOT EXISTS rules (
             id INTEGER PRIMARY KEY,
             current_operator TEXT CHECK(current_operator IN ('>', '<')),
@@ -83,6 +83,7 @@ def init_db():
             replacements_queued INTEGER,
             replacements_failed INTEGER,
             quality_skipped INTEGER,
+            pending_approval INTEGER DEFAULT 0,
             dry_run BOOLEAN,
             mode TEXT,
             csv_data TEXT
@@ -103,6 +104,13 @@ def init_db():
             last_updated DATETIME
         );
     """)
+
+    # Migration: Add pending_approval column to run_history for existing databases
+    cursor.execute("PRAGMA table_info(run_history)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'pending_approval' not in columns:
+        cursor.execute("ALTER TABLE run_history ADD COLUMN pending_approval INTEGER DEFAULT 0")
+        print("Added 'pending_approval' column to existing run_history table")
 
     conn.commit()
     conn.close()

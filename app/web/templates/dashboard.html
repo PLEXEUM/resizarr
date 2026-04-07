@@ -112,6 +112,7 @@
                         <th class="text-left pb-3 font-medium">Mode</th>
                         <th class="text-left pb-3 font-medium">Processed</th>
                         <th class="text-left pb-3 font-medium">Queued</th>
+                        <th class="text-left pb-3 font-medium">Pending</th>
                         <th class="text-left pb-3 font-medium">Skipped</th>
                         <th class="text-left pb-3 font-medium">Failed</th>
                         <th class="text-left pb-3 font-medium">Dry Run</th>
@@ -318,7 +319,7 @@
             if (data.last_run) {
                 const r = data.last_run;
                 document.getElementById('last-run-summary').innerHTML = `
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold">${r.total_movies_processed || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Processed</div>
@@ -326,6 +327,10 @@
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold text-green-400">${r.replacements_queued || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Queued</div>
+                        </div>
+                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                            <div class="text-2xl font-bold text-blue-400">${r.pending_approval || 0}</div>
+                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Pending</div>
                         </div>
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold text-yellow-400">${r.quality_skipped || 0}</div>
@@ -342,6 +347,7 @@
                         Mode: ${r.mode || 'N/A'}
                     </p>
                 `;
+
                 if (r.dry_run) {
                     document.getElementById('csv-download').classList.remove('hidden');
                 }
@@ -355,6 +361,7 @@
                         <td class="py-3">${r.mode || 'N/A'}</td>
                         <td class="py-3">${r.total_movies_processed || 0}</td>
                         <td class="py-3 text-green-400">${r.replacements_queued || 0}</td>
+                        <td class="py-3 text-blue-400">${r.pending_approval || 0}</td>
                         <td class="py-3 text-yellow-400">${r.quality_skipped || 0}</td>
                         <td class="py-3 text-red-400">${r.replacements_failed || 0}</td>
                         <td class="py-3">${r.dry_run ? '✓' : '—'}</td>
@@ -364,7 +371,7 @@
                 // ADD THIS ELSE CLAUSE
                 document.getElementById('history-table').innerHTML = `
                     <tr style="border-top: 1px solid var(--border-color)">
-                        <td colspan="7" class="py-4 text-center" style="color: var(--text-secondary)">
+                        <td colspan="8" class="py-4 text-center" style="color: var(--text-secondary)">
                             No history yet.
                         </td>
                     </tr>
