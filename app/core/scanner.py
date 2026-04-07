@@ -641,6 +641,7 @@ async def run_resizarr(
         logger.info(
             f"Run complete: {summary['total_movies_processed']} processed, "
             f"{summary['replacements_queued']} queued, "
+            f"{summary['pending_approval']} pending, "
             f"{summary['quality_skipped']} quality skipped, "
             f"{summary['replacements_failed']} failed"
         )
