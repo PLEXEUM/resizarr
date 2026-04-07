@@ -293,20 +293,22 @@ class RadarrClient:
             logger.warning(f"Could not check existing replacement for movie {movie_id}: {e}")
             return False
 
-    async def trigger_specific_release(self, movie_id: int, guid: str) -> bool:
+    async def trigger_specific_release(self, movie_id: int, guid: str, title: str = None, download_url: str = None) -> bool:
         """Trigger download of a specific release by GUID."""
         try:
             payload = {
                 "guid": guid,
                 "movieId": movie_id,
-                "allowUpgrade": True  # Force Radarr to accept even if quality is lower
+                "title": title or f"Release {guid}",
+                "downloadUrl": download_url or "",
+                "allowUpgrade": True
             }
-            
+        
             logger.info(f"Triggering specific release {guid} for movie {movie_id}")
             await self._request("POST", "release/push", json=payload)
             logger.info(f"Successfully queued release {guid} for movie {movie_id}")
             return True
-            
+        
         except Exception as e:
             logger.error(f"Failed to trigger specific release {guid} for movie {movie_id}: {e}")
             return False
