@@ -582,15 +582,26 @@ async def run_resizarr(
                     summary["replacements_failed"] += 1
                 continue
 
-            # Auto mode - trigger specific release immediately
+                        # Auto mode - trigger specific release immediately
             if rules["trigger_logic"] == "auto":
                 try:
-                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
-                    title = best_candidate.get("release", {}).get("title", f"Release {proper_guid}")
+                    release_data = best_candidate.get("release", {})
+                    proper_guid = extract_proper_guid(release_data)
+                    title = release_data.get("title", f"Release {proper_guid}")
                     download_url = best_candidate.get("download_url", "")
-                    await client.download_release_by_guid(movie_id, proper_guid, download_url=download_url, title=title)
+                    indexer_id = release_data.get("indexerId", 1)
+                    publish_date = release_data.get("publishDate")
+                    
+                    await client.download_release_by_guid(
+                        movie_id, 
+                        proper_guid, 
+                        indexerId=indexer_id,
+                        download_url=download_url, 
+                        title=title,
+                        publish_date=publish_date
+                    )
                     summary["replacements_queued"] += 1
-                    logger.info(f"[AUTO MODE] Queued specific release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
+                    logger.info(f"[AUTO MODE] Queued specific release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality} (indexer: {indexer_id})")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
