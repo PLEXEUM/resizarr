@@ -582,31 +582,28 @@ async def run_resizarr(
                     summary["replacements_failed"] += 1
                 continue
 
-            # Auto mode - delete existing file then trigger release
+            # Auto mode - mirror manual approval logic exactly
             if rules["trigger_logic"] == "auto":
                 try:
+                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                    download_url = best_candidate.get("download_url", "")
+                    
                     # Delete existing file first (same as manual mode)
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                     await client.delete_movie_file_only(movie_id)
                     
-                    # Then trigger the download
-                    release_data = best_candidate.get("release", {})
-                    proper_guid = extract_proper_guid(release_data)
-                    title = release_data.get("title", f"Release {proper_guid}")
-                    download_url = best_candidate.get("download_url", "")
-                    indexer_id = release_data.get("indexerId", 1)
-                    publish_date = release_data.get("publishDate")
-                    
+                    # Download the release using the SAME parameters as manual approval
                     await client.download_release_by_guid(
-                        movie_id, 
-                        proper_guid, 
-                        indexerId=indexer_id,
-                        download_url=download_url, 
-                        title=title,
-                        publish_date=publish_date
+                        movie_id=movie_id,
+                        guid=proper_guid,
+                        indexerId=1,  # Hardcoded like manual mode
+                        download_url=download_url,
+                        title=f"{movie_title} 2025",  # Simple title like manual mode
+                        publish_date=datetime.utcnow().isoformat()  # Current time like manual mode
                     )
+                    
                     summary["replacements_queued"] += 1
-                    logger.info(f"[AUTO MODE] Queued specific release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality} (indexer: {indexer_id})")
+                    logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
