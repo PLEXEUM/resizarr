@@ -587,23 +587,39 @@ async def run_resizarr(
                 try:
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     download_url = best_candidate.get("download_url", "")
+                    original_guid = best_candidate.get("release", {}).get("guid", "")
+        
+                    # If it's a URL, extract the torrent ID (same as manual mode)
+                    if original_guid.startswith("http"):
+                        import re
+                        torrent_id = None
+                        match = re.search(r'torrentid=(\d+)', original_guid)
+                        if match:
+                            torrent_id = match.group(1)
+                            proper_guid = f"Prowlarr:{torrent_id}"
+                        else:
+                            match = re.search(r'/(\d+)(?:/|$)', original_guid)
+                            if match:
+                                torrent_id = match.group(1)
+                                proper_guid = f"Prowlarr:{torrent_id}"
+                        logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
                     
-                    # Delete existing file first (same as manual mode)
+                    # Delete existing file first
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                     await client.delete_movie_file_only(movie_id)
-                    
-                    # Download the release using the SAME parameters as manual approval
+        
+                    # Download the release
                     await client.download_release_by_guid(
                         movie_id=movie_id,
                         guid=proper_guid,
-                        indexerId=1,  # Hardcoded like manual mode
+                        indexerId=1,
                         download_url=download_url,
-                        title=f"{movie_title} 2025",  # Simple title like manual mode
-                        publish_date=datetime.utcnow().isoformat()  # Current time like manual mode
+                        title=f"{movie_title} 2025",
+                        publish_date=datetime.utcnow().isoformat()
                     )
-                    
+        
                     summary["replacements_queued"] += 1
-                    logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
+                    logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
