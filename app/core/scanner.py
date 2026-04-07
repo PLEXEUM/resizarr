@@ -617,8 +617,8 @@ async def run_resizarr(
         conn.execute("""
             INSERT INTO run_history
             (started_at, completed_at, total_movies_processed, candidates_found,
-            replacements_queued, replacements_failed, quality_skipped, dry_run, mode, csv_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            replacements_queued, replacements_failed, quality_skipped, pending_approval, dry_run, mode, csv_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             started_at,
             completed_at,
@@ -627,6 +627,7 @@ async def run_resizarr(
             summary["replacements_queued"],
             summary["replacements_failed"],
             summary["quality_skipped"],
+            summary["pending_approval"],
             1 if dry_run else 0,
             "shrink" if rules["current_operator"] == ">" else "upgrade",
             summary.get("csv_data")
