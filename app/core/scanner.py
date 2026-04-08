@@ -267,6 +267,13 @@ async def run_resizarr(
                 logger.info(f"No releases found for: {movie_title}")
                 continue
 
+             # ========== DEBUG: Print quality info for first few releases ==========
+            for idx, rel in enumerate(releases[:3]):
+                logger.info(f"Release {idx+1} quality data: {rel.get('quality')}")
+                logger.info(f"Release {idx+1} qualityId: {rel.get('qualityId')}")
+                logger.info(f"Release {idx+1} title: {rel.get('title')}")
+            # ========== END DEBUG ==========
+
             candidate_releases = []
             for release in releases:
                 release_size_gb = release.get("size", 0) / (1024 ** 3)
