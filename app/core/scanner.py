@@ -245,14 +245,40 @@ async def run_resizarr(
 
             logger.info(f"Processing ({i+1}/{len(candidates)}): {movie_title} ({size_gb:.2f} GB)")
 
+            # Try to get quality from the actual movie file first
             current_quality = "Unknown"
-            current_profile_id = movie.get("qualityProfileId")
-            if current_profile_id:
-                for profile in profiles_cache:
-                    if profile.get("profile_id") == current_profile_id:
-                        current_quality = profile.get("profile_name", "Unknown")
-                        break
+            movie_file = movie.get("movieFile")
+            if movie_file:
+                # The quality is nested in movie_file['quality']['quality']['name']
+                file_quality_wrapper = movie_file.get("quality", {})
+                if isinstance(file_quality_wrapper, dict):
+                    file_quality_obj = file_quality_wrapper.get("quality", {})
+                    if isinstance(file_quality_obj, dict):
+                        current_quality = file_quality_obj.get("name", "Unknown")
+    
+            # If still unknown, try to infer from filename
+            if current_quality == "Unknown":
+                filename = movie_file.get("relativePath", "")
+                if "1080p" in filename.lower():
+                    current_quality = "1080p"
+                elif "720p" in filename.lower():
+                    current_quality = "720p"
+                elif "4k" in filename.lower() or "2160p" in filename.lower():
+                    current_quality = "4K"
 
+            # Fallback to quality profile if file quality not found
+            if current_quality == "Unknown":
+                current_profile_id = movie.get("qualityProfileId")
+                if current_profile_id:
+                    for profile in profiles_cache:
+                        if profile.get("profile_id") == current_profile_id:
+                            current_quality = profile.get("profile_name", "Unknown")
+                            break
+
+            # ========== ADD DEBUG LOG HERE ==========
+            logger.info(f"Detected current quality for '{movie_title}': {current_quality}")
+            # ========== END DEBUG LOG ==========
+            
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
                 logger.info(f"Skipping {movie_title} - replacement actively in Radarr queue")
