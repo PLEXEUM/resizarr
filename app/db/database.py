@@ -41,7 +41,7 @@ def init_db():
             min_size_unit TEXT,
             excluded_extensions TEXT,
             quality_rule TEXT CHECK(quality_rule IN ('equal_or_better', 'any', 'same_only')),
-            min_quality_profile_id INTEGER,
+            min_quality_threshold TEXT,
             trigger_logic TEXT CHECK(trigger_logic IN ('auto', 'manual', 'quality_match')),
             min_peers INTEGER DEFAULT 0,
             language TEXT DEFAULT 'Any',
@@ -128,6 +128,17 @@ def init_db():
     if 'folder_pattern' not in columns:
         cursor.execute("ALTER TABLE rules ADD COLUMN folder_pattern TEXT")
         print("Added 'folder_pattern' column to rules table")
+
+    # ========== ADD THIS MIGRATION HERE ==========
+    # Migration: Add min_quality_threshold column to rules (replaces min_quality_profile_id)
+    if 'min_quality_threshold' not in columns:
+        cursor.execute("ALTER TABLE rules ADD COLUMN min_quality_threshold TEXT")
+        print("Added 'min_quality_threshold' column to rules table")
+        
+        # If there was existing min_quality_profile_id data, we could migrate it
+        # For now, just set to NULL
+        cursor.execute("UPDATE rules SET min_quality_threshold = NULL")
+    # ========== END MIGRATION ==========
 
     # Migration for pending_replacements download_url (in case it was missing)
     if 'download_url' not in columns:  # wait, this is for pending_replacements
