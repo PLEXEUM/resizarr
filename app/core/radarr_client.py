@@ -22,17 +22,15 @@ class RadarrClient:
             "Content-Type": "application/json"
         }
 
-    async def _request(self, method: str, endpoint: str, **kwargs) -> dict:
+    async def _request(self, method: str, endpoint: str, timeout: int = 60, **kwargs) -> dict:
         """Make an HTTP request with retry logic and full error logging."""
         url = f"{self.base_url}/api/v3/{endpoint}"
         last_error = None
 
-        for attempt in range(1, 4):  # 3 attempts
+        for attempt in range(1, 4):
             try:
-                async with httpx.AsyncClient(timeout=30) as client:
-                    response = await client.request(
-                        method, url, headers=self.headers, **kwargs
-                    )
+                async with httpx.AsyncClient(timeout=timeout) as client:  # Use custom timeout
+                    response = await client.request(method, url, headers=self.headers, **kwargs)
                     response.raise_for_status()
                     return response.json()
             except httpx.HTTPStatusError as e:
@@ -105,17 +103,12 @@ class RadarrClient:
                 return {"success": False, "message": "No file to delete"}
 
             file_id = movie_file.get("id")
-
-            url = f"{self.base_url}/api/v3/moviefile/{file_id}"
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.delete(url, headers=self.headers)
-                if response.status_code == 200:
-                    logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
-                    return {"success": True, "message": f"Deleted file ID: {file_id}"}
-                else:
-                    logger.warning(f"Delete returned status: {response.status_code}")
-                    return {"success": False, "message": f"Status: {response.status_code}"}
-
+        
+            # Use _request for consistency and retry logic
+            await self._request("DELETE", f"moviefile/{file_id}", timeout=120)
+            logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
+            return {"success": True, "message": f"Deleted file ID: {file_id}"}
+        
         except Exception as e:
             logger.error(f"Failed to delete movie file: {e}")
             return {"success": False, "message": str(e)}
@@ -212,12 +205,16 @@ class RadarrClient:
 
     async def search_for_releases(self, movie_id: int) -> list:
         """Search for available releases for a movie."""
+        start_time = datetime.utcnow()
         try:
             logger.info(f"Searching for releases for movie ID: {movie_id}")
-            result = await self._request("GET", "release", params={"movieId": movie_id})
+            result = await self._request("GET", "release", timeout=120, params={"movieId": movie_id})
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            logger.info(f"Search completed in {elapsed:.1f} seconds for movie {movie_id}")
             return result if isinstance(result, list) else []
         except Exception as e:
-            logger.error(f"Failed to search releases for movie {movie_id}: {e}")
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            logger.error(f"Failed to search releases for movie {movie_id} after {elapsed:.1f}s: {e}")
             return []
 
     def get_release_quality_name(self, release: dict) -> str:
