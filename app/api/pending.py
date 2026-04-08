@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import asyncio  # ADD THIS
 import re
 from urllib.parse import urlparse
 
@@ -148,6 +149,19 @@ async def approve_pending(record_id: int, data: ApproveInput):
             WHERE id = ?
         """, (record_id,))
         conn.commit()
+
+         # Add to completed jobs
+        await add_completed_job(
+            movie_id=record["movie_id"],
+            movie_title=record["movie_title"],
+            movie_year=0,
+            current_size_gb=record["current_size_gb"],
+            current_quality=record["current_quality"],
+            found_size_gb=record["found_size_gb"],
+            found_quality=record["found_quality"],
+            mode="manual",
+            status="queued"
+        )
         
         logger.info(f"Approved pending replacement for '{record['movie_title']}'")
         return {"success": True, "message": f"Approved: {record['movie_title']}"}
@@ -236,6 +250,20 @@ async def approve_batch(data: BatchApproveInput):
                 WHERE id = ?
             """, (record_id,))
             conn.commit()
+
+             # Add to completed jobs
+            await add_completed_job(
+                movie_id=record["movie_id"],
+                movie_title=record["movie_title"],
+                movie_year=0,
+                current_size_gb=record["current_size_gb"],
+                current_quality=record["current_quality"],
+                found_size_gb=record["found_size_gb"],
+                found_quality=record["found_quality"],
+                mode="manual",
+                status="queued"
+            )
+
             approved.append(record_id)
             logger.info(f"Batch approved: '{record['movie_title']}'")
 
@@ -291,6 +319,19 @@ async def delete_pending(record_id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Record not found")
 
+    # Add to completed jobs as rejected
+    await add_completed_job(
+        movie_id=record["movie_id"],
+        movie_title=record["movie_title"],
+        movie_year=0,
+        current_size_gb=record["current_size_gb"],
+        current_quality=record["current_quality"],
+        found_size_gb=record["found_size_gb"],
+        found_quality=record["found_quality"],
+        mode="rejected",
+        status="rejected"
+    )
+    
     conn.execute(
         "DELETE FROM pending_replacements WHERE id = ?",
         (record_id,)
@@ -300,3 +341,59 @@ async def delete_pending(record_id: int):
 
     logger.info(f"Deleted pending replacement: '{record['movie_title']}'")
     return {"success": True, "message": f"Deleted: {record['movie_title']}"}
+
+# ========== COMPLETED JOBS ENDPOINTS ==========
+@router.get("/completed")
+async def get_completed(page: int = 1, per_page: int = 20):
+    """Get paginated completed jobs."""
+    offset = (page - 1) * per_page
+    
+    conn = get_connection()
+    
+    total = conn.execute("SELECT COUNT(*) FROM completed_jobs").fetchone()[0]
+    
+    records = conn.execute("""
+        SELECT * FROM completed_jobs
+        ORDER BY completed_at DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset)).fetchall()
+    
+    conn.close()
+    
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": (total + per_page - 1) // per_page,
+        "records": [dict(r) for r in records]
+    }
+
+@router.delete("/completed/clear")
+async def clear_completed():
+    """Clear all completed jobs."""
+    conn = get_connection()
+    result = conn.execute("SELECT COUNT(*) FROM completed_jobs")
+    count = result.fetchone()[0]
+    conn.execute("DELETE FROM completed_jobs")
+    conn.commit()
+    conn.close()
+    logger.info(f"Cleared {count} completed job records")
+    return {"success": True, "count": count}
+
+
+async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
+                            current_size_gb: float, current_quality: str,
+                            found_size_gb: float, found_quality: str,
+                            mode: str, status: str):
+    """Add a job to completed jobs table."""
+    conn = get_connection()
+    conn.execute("""
+        INSERT INTO completed_jobs
+        (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+         found_size_gb, found_quality, mode, status, completed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+          found_size_gb, found_quality, mode, status))
+    conn.commit()
+    conn.close()
+# ========== END COMPLETED JOBS ENDPOINTS ==========

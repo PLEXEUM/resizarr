@@ -20,13 +20,18 @@ def init_db():
     cursor = conn.cursor()
 
     cursor.executescript("""
-        CREATE TABLE IF NOT EXISTS config (
+        CREATE TABLE IF NOT EXISTS completed_jobs (
             id INTEGER PRIMARY KEY,
-            radarr_url TEXT,
-            radarr_api_key TEXT,
-            api_key TEXT,
-            quality_profile_id INTEGER,
-            quality_profile_name TEXT
+            movie_id INTEGER,
+            movie_title TEXT,
+            movie_year INTEGER,
+            current_size_gb REAL,
+            current_quality TEXT,
+            found_size_gb REAL,
+            found_quality TEXT,
+            mode TEXT,
+            status TEXT,
+            completed_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
                          
         CREATE TABLE IF NOT EXISTS rules (

@@ -128,9 +128,9 @@ async def rules_page(request: Request):
 async def settings_page(request: Request):
     return templates.TemplateResponse("settings.html", {"request": request})
 
-@app.get("/pending")
-async def pending_page(request: Request):
-    return templates.TemplateResponse("pending.html", {"request": request})
+@app.get("/completed")
+async def completed_page(request: Request):
+    return templates.TemplateResponse("completed_jobs.html", {"request": request})
 
 @app.get("/logs")
 async def logs_page(request: Request):
