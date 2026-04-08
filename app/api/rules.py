@@ -40,7 +40,7 @@ async def get_rules():
     if not rules:
         return {"configured": False}
 
-     return {
+    return {
         "configured": True,
         "current_operator": rules["current_operator"],
         "current_size": rules["current_size"],
