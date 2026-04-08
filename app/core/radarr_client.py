@@ -222,8 +222,32 @@ class RadarrClient:
 
     def get_release_quality_name(self, release: dict) -> str:
         """Extract quality name from a release."""
+        # The quality data is nested: release['quality']['quality']['name']
+        quality_wrapper = release.get("quality", {})
+        if isinstance(quality_wrapper, dict):
+            quality_obj = quality_wrapper.get("quality", {})
+            if isinstance(quality_obj, dict):
+                quality_name = quality_obj.get("name")
+                if quality_name:
+                    return quality_name
+    
+        # Fallback: try direct quality object
         quality = release.get("quality", {})
-        return quality.get("name", "Unknown")
+        if isinstance(quality, dict):
+            quality_name = quality.get("name")
+            if quality_name:
+                return quality_name
+    
+        # Fallback: try to infer from title
+        title = release.get("title", "")
+        if "1080p" in title.lower():
+            return "1080p"
+        elif "720p" in title.lower():
+            return "720p"
+        elif "4k" in title.lower() or "2160p" in title.lower():
+            return "4K"
+    
+        return "Unknown"
 
     async def check_existing_replacement(self, movie_id: int) -> bool:
         """Check if a replacement is actively in Radarr's queue."""
