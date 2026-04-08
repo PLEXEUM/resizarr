@@ -336,8 +336,7 @@ async def run_resizarr(
             found_quality = best_candidate["quality"]
 
             is_allowed, is_downgrade, reason = check_quality(
-                current_quality, found_quality, rules["quality_rule"],
-                None, profiles_cache
+                current_quality, found_quality, rules["quality_rule"]
             )
 
             # Determine if we should proceed based on mode
