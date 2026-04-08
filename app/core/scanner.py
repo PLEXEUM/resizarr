@@ -340,7 +340,31 @@ async def run_resizarr(
                 None, profiles_cache
             )
 
-            should_proceed = True if rules["trigger_logic"] == "auto" else is_allowed
+            # Determine if we should proceed based on mode
+            if rules["trigger_logic"] == "auto":
+                # Auto mode: respect minimum quality threshold if set
+                min_quality_threshold = rules.get("min_quality_threshold")
+                if min_quality_threshold and min_quality_threshold != "":
+                    # A specific quality threshold is set - enforce it
+                    should_proceed = is_allowed
+                    if should_proceed:
+                        logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
+                    else:
+                        logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
+                else:
+                    # No minimum quality threshold - aggressive size-only mode
+                    should_proceed = True
+                    logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode (no minimum quality threshold)")
+            elif rules["trigger_logic"] == "quality_match":
+                # Quality match mode: trigger only if quality profile matches
+                should_proceed = is_allowed
+                if should_proceed:
+                    logger.info(f"[QUALITY MATCH MODE] Quality check passed: {reason} - Will queue automatically")
+                else:
+                    logger.info(f"[QUALITY MATCH MODE] Quality check failed: {reason} - Skipping")
+            else:
+                # Manual mode: respect quality rules
+                should_proceed = is_allowed
 
             if dry_run:
                 csv_rows.append({
@@ -373,6 +397,50 @@ async def run_resizarr(
                 conn.commit()
                 summary["pending_approval"] += 1
                 continue
+
+            # ========== ADD QUALITY MATCH MODE HERE ==========
+            # Quality match mode - auto queue if quality matches
+            if rules["trigger_logic"] == "quality_match" and should_proceed:
+                try:
+                    proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                    download_url = best_candidate.get("download_url", "")
+                    original_guid = best_candidate.get("release", {}).get("guid", "")
+                    
+                    # Extract torrent ID if it's a URL
+                    if original_guid.startswith("http"):
+                        torrent_id = None
+                        match = re.search(r'torrentid=(\d+)', original_guid)
+                        if match:
+                            torrent_id = match.group(1)
+                            proper_guid = f"Prowlarr:{torrent_id}"
+                        else:
+                            match = re.search(r'/(\d+)(?:/|$)', original_guid)
+                            if match:
+                                torrent_id = match.group(1)
+                                proper_guid = f"Prowlarr:{torrent_id}"
+                        logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
+                    
+                    # Delete existing file first
+                    logger.info(f"Deleting existing file for '{movie_title}' before replacement")
+                    await client.delete_movie_file_only(movie_id)
+                    
+                    # Download the release
+                    await client.download_release_by_guid(
+                        movie_id=movie_id,
+                        guid=proper_guid,
+                        indexerId=1,
+                        download_url=download_url,
+                        title=f"{movie_title} 2025",
+                        publish_date=datetime.utcnow().isoformat()
+                    )
+                    
+                    summary["replacements_queued"] += 1
+                    logger.info(f"[QUALITY MATCH MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
+                except Exception as e:
+                    logger.error(f"Failed to queue release for {movie_title}: {e}")
+                    summary["replacements_failed"] += 1
+                continue
+            # ========== END QUALITY MATCH MODE ==========
 
             # Auto mode
             if rules["trigger_logic"] == "auto":
