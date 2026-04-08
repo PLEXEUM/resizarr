@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime  # Add this line
-from urllib.parse import urlparse  # ADD THIS LINE
+from datetime import datetime
+import re
+from urllib.parse import urlparse
+
 from app.db.database import get_connection
 from app.core.radarr_client import RadarrClient
 from app.utils.logger import get_logger
@@ -58,7 +60,6 @@ async def approve_pending(record_id: int, data: ApproveInput):
         SELECT * FROM pending_replacements WHERE id = ?
     """, (record_id,)).fetchone()
 
-    # Convert sqlite3.Row to dict for easier access
     if record:
         record = dict(record)
     
@@ -73,11 +74,9 @@ async def approve_pending(record_id: int, data: ApproveInput):
             detail=f"Record is not pending (status: {record['status']})"
         )
     
-    # Allow all approvals (ignore quality downgrade)
     if record["quality_downgrade"]:
         logger.info(f"Quality downgrade detected for '{record['movie_title']}', but proceeding anyway")
     
-    # Get Radarr config
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
     if not config or not config["radarr_url"]:
         conn.close()
@@ -86,100 +85,50 @@ async def approve_pending(record_id: int, data: ApproveInput):
     try:
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
 
-        # Always delete existing file before replacement
+        # Always delete existing file first
         logger.info(f"Deleting existing file for '{record['movie_title']}' before replacement")
         try:
             delete_result = await client.delete_movie_file_only(record["movie_id"])
             if delete_result["success"]:
                 logger.info(f"Successfully deleted existing file")
-                import asyncio
                 await asyncio.sleep(2)
             else:
                 logger.warning(f"Could not delete file: {delete_result['message']}")
         except Exception as e:
             logger.warning(f"Error deleting file: {e}")
         
-        # If we have a specific release GUID, download it directly
+        # Download the specific release
         release_guid = record["release_guid"]
         if release_guid:
             logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
 
-            # Check if it's a URL or a GUID
             if release_guid.startswith("http"):
-                # It's a torrent URL, extract the torrent ID
-                import re
-                from urllib.parse import urlparse
-        
-                # Universal torrent ID extraction - tries multiple patterns
+                # Universal torrent ID extraction (same as before)
                 torrent_id = None
                 proper_guid = None
-                
-                # Pattern 1: torrentid=12345
-                match = re.search(r'torrentid=(\d+)', release_guid)
-                if match:
-                    torrent_id = match.group(1)
-                    proper_guid = f"Prowlarr:{torrent_id}"
-                
-                # Pattern 2: .123456 at end of URL (Beyond-HD, etc.)
-                if not torrent_id:
-                    match = re.search(r'\.(\d+)$', release_guid)
+                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
+                for pattern in patterns:
+                    match = re.search(pattern, release_guid)
                     if match:
                         torrent_id = match.group(1)
                         proper_guid = f"Prowlarr:{torrent_id}"
-                
-                # Pattern 3: /123456/ or /123456 in path
-                if not torrent_id:
-                    match = re.search(r'/(\d+)(?:/|$)', release_guid)
-                    if match:
-                        torrent_id = match.group(1)
-                        proper_guid = f"Prowlarr:{torrent_id}"
-                
-                # Pattern 4: id=12345
-                if not torrent_id:
-                    match = re.search(r'id=(\d+)', release_guid)
-                    if match:
-                        torrent_id = match.group(1)
-                        proper_guid = f"Prowlarr:{torrent_id}"
-                
-                if torrent_id:
-                    # Use the stored download_url from database (Prowlarr URL) - most reliable
+                        break
+
+                if proper_guid:
                     stored_download_url = record.get("download_url")
-                    
-                    if stored_download_url:
-                        # Use the Prowlarr URL from the database
-                        final_download_url = stored_download_url
-                        logger.info(f"Using stored Prowlarr URL")
-                    else:
-                        # Fallback: construct a download URL (less reliable)
-                        parsed_url = urlparse(release_guid)
-                        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-                        
-                        if 'torrents.php' in release_guid:
-                            final_download_url = f"{base_url}/download.php?torrent={torrent_id}"
-                        elif 'download' in release_guid:
-                            final_download_url = release_guid
-                        else:
-                            final_download_url = release_guid.replace('torrents.php', 'download.php')
-                            if 'id=' in final_download_url:
-                                final_download_url = final_download_url.replace(f'id={torrent_id}', f'torrent={torrent_id}')
-                        logger.info(f"No stored URL, using constructed URL")
-                    
-                    logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
-                    logger.info(f"Final download URL: {final_download_url[:100]}...")
-                    
                     await client.download_release_by_guid(
                         movie_id=record["movie_id"],
                         guid=proper_guid,
                         indexerId=1,
-                        download_url=final_download_url,
+                        download_url=stored_download_url,
                         title=f"{record['movie_title']} 2025",
                         publish_date=datetime.utcnow().isoformat()
                     )
                 else:
-                    logger.info(f"Could not extract ID from URL, falling back to generic search")
+                    logger.info(f"Could not extract ID, falling back to generic search")
                     await client.trigger_movie_search([record["movie_id"]])
             else:
-                # It's already a GUID, use the GUID method
+                # Already a proper GUID
                 stored_download_url = record.get("download_url")
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
@@ -189,6 +138,9 @@ async def approve_pending(record_id: int, data: ApproveInput):
                     title=f"{record['movie_title']} 2025",
                     publish_date=datetime.utcnow().isoformat()
                 )
+        else:
+            await client.trigger_movie_search([record["movie_id"]])
+
         # Update status
         conn.execute("""
             UPDATE pending_replacements
@@ -206,21 +158,17 @@ async def approve_pending(record_id: int, data: ApproveInput):
     finally:
         conn.close()
 
+
 @router.post("/pending/approve-batch")
 async def approve_batch(data: BatchApproveInput):
-    """Approve multiple pending replacements (max 50)."""
+    """Approve multiple pending replacements using the SAME logic as single approve."""
     if len(data.ids) > 50:
-        raise HTTPException(
-            status_code=400,
-            detail="Maximum 50 approvals per batch"
-        )
-
+        raise HTTPException(status_code=400, detail="Maximum 50 approvals per batch")
     if not data.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
 
     conn = get_connection()
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
-
     if not config or not config["radarr_url"]:
         conn.close()
         raise HTTPException(status_code=400, detail="Radarr not configured")
@@ -239,12 +187,49 @@ async def approve_batch(data: BatchApproveInput):
             failed.append(record_id)
             continue
 
-        if record["quality_downgrade"] and not data.override_quality:
-            failed.append(record_id)
-            continue
+        record = dict(record)
 
         try:
-            await client.trigger_movie_search([record["movie_id"]])
+            # Exact same safe workflow as single approve
+            logger.info(f"Batch deleting existing file for '{record['movie_title']}'")
+            await client.delete_movie_file_only(record["movie_id"])
+            await asyncio.sleep(2)
+
+            release_guid = record["release_guid"]
+            download_url = record.get("download_url")
+
+            if release_guid and release_guid.startswith("http"):
+                torrent_id = None
+                proper_guid = None
+                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
+                for pattern in patterns:
+                    match = re.search(pattern, release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                        break
+
+                if proper_guid:
+                    await client.download_release_by_guid(
+                        movie_id=record["movie_id"],
+                        guid=proper_guid,
+                        indexerId=1,
+                        download_url=download_url,
+                        title=f"{record['movie_title']} 2025",
+                        publish_date=datetime.utcnow().isoformat()
+                    )
+                else:
+                    await client.trigger_movie_search([record["movie_id"]])
+            else:
+                await client.download_release_by_guid(
+                    movie_id=record["movie_id"],
+                    guid=release_guid,
+                    indexerId=1,
+                    download_url=download_url,
+                    title=f"{record['movie_title']} 2025",
+                    publish_date=datetime.utcnow().isoformat()
+                )
+
             conn.execute("""
                 UPDATE pending_replacements
                 SET status = 'queued', queued_at = datetime('now')
@@ -253,6 +238,7 @@ async def approve_batch(data: BatchApproveInput):
             conn.commit()
             approved.append(record_id)
             logger.info(f"Batch approved: '{record['movie_title']}'")
+
         except Exception as e:
             logger.error(f"Batch approve failed for {record_id}: {e}")
             failed.append(record_id)
@@ -267,20 +253,18 @@ async def approve_batch(data: BatchApproveInput):
         "failed_ids": failed
     }
 
-# ========== NEW CLEAR LIST ENDPOINT ==========
+
 @router.delete("/pending/clear-list")
 async def clear_pending_list():
     """Clear all pending replacement records from the list."""
     conn = get_connection()
     
-    # Count before deleting
     result = conn.execute("SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'")
     count = result.fetchone()[0]
     
-    # Delete all pending records
     conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
     
-    # OPTIONAL: Also reset stuck queued records (uncomment if desired)
+    # Optional: reset stuck queued records
     conn.execute("""
         UPDATE pending_replacements 
         SET status = 'pending', queued_at = NULL 
@@ -292,7 +276,7 @@ async def clear_pending_list():
     
     logger.info(f"Cleared {count} pending records from list")
     return {"success": True, "count": count}
-# ========== END CLEAR LIST ENDPOINT ==========
+
 
 @router.delete("/pending/{record_id}")
 async def delete_pending(record_id: int):

@@ -1,9 +1,11 @@
 import asyncio
 import secrets
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
 from app.db.database import init_db, get_connection
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.core.poller import start_poller
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI):
         """, (api_key,))
         conn.commit()
         logger.info(f"Generated new API key on first startup")
+
     conn.close()
 
     # Start scheduler
@@ -77,7 +80,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Static files and templates
+# Static files and templates (Docker path)
 app.mount("/static", StaticFiles(directory="/app/app/web/static"), name="static")
 templates = Jinja2Templates(directory="/app/app/web/templates")
 

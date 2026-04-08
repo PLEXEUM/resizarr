@@ -14,7 +14,7 @@ def get_connection():
     return conn
 
 def init_db():
-    """Create all tables if they don't exist yet."""
+    """Create all tables if they don't exist yet + run migrations."""
     os.makedirs(DB_PATH.parent, exist_ok=True)
     conn = get_connection()
     cursor = conn.cursor()
@@ -44,7 +44,9 @@ def init_db():
             min_quality_profile_id INTEGER,
             trigger_logic TEXT CHECK(trigger_logic IN ('auto', 'manual', 'quality_match')),
             min_peers INTEGER DEFAULT 0,
-            language TEXT DEFAULT 'Any'
+            language TEXT DEFAULT 'Any',
+            operation_delay_seconds INTEGER DEFAULT 3,   -- NEW
+            folder_pattern TEXT                          -- NEW
         );
 
         CREATE TABLE IF NOT EXISTS settings (
@@ -71,7 +73,8 @@ def init_db():
             queued_at DATETIME,
             completed_at DATETIME,
             fail_count INTEGER DEFAULT 0,
-            release_guid TEXT
+            release_guid TEXT,
+            download_url TEXT
         );
 
         CREATE TABLE IF NOT EXISTS run_history (
@@ -105,12 +108,34 @@ def init_db():
         );
     """)
 
-    # Migration: Add pending_approval column to run_history for existing databases
+    # === MIGRATIONS (run every startup - safe if columns already exist) ===
+
+    # Migration: Add pending_approval column to run_history (your existing one)
     cursor.execute("PRAGMA table_info(run_history)")
     columns = [row[1] for row in cursor.fetchall()]
     if 'pending_approval' not in columns:
         cursor.execute("ALTER TABLE run_history ADD COLUMN pending_approval INTEGER DEFAULT 0")
         print("Added 'pending_approval' column to existing run_history table")
+
+    # NEW MIGRATIONS - these will run automatically
+    cursor.execute("PRAGMA table_info(rules)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'operation_delay_seconds' not in columns:
+        cursor.execute("ALTER TABLE rules ADD COLUMN operation_delay_seconds INTEGER DEFAULT 3")
+        print("Added 'operation_delay_seconds' column to rules table (default: 3 seconds)")
+
+    if 'folder_pattern' not in columns:
+        cursor.execute("ALTER TABLE rules ADD COLUMN folder_pattern TEXT")
+        print("Added 'folder_pattern' column to rules table")
+
+    # Migration for pending_replacements download_url (in case it was missing)
+    if 'download_url' not in columns:  # wait, this is for pending_replacements
+        cursor.execute("PRAGMA table_info(pending_replacements)")
+        pending_columns = [row[1] for row in cursor.fetchall()]
+        if 'download_url' not in pending_columns:
+            cursor.execute("ALTER TABLE pending_replacements ADD COLUMN download_url TEXT")
+            print("Added 'download_url' column to pending_replacements table")
 
     conn.commit()
     conn.close()

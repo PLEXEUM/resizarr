@@ -25,6 +25,9 @@ class RulesInput(BaseModel):
     trigger_logic: str = "manual"
     min_peers: Optional[int] = 2
     language: Optional[str] = "English"
+    # NEW FIELDS
+    operation_delay_seconds: Optional[int] = 3
+    folder_pattern: Optional[str] = None
 
 
 @router.get("/rules")
@@ -52,7 +55,10 @@ async def get_rules():
         "min_quality_profile_id": rules["min_quality_profile_id"],
         "trigger_logic": rules["trigger_logic"],
         "min_peers": rules["min_peers"] if rules["min_peers"] is not None else 0,
-        "language": rules["language"] if rules["language"] is not None else "Any"
+        "language": rules["language"] if rules["language"] is not None else "Any",
+        # NEW FIELDS
+        "operation_delay_seconds": rules["operation_delay_seconds"] or 3,
+        "folder_pattern": rules["folder_pattern"] or ""
     }
 
 
@@ -83,7 +89,6 @@ async def save_rules(data: RulesInput):
     is_valid, error = validate_size_value(data.current_size)
     if not is_valid:
         raise HTTPException(status_code=400, detail=f"Current size: {error}")
-    
     is_valid, error = validate_size_value(data.target_size)
     if not is_valid:
         raise HTTPException(status_code=400, detail=f"Target size: {error}")
@@ -92,8 +97,11 @@ async def save_rules(data: RulesInput):
     if data.min_peers < 0 or data.min_peers > 100:
         raise HTTPException(status_code=400, detail="Min peers must be between 0 and 100")
     
+    # Validate delay
+    if data.operation_delay_seconds < 0 or data.operation_delay_seconds > 30:
+        raise HTTPException(status_code=400, detail="Delay must be between 0 and 30 seconds")
+
     conn = get_connection()
-    
     try:
         existing = conn.execute("SELECT id FROM rules WHERE id = 1").fetchone()
         
@@ -113,7 +121,9 @@ async def save_rules(data: RulesInput):
                     min_quality_profile_id = ?,
                     trigger_logic = ?,
                     min_peers = ?,
-                    language = ?
+                    language = ?,
+                    operation_delay_seconds = ?,
+                    folder_pattern = ?
                 WHERE id = 1
             """, (
                 data.current_operator, data.current_size, data.current_unit,
@@ -121,9 +131,8 @@ async def save_rules(data: RulesInput):
                 data.min_size, data.min_size_unit,
                 json.dumps(data.excluded_extensions),
                 data.quality_rule, data.min_quality_profile_id,
-                data.trigger_logic,
-                data.min_peers,
-                data.language
+                data.trigger_logic, data.min_peers, data.language,
+                data.operation_delay_seconds, data.folder_pattern
             ))
         else:
             conn.execute("""
@@ -131,17 +140,17 @@ async def save_rules(data: RulesInput):
                 (id, current_operator, current_size, current_unit,
                  target_operator, target_size, target_unit,
                  min_size, min_size_unit, excluded_extensions,
-                 quality_rule, min_quality_profile_id, trigger_logic, min_peers, language)
-                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 quality_rule, min_quality_profile_id, trigger_logic,
+                 min_peers, language, operation_delay_seconds, folder_pattern)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.current_operator, data.current_size, data.current_unit,
                 data.target_operator, data.target_size, data.target_unit,
                 data.min_size, data.min_size_unit,
                 json.dumps(data.excluded_extensions),
                 data.quality_rule, data.min_quality_profile_id,
-                data.trigger_logic,
-                data.min_peers,
-                data.language
+                data.trigger_logic, data.min_peers, data.language,
+                data.operation_delay_seconds, data.folder_pattern
             ))
         
         conn.commit()

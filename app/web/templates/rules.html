@@ -12,22 +12,15 @@
 
             <!-- Current File Condition -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Current File Condition</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Current File Condition</h2>
                 <div class="flex gap-3 items-center">
                     <span class="text-sm">Replace movies where file size is</span>
-                    <select id="current-operator"
-                        class="px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="&gt;">greater than</option>
-                        <option value="&lt;">less than</option>
+                    <select id="current-operator" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                        <option value=">">greater than</option>
+                        <option value="<">less than</option>
                     </select>
-                    <input id="current-size" type="number" min="0.1" step="0.1" value="4"
-                        class="w-24 px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="current-unit"
-                        class="px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                    <input id="current-size" type="number" min="0.1" step="0.1" value="4" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <select id="current-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                         <option value="GB">GB</option>
                         <option value="MB">MB</option>
                     </select>
@@ -36,22 +29,15 @@
 
             <!-- Target Size -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Target Replacement Size</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Target Replacement Size</h2>
                 <div class="flex gap-3 items-center">
                     <span class="text-sm">Find a replacement that is</span>
-                    <select id="target-operator"
-                        class="px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="&lt;">less than</option>
-                        <option value="&gt;">greater than</option>
+                    <select id="target-operator" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                        <option value="<">less than</option>
+                        <option value=">">greater than</option>
                     </select>
-                    <input id="target-size" type="number" min="0.1" step="0.1" value="2"
-                        class="w-24 px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="target-unit"
-                        class="px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                    <input id="target-size" type="number" min="0.1" step="0.1" value="2" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <select id="target-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                         <option value="GB">GB</option>
                         <option value="MB">MB</option>
                     </select>
@@ -60,15 +46,10 @@
 
             <!-- Minimum Size -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Minimum File Size (ignore smaller files)</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Minimum File Size (ignore smaller files)</h2>
                 <div class="flex gap-3 items-center">
-                    <input id="min-size" type="number" min="1" step="1" value="100"
-                        class="w-24 px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="min-size-unit"
-                        class="px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                    <input id="min-size" type="number" min="1" step="1" value="100" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <select id="min-size-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                         <option value="MB">MB</option>
                         <option value="GB">GB</option>
                     </select>
@@ -77,45 +58,32 @@
 
             <!-- Excluded Extensions -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Excluded Extensions</h2>
-                <input id="excluded-extensions" type="text"
-                    placeholder=".nfo, .jpg, .png, .srt"
-                    class="w-full px-3 py-2 rounded-lg text-sm border"
-                    style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                <p class="text-xs mt-1" style="color: var(--text-secondary)">
-                    Comma separated. Files with these extensions will be ignored.
-                </p>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Excluded Extensions</h2>
+                <input id="excluded-extensions" type="text" placeholder=".nfo, .jpg, .png, .srt" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">Comma separated. Files with these extensions will be ignored.</p>
             </div>
 
             <!-- Quality Protection -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Quality Protection</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Quality Protection</h2>
                 <div class="space-y-2">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="equal_or_better" checked
-                            class="accent-indigo-500" />
+                        <input type="radio" name="quality-rule" value="equal_or_better" checked class="accent-indigo-500" />
                         <span class="text-sm">Equal or better quality only</span>
                     </label>
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="same_only"
-                            class="accent-indigo-500" />
+                        <input type="radio" name="quality-rule" value="same_only" class="accent-indigo-500" />
                         <span class="text-sm">Same quality only</span>
                     </label>
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="any"
-                            class="accent-indigo-500" />
+                        <input type="radio" name="quality-rule" value="any" class="accent-indigo-500" />
                         <span class="text-sm">Any quality (no restriction)</span>
                     </label>
                 </div>
 
-                <!-- Minimum Quality Threshold -->
                 <div class="mt-4">
                     <label class="block text-sm mb-2">Minimum Quality Threshold</label>
-                    <select id="min-quality-profile"
-                        class="w-full px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                    <select id="min-quality-profile" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                         <option value="">No minimum</option>
                     </select>
                 </div>
@@ -123,72 +91,41 @@
 
             <!-- Trigger Logic -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Trigger Logic</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Trigger Logic</h2>
                 <div class="space-y-2">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="manual" checked
-                            class="accent-indigo-500" />
+                        <input type="radio" name="trigger-logic" value="manual" checked class="accent-indigo-500" />
                         <span class="text-sm">Manual approval — review before triggering</span>
                     </label>
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="auto"
-                            class="accent-indigo-500" />
+                        <input type="radio" name="trigger-logic" value="auto" class="accent-indigo-500" />
                         <span class="text-sm">Auto queue — trigger immediately</span>
                     </label>
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="quality_match"
-                            class="accent-indigo-500" />
+                        <input type="radio" name="trigger-logic" value="quality_match" class="accent-indigo-500" />
                         <span class="text-sm">Quality match only — trigger only if quality profile matches</span>
                     </label>
                 </div>
             </div>
 
-            <!-- Optional: Add a divider -->
-            <hr class="border-t" style="border-color: var(--border-color);">
-            
-            <!-- Peers and Language Filters -->
+            <!-- NEW: Operation Delay -->
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Quality Filters</h2>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Minimum Peers (Seeders + Leechers)</label>
-                        <input id="min-peers" type="number" min="0" max="100" value="0"
-                            class="w-full px-3 py-2 rounded-lg text-sm border"
-                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
-                            Only consider releases with at least this many peers (seeders + leechers)
-                        </p>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Preferred Language</label>
-                        <select id="language"
-                            class="w-full px-3 py-2 rounded-lg text-sm border"
-                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                            <option value="Any">Any Language</option>
-                            <option value="English">English</option>
-                            <option value="French">French</option>
-                            <option value="German">German</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Russian">Russian</option>
-                            <option value="Japanese">Japanese</option>
-                            <option value="Chinese">Chinese</option>
-                        </select>
-                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
-                            Only consider releases in this language
-                        </p>
-                    </div>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Operation Delay</h2>
+                <div class="flex gap-3 items-center">
+                    <input id="operation-delay" type="number" min="0" max="30" value="3" class="w-20 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <span class="text-sm">seconds between each movie (prevents hammering Radarr)</span>
                 </div>
             </div>
 
+            <!-- NEW: Folder Pattern -->
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Folder Pattern Filter</h2>
+                <input id="folder-pattern" type="text" placeholder="4K|Remux|Movies" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">Only process movies in folders matching this regex (e.g. 4K|Remux)</p>
+            </div>
+
             <!-- Save Button -->
-            <button onclick="saveRules()"
-                class="w-full py-2 rounded-lg text-sm font-medium text-white"
-                style="background: var(--accent);">
+            <button onclick="saveRules()" class="w-full py-2 rounded-lg text-sm font-medium text-white" style="background: var(--accent);">
                 <span id="save-label">Save Rules</span>
                 <span id="save-spinner" class="spinner hidden ml-2"></span>
             </button>
@@ -201,51 +138,33 @@
 <script>
 // Load quality profiles and rules when page loads
 window.addEventListener('DOMContentLoaded', async () => {
-    console.log('Rules page loaded');
     await loadProfiles();
     await loadRules();
 });
 
 async function loadProfiles() {
-    console.log('Loading quality profiles...');
     try {
         const res = await fetch('/api/quality-profiles');
         const data = await res.json();
-        console.log('Profiles received:', data.length);
-        
         const select = document.getElementById('min-quality-profile');
-        if (!select) {
-            console.error('Dropdown element not found');
-            return;
-        }
-        
-        // Clear existing options (keep the "No minimum" option)
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
-        
-        // Add new options
+        while (select.options.length > 1) select.remove(1);
         data.forEach(profile => {
             const opt = document.createElement('option');
             opt.value = profile.id;
             opt.textContent = profile.name;
             select.appendChild(opt);
         });
-        console.log(`Added ${data.length} profiles to dropdown`);
     } catch (e) {
         console.error('Failed to load profiles:', e);
     }
 }
 
 async function loadRules() {
-    console.log('Loading existing rules...');
     try {
         const res = await fetch('/api/rules');
         const data = await res.json();
-        console.log('Rules received:', data);
-        
         if (!data.configured) return;
-        
+
         document.getElementById('current-operator').value = data.current_operator;
         document.getElementById('current-size').value = data.current_size;
         document.getElementById('current-unit').value = data.current_unit;
@@ -258,13 +177,15 @@ async function loadRules() {
         document.getElementById('min-quality-profile').value = data.min_quality_profile_id || '';
         document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
         document.getElementById('language').value = data.language || 'Any';
-        
+        document.getElementById('operation-delay').value = data.operation_delay_seconds || 3;
+        document.getElementById('folder-pattern').value = data.folder_pattern || '';
+
         const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
         if (qualityRuleRadio) qualityRuleRadio.checked = true;
-        
+
         const triggerLogicRadio = document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`);
         if (triggerLogicRadio) triggerLogicRadio.checked = true;
-        
+
     } catch (e) {
         console.error('Failed to load rules:', e);
     }
@@ -273,11 +194,10 @@ async function loadRules() {
 async function saveRules() {
     document.getElementById('save-label').textContent = 'Saving...';
     document.getElementById('save-spinner').classList.remove('hidden');
-    
+
     const extensions = document.getElementById('excluded-extensions').value
         .split(',').map(e => e.trim()).filter(Boolean);
-    const minQuality = document.getElementById('min-quality-profile').value;
-    
+
     const payload = {
         current_operator: document.getElementById('current-operator').value,
         current_size: parseFloat(document.getElementById('current-size').value),
@@ -289,19 +209,21 @@ async function saveRules() {
         min_size_unit: document.getElementById('min-size-unit').value,
         excluded_extensions: extensions,
         quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
-        min_quality_profile_id: minQuality ? parseInt(minQuality) : null,
+        min_quality_profile_id: document.getElementById('min-quality-profile').value || null,
         trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value,
         min_peers: parseInt(document.getElementById('min-peers').value) || 0,
-        language: document.getElementById('language').value
+        language: document.getElementById('language').value,
+        operation_delay_seconds: parseInt(document.getElementById('operation-delay').value) || 3,
+        folder_pattern: document.getElementById('folder-pattern').value.trim() || null
     };
-    
+
     try {
         const res = await fetch('/api/rules', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         if (res.ok) {
             showToast('Rules saved successfully!', 'success');
         } else {
