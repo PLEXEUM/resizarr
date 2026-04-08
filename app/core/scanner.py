@@ -366,6 +366,7 @@ async def run_resizarr(
                 # Manual mode: respect quality rules
                 should_proceed = is_allowed
 
+            # ========== DRY RUN CHECK - MUST BE AT THIS LEVEL ==========
             if dry_run:
                 csv_rows.append({
                     "Movie": movie_title,
@@ -378,8 +379,9 @@ async def run_resizarr(
                     "Is Downgrade": "Yes" if is_downgrade else "No",
                     "Mode": rules["trigger_logic"]
                 })
-                if not should_proceed:
-                    continue
+                # Skip all actual operations in dry run
+                continue
+            # ========== END DRY RUN CHECK ==========
 
             if rules["trigger_logic"] == "manual":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
@@ -398,7 +400,6 @@ async def run_resizarr(
                 summary["pending_approval"] += 1
                 continue
 
-            # ========== ADD QUALITY MATCH MODE HERE ==========
             # Quality match mode - auto queue if quality matches
             if rules["trigger_logic"] == "quality_match" and should_proceed:
                 try:
@@ -440,7 +441,6 @@ async def run_resizarr(
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
                     summary["replacements_failed"] += 1
                 continue
-            # ========== END QUALITY MATCH MODE ==========
 
             # Auto mode
             if rules["trigger_logic"] == "auto":
@@ -460,7 +460,6 @@ async def run_resizarr(
                 )
                 summary["replacements_queued"] += 1
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
-
             # Save resume point
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_movie_id, last_run_date)
