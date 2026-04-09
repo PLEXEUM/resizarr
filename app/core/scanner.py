@@ -382,8 +382,8 @@ async def run_resizarr(
                         'year': movie.get('year'),
                         'current_size_gb': size_gb,
                         'current_quality': current_quality,
-                        'found_size_gb': None,
-                        'found_quality': None,
+                        'found_size_gb': found_size_gb,  # ← This should be set!
+                        'found_quality': found_quality,   # ← This should be set!
                         'skip_reason': 'No releases matched size/peers/language filters'
                     })
                     logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
