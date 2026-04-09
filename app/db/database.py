@@ -91,6 +91,7 @@ def init_db():
             replacements_queued INTEGER,
             replacements_failed INTEGER,
             quality_skipped INTEGER,
+            no_releases_found INTEGER DEFAULT 0,   -- ← NEW
             pending_approval INTEGER DEFAULT 0,
             dry_run BOOLEAN,
             mode TEXT,
@@ -156,6 +157,13 @@ def init_db():
     if 'mode' not in pending_columns:
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN mode TEXT DEFAULT 'manual'")
         print("Added 'mode' column to pending_replacements table")
+
+    # === NEW: no_releases_found column for run_history ===
+    cursor.execute("PRAGMA table_info(run_history)")
+    history_columns = [row[1] for row in cursor.fetchall()]
+    if 'no_releases_found' not in history_columns:
+        cursor.execute("ALTER TABLE run_history ADD COLUMN no_releases_found INTEGER DEFAULT 0")
+        print("Added 'no_releases_found' column to run_history table")
 
     conn.commit()
     conn.close()
