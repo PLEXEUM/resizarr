@@ -256,17 +256,6 @@ async def run_resizarr(
             size_gb = candidate["size_gb"]
             summary["total_movies_processed"] += 1
 
-            # ========== ADD THIS ==========
-            # Track processed movie for non-dry run
-            if not dry_run:
-                processed_movies.append({
-                    'title': movie_title,
-                    'year': movie.get('year'),
-                    'current_size_gb': size_gb,
-                    'current_quality': current_quality
-                })
-            # ========== END TRACKING ==========
-
             if progress_callback:
                 await progress_callback(i + 1, len(candidates), movie_title)
 
@@ -302,6 +291,17 @@ async def run_resizarr(
                             current_quality = profile.get("profile_name", "Unknown")
                             break
             
+            # ========== ADD THIS ==========
+            # Track processed movie for non-dry run
+            if not dry_run:
+                processed_movies.append({
+                    'title': movie_title,
+                    'year': movie.get('year'),
+                    'current_size_gb': size_gb,
+                    'current_quality': current_quality
+                })
+            # ========== END TRACKING ==========
+
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
                 logger.info(f"Skipping {movie_title} - replacement actively in Radarr queue")
