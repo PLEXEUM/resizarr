@@ -282,7 +282,6 @@ async def run_resizarr(
             current_quality = "Unknown"
             movie_file = movie.get("movieFile")
             if movie_file:
-                # The quality is nested in movie_file['quality']['quality']['name']
                 file_quality_wrapper = movie_file.get("quality", {})
                 if isinstance(file_quality_wrapper, dict):
                     file_quality_obj = file_quality_wrapper.get("quality", {})
@@ -290,7 +289,7 @@ async def run_resizarr(
                         current_quality = file_quality_obj.get("name", "Unknown")
     
             # If still unknown, try to infer from filename
-            if current_quality == "Unknown":
+            if current_quality == "Unknown" and movie_file:
                 filename = movie_file.get("relativePath", "")
                 if "1080p" in filename.lower():
                     current_quality = "1080p"
@@ -308,15 +307,13 @@ async def run_resizarr(
                             current_quality = profile.get("profile_name", "Unknown")
                             break
             
-            # ========== ADD THIS ==========
-            # Track processed movie for non-dry run
+            # Track processed movie for all runs
             processed_movies.append({
                 'title': movie_title,
                 'year': movie.get('year'),
                 'current_size_gb': size_gb,
                 'current_quality': current_quality
             })
-            # ========== END TRACKING ==========
 
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
@@ -332,171 +329,166 @@ async def run_resizarr(
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
 
+            # Initialize variables for CSV logging
+            candidate_releases = []
+            found_size_gb = None
+            found_quality = None
+            is_downgrade = False
+            reason = ""
+            should_proceed = False
+
             if not valid_releases:
                 summary["no_releases_found"] += 1
-                # ========== ADD THIS ==========
                 no_releases_movies.append({
                     'title': movie_title,
                     'year': movie.get('year'),
                     'current_size_gb': size_gb,
                     'current_quality': current_quality
                 })
-                # ========== END TRACKING ==========
                 logger.info(f"No valid releases found for: {movie_title}")
-                continue
-
-            candidate_releases = []
-            for release in valid_releases:
-                release_size_gb = release.get("size", 0) / (1024 ** 3)
-                peers = (release.get("seeders", 0) + release.get("leechers", 0) or
-                    release.get("peers", 0) or release.get("peerCount", 0))
-
-                languages = release.get("languages", [])
-                release_language = (languages[0].get("name", "Unknown")
-                                    if languages and isinstance(languages[0], dict) else "Unknown")
-
-                if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
-                    if peers < min_peers:
-                        continue
-                    if preferred_language.lower() != "any" and preferred_language.lower() not in release_language.lower():
-                        continue
-
-                    release_quality = client.get_release_quality_name(release)
-                    candidate_releases.append({
-                        "release": release,
-                        "size_gb": release_size_gb,
-                        "quality": release_quality,
-                        "guid": release.get("guid"),
-                        "download_url": release.get("downloadUrl") or release.get("magnetUrl"),
-                        "peers": peers,
-                        "language": release_language
-                    })
-
-            if not candidate_releases:
-                # We found releases, but none matched our size/peers/language filters
-                summary["quality_skipped"] += 1  # ← ADD THIS BACK
-                 # ========== ADD THIS ==========
-                quality_skipped_movies.append({
-                    'title': movie_title,
-                    'year': movie.get('year'),
-                    'current_size_gb': size_gb,
-                    'current_quality': current_quality,
-                    'found_size_gb': None,
-                    'found_quality': None,
-                    'skip_reason': 'No releases matched size/peers/language filters'
-                })
-                # ========== END TRACKING ==========
-                logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
-                continue
+                # Don't continue yet - let CSV logging handle it
             else:
-                logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
+                # Build candidate releases
+                for release in valid_releases:
+                    release_size_gb = release.get("size", 0) / (1024 ** 3)
+                    peers = (release.get("seeders", 0) + release.get("leechers", 0) or
+                        release.get("peers", 0) or release.get("peerCount", 0))
 
-            candidate_releases.sort(key=lambda x: x["size_gb"])
-            best_candidate = candidate_releases[0]
-            found_size_gb = best_candidate["size_gb"]
-            found_quality = best_candidate["quality"]
+                    languages = release.get("languages", [])
+                    release_language = (languages[0].get("name", "Unknown")
+                                        if languages and isinstance(languages[0], dict) else "Unknown")
 
-            is_allowed, is_downgrade, reason = check_quality(
-                current_quality, found_quality, rules["quality_rule"]
-            )
+                    if matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
+                        if peers < min_peers:
+                            continue
+                        if preferred_language.lower() != "any" and preferred_language.lower() not in release_language.lower():
+                            continue
 
-            # Determine if we should proceed based on mode + track quality_skipped
-            if rules["trigger_logic"] == "auto":
-                min_quality_threshold = rules.get("min_quality_threshold")
-                if min_quality_threshold and min_quality_threshold != "":
-                    should_proceed = is_allowed
-                    if should_proceed:
-                        logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
-                    else:
-                        logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
-                        summary["quality_skipped"] += 1
-                        # ========== ADD THIS ==========
-                        quality_skipped_movies.append({
-                            'title': movie_title,
-                            'year': movie.get('year'),
-                            'current_size_gb': size_gb,
-                            'current_quality': current_quality,
-                            'found_size_gb': found_size_gb,
-                            'found_quality': found_quality,
-                            'skip_reason': reason
+                        release_quality = client.get_release_quality_name(release)
+                        candidate_releases.append({
+                            "release": release,
+                            "size_gb": release_size_gb,
+                            "quality": release_quality,
+                            "guid": release.get("guid"),
+                            "download_url": release.get("downloadUrl") or release.get("magnetUrl"),
+                            "peers": peers,
+                            "language": release_language
                         })
-                        # ========== END TRACKING ==========
-                else:
-                    # No minimum quality threshold - aggressive size-only mode
-                    should_proceed = True
-                    logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode (no minimum quality threshold)")
-            elif rules["trigger_logic"] == "quality_match":
-                should_proceed = is_allowed
-                if not should_proceed:
-                    summary["quality_skipped"] += 1
-                    # ========== ADD THIS ==========
-                    quality_skipped_movies.append({
-                        'title': movie_title,
-                        'year': movie.get('year'),
-                        'current_size_gb': size_gb,
-                        'current_quality': current_quality,
-                        'found_size_gb': found_size_gb,
-                        'found_quality': found_quality,
-                        'skip_reason': reason
-                    })
-                    # ========== END TRACKING ==========
-            else:
-                # Manual mode
-                should_proceed = is_allowed
-                if not should_proceed:
-                    summary["quality_skipped"] += 1
-                    # ========== ADD THIS ==========
-                    quality_skipped_movies.append({
-                        'title': movie_title,
-                        'year': movie.get('year'),
-                        'current_size_gb': size_gb,
-                        'current_quality': current_quality,
-                        'found_size_gb': found_size_gb,
-                        'found_quality': found_quality,
-                        'skip_reason': reason
-                    })
-                    # ========== END TRACKING ==========
-                    continue 
 
-            # ========== DRY RUN CSV LOGGING (for ALL movies) ==========
+                if not candidate_releases:
+                    summary["quality_skipped"] += 1
+                    quality_skipped_movies.append({
+                        'title': movie_title,
+                        'year': movie.get('year'),
+                        'current_size_gb': size_gb,
+                        'current_quality': current_quality,
+                        'found_size_gb': None,
+                        'found_quality': None,
+                        'skip_reason': 'No releases matched size/peers/language filters'
+                    })
+                    logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
+                else:
+                    logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
+                    candidate_releases.sort(key=lambda x: x["size_gb"])
+                    best_candidate = candidate_releases[0]
+                    found_size_gb = best_candidate["size_gb"]
+                    found_quality = best_candidate["quality"]
+
+                    is_allowed, is_downgrade, reason = check_quality(
+                        current_quality, found_quality, rules["quality_rule"]
+                    )
+
+                    # Determine if we should proceed based on mode
+                    if rules["trigger_logic"] == "auto":
+                        min_quality_threshold = rules.get("min_quality_threshold")
+                        if min_quality_threshold and min_quality_threshold != "":
+                            should_proceed = is_allowed
+                            if should_proceed:
+                                logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
+                            else:
+                                logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
+                                summary["quality_skipped"] += 1
+                                quality_skipped_movies.append({
+                                    'title': movie_title,
+                                    'year': movie.get('year'),
+                                    'current_size_gb': size_gb,
+                                    'current_quality': current_quality,
+                                    'found_size_gb': found_size_gb,
+                                    'found_quality': found_quality,
+                                    'skip_reason': reason
+                                })
+                        else:
+                            should_proceed = True
+                            logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode (no minimum quality threshold)")
+                    elif rules["trigger_logic"] == "quality_match":
+                        should_proceed = is_allowed
+                        if not should_proceed:
+                            summary["quality_skipped"] += 1
+                            quality_skipped_movies.append({
+                                'title': movie_title,
+                                'year': movie.get('year'),
+                                'current_size_gb': size_gb,
+                                'current_quality': current_quality,
+                                'found_size_gb': found_size_gb,
+                                'found_quality': found_quality,
+                                'skip_reason': reason
+                            })
+                    else:  # Manual mode
+                        should_proceed = is_allowed
+                        if not should_proceed:
+                            summary["quality_skipped"] += 1
+                            quality_skipped_movies.append({
+                                'title': movie_title,
+                                'year': movie.get('year'),
+                                'current_size_gb': size_gb,
+                                'current_quality': current_quality,
+                                'found_size_gb': found_size_gb,
+                                'found_quality': found_quality,
+                                'skip_reason': reason
+                            })
+
+            # ========== DRY RUN CSV LOGGING - AT THE END (ALL variables defined) ==========
             if dry_run:
-                # Determine outcome based on what happened
+                # Determine outcome for CSV
                 if not valid_releases:
                     outcome = "No Releases Found"
-                    found_size = "N/A"
-                    found_quality = "N/A"
                     quality_decision = "No releases available"
+                    found_size_display = "N/A"
+                    found_quality_display = "N/A"
                     would_trigger = "No"
+                    is_downgrade_display = "N/A"
                 elif not candidate_releases:
-                    outcome = "Quality Skipped - No matching releases"
-                    found_size = "N/A"
-                    found_quality = "N/A"
-                    quality_decision = "No releases matched filters"
-                    would_trigger = "No"
-                elif not should_proceed:
                     outcome = "Quality Skipped"
-                    found_size = f"{found_size_gb:.2f}"
-                    found_quality = found_quality
-                    quality_decision = reason
+                    quality_decision = "No releases matched size/peers/language filters"
+                    found_size_display = "N/A"
+                    found_quality_display = "N/A"
                     would_trigger = "No"
+                    is_downgrade_display = "N/A"
                 else:
-                    outcome = "Would Trigger"
-                    found_size = f"{found_size_gb:.2f}"
-                    found_quality = found_quality
-                    quality_decision = reason
-                    would_trigger = "Yes"
+                    found_size_display = f"{found_size_gb:.2f}"
+                    found_quality_display = found_quality
+                    is_downgrade_display = "Yes" if is_downgrade else "No"
+                    
+                    if not should_proceed:
+                        outcome = "Quality Skipped"
+                        quality_decision = reason
+                        would_trigger = "No"
+                    else:
+                        outcome = "Would Trigger"
+                        quality_decision = reason
+                        would_trigger = "Yes"
                 
                 csv_rows.append({
                     "Movie": movie_title,
                     "Year": movie.get('year', 'N/A'),
                     "Current Size (GB)": f"{size_gb:.2f}",
                     "Current Quality": current_quality,
-                    "Found Size (GB)": found_size,
-                    "Found Quality": found_quality,
+                    "Found Size (GB)": found_size_display,
+                    "Found Quality": found_quality_display,
                     "Would Trigger": would_trigger,
                     "Outcome": outcome,
                     "Quality Decision": quality_decision,
-                    "Is Downgrade": "Yes" if is_downgrade else "No",
+                    "Is Downgrade": is_downgrade_display,
                     "Mode": rules["trigger_logic"]
                 })
                 
@@ -504,11 +496,14 @@ async def run_resizarr(
                 continue
             # ========== END DRY RUN CSV LOGGING ==========
 
+            # ========== ACTUAL OPERATIONS (ONLY for non-dry runs) ==========
+            if not should_proceed:
+                continue
+
             if rules["trigger_logic"] == "manual":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                 release = best_candidate.get("release", {})
 
-                # Get TMDB rating from movie data (Radarr typically has this)
                 tmdb_rating = movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating")
 
                 conn.execute("""
@@ -522,7 +517,7 @@ async def run_resizarr(
                     found_size_gb, str(found_quality), 1 if is_downgrade else 0,
                     proper_guid, best_candidate.get("download_url"),
                     release.get("indexer"), best_candidate.get("peers", 0), release.get("title"), tmdb_rating,
-                    run_id_from_db  # ← Now defined!
+                    run_id_from_db
                 ))
                 conn.commit()
                 summary["pending_approval"] += 1
@@ -535,7 +530,6 @@ async def run_resizarr(
                     download_url = best_candidate.get("download_url", "")
                     original_guid = best_candidate.get("release", {}).get("guid", "")
                     
-                    # Extract torrent ID if it's a URL
                     if original_guid.startswith("http"):
                         torrent_id = None
                         match = re.search(r'torrentid=(\d+)', original_guid)
@@ -548,11 +542,9 @@ async def run_resizarr(
                                 torrent_id = match.group(1)
                                 proper_guid = f"Prowlarr:{torrent_id}"
                     
-                    # Delete existing file first
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                     await client.delete_movie_file_only(movie_id)
                     
-                    # Download the release
                     await client.download_release_by_guid(
                         movie_id=movie_id,
                         guid=proper_guid,
@@ -587,6 +579,7 @@ async def run_resizarr(
                 )
                 summary["replacements_queued"] += 1
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
+            
             # Save resume point
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_movie_id, last_run_date)
