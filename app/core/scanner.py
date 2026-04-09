@@ -377,13 +377,18 @@ async def run_resizarr(
 
                 if not candidate_releases:
                     summary["quality_skipped"] += 1
+                    # Find the smallest release from valid_releases
+                    smallest_release = min(valid_releases, key=lambda r: r.get('size', 0)) if valid_releases else None
+                    smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
+                    smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
+    
                     quality_skipped_movies.append({
                         'title': movie_title,
                         'year': movie.get('year'),
                         'current_size_gb': size_gb,
                         'current_quality': current_quality,
-                        'found_size_gb': found_size_gb,  # ← This should be set!
-                        'found_quality': found_quality,   # ← This should be set!
+                        'found_size_gb': smallest_release_size,
+                        'found_quality': smallest_release_quality,
                         'skip_reason': 'No releases matched size/peers/language filters'
                     })
                     logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
