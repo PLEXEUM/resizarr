@@ -9,7 +9,6 @@ from datetime import datetime
 from app.utils.logger import get_logger
 from app.core.radarr_client import RadarrClient
 from app.core.quality_checker import check_quality
-from app.utils.quality_ranking import get_quality_score
 from app.db.database import get_connection
 
 logger = get_logger()
@@ -183,7 +182,6 @@ async def run_resizarr(
         current_threshold_gb = size_to_gb(rules["current_size"], rules["current_unit"])
         excluded_extensions = json.loads(rules["excluded_extensions"] or "[]")
         min_size_gb = size_to_gb(rules.get("min_size") or 0, rules.get("min_size_unit") or "GB")
-        min_quality_threshold = rules.get("min_quality_threshold")  # Quality name like "1080p"
 
         candidates = []
         resume_processing = last_processed_id is None
@@ -194,18 +192,6 @@ async def run_resizarr(
                 if movie_id == last_processed_id:
                     resume_processing = True
                 continue
-
-            # Get the movie's current quality using your existing method
-            if min_quality_threshold and min_quality_threshold != "":
-                current_quality = await client.get_movie_quality(movie_id)
-                if current_quality:
-                    # Use your quality ranking system to compare
-                    current_score = get_quality_score(current_quality)
-                    threshold_score = get_quality_score(min_quality_threshold)
-            
-                    if current_score < threshold_score:
-                        logger.debug(f"Skipping {movie.get('title', 'Unknown')} - quality {current_quality} is below threshold {min_quality_threshold}")
-                        continue
 
             # Folder pattern filter
             if folder_pattern:
@@ -342,7 +328,7 @@ async def run_resizarr(
 
             if not candidate_releases:
                 # We found releases, but none matched our size/peers/language filters
-                summary["quality_skipped"] += 1  # ← CHANGED: was no_releases_found
+                summary["quality_skipped"] += 1
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
 
@@ -504,7 +490,7 @@ async def run_resizarr(
             started_at, completed_at,
             summary["total_movies_processed"], summary["candidates_found"],
             summary["replacements_queued"], summary["replacements_failed"],
-            summary["quality_skipped"], summary["no_releases_found"],   # ← NEW
+            summary["quality_skipped"], summary["no_releases_found"],
             summary["pending_approval"],
             1 if dry_run else 0,
             "shrink" if rules["current_operator"] == ">" else "upgrade",
