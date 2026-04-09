@@ -120,13 +120,27 @@ async def run_resizarr(
 
     conn = get_connection()
     try:
+        # --- CLEAR EXISTING PENDING APPROVALS ---
+        # Clear existing pending approvals before new run (unless dry run)
+        if not dry_run:
+            deleted_count = conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
+            conn.commit()
+            logger.info(f"Cleared {deleted_count.rowcount} existing pending approvals before new run")
+        # --- END CLEAR BLOCK ---
+        
         # Auto-create download_url column if missing
         cursor = conn.execute("PRAGMA table_info(pending_replacements)")
         columns = [row[1] for row in cursor.fetchall()]
+        
         if 'download_url' not in columns:
             conn.execute("ALTER TABLE pending_replacements ADD COLUMN download_url TEXT")
             conn.commit()
             logger.info("Added missing 'download_url' column to pending_replacements table")
+
+        if 'mode' not in columns:
+            conn.execute("ALTER TABLE pending_replacements ADD COLUMN mode TEXT DEFAULT 'manual'")
+            conn.commit()
+            logger.info("Added missing 'mode' column to pending_replacements table")
 
         # Load config
         config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
