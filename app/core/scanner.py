@@ -328,7 +328,7 @@ async def run_resizarr(
 
             if not candidate_releases:
                 # We found releases, but none matched our size/peers/language filters
-                summary["quality_skipped"] += 1
+                # Don't increment quality_skipped here - this is a filter failure, not a quality issue
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
 
