@@ -145,13 +145,17 @@ def init_db():
         cursor.execute("UPDATE rules SET min_quality_threshold = NULL")
     # ========== END MIGRATION ==========
 
-    # Migration for pending_replacements download_url (in case it was missing)
-    if 'download_url' not in columns:  # wait, this is for pending_replacements
-        cursor.execute("PRAGMA table_info(pending_replacements)")
-        pending_columns = [row[1] for row in cursor.fetchall()]
-        if 'download_url' not in pending_columns:
-            cursor.execute("ALTER TABLE pending_replacements ADD COLUMN download_url TEXT")
-            print("Added 'download_url' column to pending_replacements table")
+    # Migration for pending_replacements missing columns
+    cursor.execute("PRAGMA table_info(pending_replacements)")
+    pending_columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'download_url' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN download_url TEXT")
+        print("Added 'download_url' column to pending_replacements table")
+    
+    if 'mode' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN mode TEXT DEFAULT 'manual'")
+        print("Added 'mode' column to pending_replacements table")
 
     conn.commit()
     conn.close()
