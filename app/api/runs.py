@@ -38,7 +38,6 @@ async def trigger_run(dry_run: bool = False):
     else:
         logger.info("No previous run history to clear")
     conn.close()
-    logger.info("Cleared previous run history before new run")
     
     logger.info(f"Manual run triggered (dry_run={dry_run})")
     
