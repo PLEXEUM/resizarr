@@ -78,10 +78,16 @@
         </div>
     </div>
 
-    <!-- Last Run Summary -->
+    <!-- Last Run Summary with Clickable Stats -->
     <div class="card rounded-xl p-6">
-        <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-            style="color: var(--text-secondary)">Last Run Summary</h2>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wide"
+                style="color: var(--text-secondary)">Last Run Summary</h2>
+            <button onclick="clearRunHistory()" 
+                class="text-xs px-2 py-1 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
+                Clear History
+            </button>
+        </div>
         <div id="last-run-summary">
             <p class="text-sm" style="color: var(--text-secondary)">No runs yet.</p>
         </div>
@@ -94,17 +100,23 @@
         </div>
     </div>
 
-    <!-- Pending Approvals -->
+    <!-- Dynamic Category Details Card -->
     <div class="card rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold uppercase tracking-wide"
+            <h2 id="category-title" class="text-sm font-semibold uppercase tracking-wide"
                 style="color: var(--text-secondary)">Pending Approvals</h2>
-            <a href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
-                View History →
-            </a>
+            <div class="flex gap-2">
+                <a href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
+                    View History →
+                </a>
+                <button id="clear-category-btn" onclick="clearCurrentCategory()" 
+                    class="hidden text-xs px-2 py-1 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
+                    Clear List
+                </button>
+            </div>
         </div>
-        <div id="pending-summary" class="overflow-x-auto">
-            <p class="text-sm" style="color: var(--text-secondary)">Loading...</p>
+        <div id="category-content" class="overflow-x-auto">
+            <div class="text-center py-8" style="color: var(--text-secondary)">Loading...</div>
         </div>
     </div>
 
@@ -134,12 +146,14 @@
     let currentRunId = null;
     let cancelPollInterval = null;
     let statusCheckInterval = null;
+    let currentCategory = 'pending';  
+    let lastRunData = null;            
 
     window.addEventListener('DOMContentLoaded', () => {
         loadRuleSummary();
         loadStatus();
-        loadPendingApprovals();
         startStatusChecking();
+        // loadCategory('pending') will be called inside loadStatus after last run loads
     });
 
     // Cleanup on page leave
@@ -171,94 +185,183 @@
         }
     }
 
-    // Load pending approvals for dashboard
-    async function loadPendingApprovals() {
+    // NEW FUNCTION 1: Load category details (replaces loadPendingApprovals)
+    async function loadCategory(category) {
+        currentCategory = category;
+        
+        // Update the card title
+        const titles = {
+            'pending': 'Pending Approvals',
+            'queued': 'Queued Replacements',
+            'quality_skipped': 'Quality Skipped',
+            'no_releases': 'No Releases Found',
+            'failed': 'Failed Replacements',
+            'processed': 'Processed Movies'
+        };
+        
+        document.getElementById('category-title').textContent = titles[category] || 'Run Details';
+        
+        // Show/hide clear button based on category
+        const clearBtn = document.getElementById('clear-category-btn');
+        if (category === 'pending') {
+            clearBtn.classList.add('hidden');
+        } else {
+            clearBtn.classList.remove('hidden');
+        }
+        
+        // Show loading state
+        const container = document.getElementById('category-content');
+        container.innerHTML = '<div class="text-center py-8" style="color: var(--text-secondary)">Loading...</div>';
+        
         try {
-            const res = await fetch('/api/pending?page=1&per_page=25');
+            const res = await fetch(`/api/run/details/${category}`);
             const data = await res.json();
-            const container = document.getElementById('pending-summary');
             
-            if (!data.records || data.records.length === 0) {
-                container.innerHTML = '<p class="text-sm" style="color: var(--text-secondary)">No pending approvals.</p>';
-                return;
+            if (data.movies && data.movies.length > 0) {
+                renderCategoryTable(container, data.movies, category);
+            } else {
+                container.innerHTML = `<div class="text-center py-8" style="color: var(--text-secondary)">No ${category.replace('_', ' ')} items found.</div>`;
+            }
+        } catch (e) {
+            console.error(`Failed to load ${category}:`, e);
+            container.innerHTML = `<div class="text-center py-8 text-red-500">Failed to load: ${e.message}</div>`;
+        }
+    }
+    
+    // NEW FUNCTION 2: Render table based on category
+    function renderCategoryTable(container, movies, category) {
+        let html = `
+            <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
+                <thead>
+                    <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+                        <th class="text-left py-3 px-2 font-medium">Movie</th>
+                        <th class="text-left py-3 px-2 font-medium">Year</th>
+        `;
+        
+        // Add category-specific columns
+        if (category === 'pending') {
+            html += `<th class="text-left py-3 px-2 font-medium">TMDB</th>`;
+        }
+        
+        html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
+                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
+        
+        if (category !== 'processed' && category !== 'no_releases') {
+            html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
+                     <th class="text-left py-3 px-2 font-medium">Found Quality</th>`;
+        }
+        
+        if (category === 'pending') {
+            html += `<th class="text-left py-3 px-2 font-medium">Indexer</th>
+                     <th class="text-left py-3 px-2 font-medium">Peers</th>
+                     <th class="text-left py-3 px-2 font-medium">Age</th>`;
+        }
+        
+        if (category === 'queued') {
+            html += `<th class="text-left py-3 px-2 font-medium">Status</th>`;
+        }
+        
+        if (category === 'quality_skipped') {
+            html += `<th class="text-left py-3 px-2 font-medium">Skip Reason</th>`;
+        }
+        
+        if (category === 'failed') {
+            html += `<th class="text-left py-3 px-2 font-medium">Error</th>`;
+        }
+        
+        if (category === 'pending') {
+            html += `<th class="text-left py-3 px-2 font-medium">Actions</th>`;
+        }
+        
+        html += `</tr></thead><tbody>`;
+        
+        movies.forEach(movie => {
+            html += `
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td class="py-3 px-2 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+            `;
+            
+            if (category === 'pending') {
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                html += `<td class="py-3 px-2">${tmdbRating}</td>`;
             }
             
-            container.innerHTML = `
-                <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
-                    <thead>
-                        <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
-                            <th class="text-left py-3 px-2 font-medium">Movie</th>
-                            <th class="text-left py-3 px-2 font-medium">Year</th>
-                            <th class="text-left py-3 px-2 font-medium">TMDB</th>
-                            <th class="text-left py-3 px-2 font-medium">Current</th>
-                            <th class="text-left py-3 px-2 font-medium">Found</th>
-                            <th class="text-left py-3 px-2 font-medium">Indexer</th>
-                            <th class="text-left py-3 px-2 font-medium">Peers</th>
-                            <th class="text-left py-3 px-2 font-medium">Age</th>
-                            <th class="text-left py-3 px-2 font-medium">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.records.map(r => `
-                            <tr style="border-bottom: 1px solid var(--border-color);">
-                                <td class="py-3 px-2 font-medium" style="color: var(--text-primary)">${escapeHtml(r.movie_title)}</td>
-                                <td class="py-3 px-2" style="color: var(--text-secondary)">${r.movie_year || 'N/A'}</td>
-                                <td class="py-3 px-2">
-                                    ${r.tmdb_rating ? `
-                                        <div class="flex items-center gap-1">
-                                            <span style="color: #f5c518;">★</span>
-                                            <span style="color: var(--text-primary); font-weight: 500;">${r.tmdb_rating.toFixed(1)}</span>
-                                        </div>
-                                ` : '<span style="color: var(--text-secondary)">N/A</span>'}
-                            </td>
-                            <td class="py-3 px-2">
-                                <div style="font-weight: 500; color: var(--text-primary);">${r.current_size_gb?.toFixed(2)} GB</div>
-                                <div class="text-xs" style="color: var(--text-secondary); margin-top: 2px;">${r.current_quality || 'N/A'}</div>
-                            </td>
-                            <td class="py-3 px-2">
-                                <div style="font-weight: 500; color: var(--accent);">${r.found_size_gb?.toFixed(2)} GB</div>
-                                <div class="text-xs" style="color: var(--text-secondary); margin-top: 2px;">${r.found_quality || 'N/A'}</div>
-                            </td>
-                            <td class="py-3 px-2 text-xs" style="color: var(--text-secondary);">${r.indexer || 'Unknown'}</td>
-                            <td class="py-3 px-2">
-                                <div class="flex items-center gap-1">
-                                    <span style="color: #10b981;">▼</span>
-                                    <span style="color: var(--text-primary);">${r.seeders || 0}</span>
-                                </div>
-                            </td>
-                            <td class="py-3 px-2 text-xs" style="color: var(--text-secondary);">${getAge(r.created_at)}</td>
-                            <td class="py-3 px-2">
-                                <div class="flex gap-2">
-                                    <button onclick="quickApprove(${r.id})" 
-                                        class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-80" 
-                                        style="background: var(--accent);">
-                                        Approve
-                                    </button>
-                                    <button onclick="quickReject(${r.id})" 
-                                        class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-red-50" 
-                                        style="border-color: #ef4444; color: #ef4444;">
-                                        Reject
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            html += `
+                    <td class="py-3 px-2" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
             `;
+            
+            if (category !== 'processed' && category !== 'no_releases') {
+                html += `
+                    <td class="py-3 px-2" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                `;
+            }
+            
+            if (category === 'pending') {
+                html += `
+                    <td class="py-3 px-2 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
+                    <td class="py-3 px-2"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
+                    <td class="py-3 px-2 text-xs" style="color: var(--text-secondary)">${getAge(movie.created_at)}</td>
+                `;
+            }
+            
+            if (category === 'queued') {
+                html += `<td class="py-3 px-2"><span class="text-green-400">●</span> ${movie.status || 'Queued'}</td>`;
+            }
+            
+            if (category === 'quality_skipped') {
+                html += `<td class="py-3 px-2" style="color: var(--text-secondary)">${movie.skip_reason || 'Quality check failed'}</td>`;
+            }
+            
+            if (category === 'failed') {
+                html += `<td class="py-3 px-2 text-red-400">${movie.error_message || 'Unknown error'}</td>`;
+            }
+            
+            if (category === 'pending') {
+                html += `
+                    <td class="py-3 px-2">
+                        <div class="flex gap-2">
+                            <button onclick="quickApprove(${movie.id})" 
+                                class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-80" 
+                                style="background: var(--accent);">
+                                Approve
+                            </button>
+                            <button onclick="quickReject(${movie.id})" 
+                                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-red-50" 
+                                style="border-color: #ef4444; color: #ef4444;">
+                                Reject
+                            </button>
+                        </div>
+                    </td>
+                `;
+            }
+            
+            html += `</tr>`;
+        });
         
-            // Show count of pending approvals
-            const totalCount = data.total || data.records.length;
-            const showingCount = data.records.length;
-            container.insertAdjacentHTML('beforeend', `
-                <div class="text-xs text-center mt-3 pt-2 border-t" style="color: var(--text-secondary)">
-                    Showing ${showingCount} of ${totalCount} pending approvals
-                </div>
-            `);
-
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+    
+    // NEW FUNCTION 3: Clear current category list (for non-pending categories)
+    async function clearCurrentCategory() {
+        if (!confirm(`Are you sure you want to clear all ${currentCategory.replace('_', ' ')} items?`)) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/run/details/${currentCategory}/clear`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast(`${currentCategory.replace('_', ' ')} cleared`, 'success');
+                await loadCategory(currentCategory);
+                await loadStatus(); // Refresh stats
+            } else {
+                showToast('Failed to clear', 'error');
+            }
         } catch (e) {
-            console.error('Failed to load pending approvals:', e);
-            document.getElementById('pending-summary').innerHTML = '<p class="text-sm" style="color: var(--text-secondary)">Failed to load pending approvals.</p>';
+            showToast('Error: ' + e.message, 'error');
         }
     }
     
@@ -288,10 +391,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ override_quality: true })
             });
-            if (res.ok) {
+             if (res.ok) {
                 showToast('Approved!', 'success');
-                loadPendingApprovals();
-                loadStatus();
+                await loadCategory('pending');  // ← CHANGED
+                await loadStatus();
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to approve', 'error');
@@ -306,8 +409,8 @@
             const res = await fetch(`/api/pending/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 showToast('Rejected', 'info');
-                loadPendingApprovals();
-                loadStatus();
+                await loadCategory('pending');  // ← CHANGED
+                await loadStatus();
             } else {
                 showToast('Failed to reject', 'error');
             }
@@ -378,7 +481,7 @@
                                     cancelBtn.classList.add('hidden');
                                     document.getElementById('progress-section').classList.add('hidden');
                                     loadStatus();
-                                    loadPendingApprovals();
+                                    loadCategory('pending');
                                 }, 2000);
                             }
                             
@@ -397,7 +500,7 @@
                                 cancelBtn.classList.remove('text-green-600');
                                 cancelBtn.classList.add('text-gray-400');
                                 loadStatus();
-                                loadPendingApprovals();
+                                loadCategory('pending');
                             }
                         } catch(e) {
                             console.error('Progress poll error:', e);
@@ -428,32 +531,46 @@
                 }
             }
 
-            // Last run summary
+            // Last run summary - MAKE STATS CLICKABLE
             if (data.last_run) {
                 const r = data.last_run;
+                lastRunData = r;
+                
                 document.getElementById('last-run-summary').innerHTML = `
                     <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('processed')">
                             <div class="text-2xl font-bold">${r.total_movies_processed || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Processed</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-green-900 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('queued')">
                             <div class="text-2xl font-bold text-green-400">${r.replacements_queued || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Queued</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-blue-900 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('pending')">
                             <div class="text-2xl font-bold text-blue-400">${r.pending_approval || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Pending</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-yellow-900 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('quality_skipped')">
                             <div class="text-2xl font-bold text-yellow-400">${r.quality_skipped || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Quality Skipped</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-orange-900 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('no_releases')">
                             <div class="text-2xl font-bold text-orange-400">${r.no_releases_found || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">No Releases</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-red-900 transition-colors" 
+                             style="background: var(--bg-primary)" 
+                             onclick="loadCategory('failed')">
                             <div class="text-2xl font-bold text-red-400">${r.replacements_failed || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Failed</div>
                         </div>
@@ -464,6 +581,11 @@
                         Mode: ${r.mode || 'N/A'}
                     </p>
                 `;
+
+                // Load default category (pending) on page load if not already loaded
+                if (currentCategory === 'pending' && document.getElementById('category-content').innerHTML.includes('Loading')) {
+                    await loadCategory('pending');
+                }
 
                 if (r.dry_run) {
                     document.getElementById('csv-download').classList.remove('hidden');
@@ -665,12 +787,33 @@
 
                     currentRunId = null;
                     await loadStatus();
-                    await loadPendingApprovals();
+                    await loadCategory('pending');
                 }
             } catch (e) {
                 console.error('Cancel polling error:', e);
             }
         }, 800);  // slightly faster poll during cancellation
     }
+
+    // Clear run history
+    async function clearRunHistory() {
+        if (!confirm('Are you sure you want to clear all run history? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/history/clear', { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Run history cleared', 'success');
+                await loadStatus();
+                await loadCategory('pending');
+            } else {
+                showToast('Failed to clear history', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
+        }
+    }
+
 </script>
 {% endblock %}

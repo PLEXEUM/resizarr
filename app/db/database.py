@@ -50,8 +50,8 @@ def init_db():
             trigger_logic TEXT CHECK(trigger_logic IN ('auto', 'manual', 'quality_match')),
             min_peers INTEGER DEFAULT 0,
             language TEXT DEFAULT 'Any',
-            operation_delay_seconds INTEGER DEFAULT 3,   -- NEW
-            folder_pattern TEXT                          -- NEW
+            operation_delay_seconds INTEGER DEFAULT 3,
+            folder_pattern TEXT
         );
 
         CREATE TABLE IF NOT EXISTS settings (
@@ -79,7 +79,13 @@ def init_db():
             completed_at DATETIME,
             fail_count INTEGER DEFAULT 0,
             release_guid TEXT,
-            download_url TEXT
+            download_url TEXT,
+            movie_year INTEGER,
+            indexer TEXT,
+            seeders INTEGER DEFAULT 0,
+            release_title TEXT,
+            tmdb_rating REAL,
+            mode TEXT DEFAULT 'manual'
         );
 
         CREATE TABLE IF NOT EXISTS run_history (
@@ -91,7 +97,7 @@ def init_db():
             replacements_queued INTEGER,
             replacements_failed INTEGER,
             quality_skipped INTEGER,
-            no_releases_found INTEGER DEFAULT 0,   -- ← NEW
+            no_releases_found INTEGER DEFAULT 0,
             pending_approval INTEGER DEFAULT 0,
             dry_run BOOLEAN,
             mode TEXT,
@@ -112,6 +118,27 @@ def init_db():
             profile_rank INTEGER,
             last_updated DATETIME
         );
+
+        -- ========== NEW TABLE FOR TRACKING RUN DETAILS ==========
+        CREATE TABLE IF NOT EXISTS run_details (
+            id INTEGER PRIMARY KEY,
+            run_id INTEGER,
+            movie_id INTEGER,
+            movie_title TEXT,
+            movie_year INTEGER,
+            category TEXT CHECK(category IN ('processed', 'quality_skipped', 'no_releases')),
+            current_size_gb REAL,
+            current_quality TEXT,
+            found_size_gb REAL,
+            found_quality TEXT,
+            skip_reason TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (run_id) REFERENCES run_history(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_run_details_run_id ON run_details(run_id);
+        CREATE INDEX IF NOT EXISTS idx_run_details_category ON run_details(category);
+        -- ========== END NEW TABLE ==========
     """)
 
     # === MIGRATIONS (run every startup - safe if columns already exist) ===
@@ -186,6 +213,32 @@ def init_db():
     if 'no_releases_found' not in history_columns:
         cursor.execute("ALTER TABLE run_history ADD COLUMN no_releases_found INTEGER DEFAULT 0")
         print("Added 'no_releases_found' column to run_history table")
+
+    # ========== ADD THIS MIGRATION HERE ==========
+    # Migration: Add run_details table for tracking movie details per run
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='run_details'")
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE TABLE run_details (
+                id INTEGER PRIMARY KEY,
+                run_id INTEGER,
+                movie_id INTEGER,
+                movie_title TEXT,
+                movie_year INTEGER,
+                category TEXT CHECK(category IN ('processed', 'quality_skipped', 'no_releases')),
+                current_size_gb REAL,
+                current_quality TEXT,
+                found_size_gb REAL,
+                found_quality TEXT,
+                skip_reason TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES run_history(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("CREATE INDEX idx_run_details_run_id ON run_details(run_id)")
+        cursor.execute("CREATE INDEX idx_run_details_category ON run_details(category)")
+        print("Added run_details table for per-run movie tracking")
+    # ========== END MIGRATION ==========
 
     conn.commit()
     conn.close()
