@@ -23,18 +23,14 @@ async def trigger_run(dry_run: bool = False):
             detail="A run is already in progress"
         )
     
-    # Clear the most recent run history before starting new run
+    # Clear ALL run history before starting new run
     conn = get_connection()
-    # Check if there are any rows before trying to delete
     cursor = conn.execute("SELECT COUNT(*) FROM run_history")
     count = cursor.fetchone()[0]
     if count > 0:
-        conn.execute("""
-            DELETE FROM run_history 
-            WHERE id = (SELECT id FROM run_history ORDER BY started_at DESC LIMIT 1)
-        """)
+        conn.execute("DELETE FROM run_history")
         conn.commit()
-        logger.info("Cleared previous run history before new run")
+        logger.info(f"Cleared {count} previous run history records before new run")
     else:
         logger.info("No previous run history to clear")
     conn.close()
