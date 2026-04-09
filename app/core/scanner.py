@@ -370,7 +370,8 @@ async def run_resizarr(
                 should_proceed = is_allowed
                 if not should_proceed:
                     summary["quality_skipped"] += 1
-
+                    continue 
+                
             # ========== DRY RUN CHECK - MUST BE AT THIS LEVEL ==========
             if dry_run:
                 csv_rows.append({
