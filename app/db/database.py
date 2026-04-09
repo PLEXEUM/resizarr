@@ -146,7 +146,7 @@ def init_db():
         cursor.execute("UPDATE rules SET min_quality_threshold = NULL")
     # ========== END MIGRATION ==========
 
-    # Migration for pending_replacements missing columns
+        # Migration for pending_replacements missing columns
     cursor.execute("PRAGMA table_info(pending_replacements)")
     pending_columns = [row[1] for row in cursor.fetchall()]
     
@@ -157,6 +157,24 @@ def init_db():
     if 'mode' not in pending_columns:
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN mode TEXT DEFAULT 'manual'")
         print("Added 'mode' column to pending_replacements table")
+
+    # ========== ADD NEW COLUMNS FOR PENDING REPLACEMENTS ==========
+    if 'movie_year' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN movie_year INTEGER")
+        print("Added 'movie_year' column to pending_replacements table")
+    
+    if 'indexer' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN indexer TEXT")
+        print("Added 'indexer' column to pending_replacements table")
+    
+    if 'seeders' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN seeders INTEGER DEFAULT 0")
+        print("Added 'seeders' column to pending_replacements table")
+    
+    if 'release_title' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN release_title TEXT")
+        print("Added 'release_title' column to pending_replacements table")
+    # ========== END NEW COLUMNS ==========
 
     # === NEW: no_releases_found column for run_history ===
     cursor.execute("PRAGMA table_info(run_history)")

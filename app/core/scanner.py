@@ -371,7 +371,7 @@ async def run_resizarr(
                 if not should_proceed:
                     summary["quality_skipped"] += 1
                     continue 
-                
+
             # ========== DRY RUN CHECK - MUST BE AT THIS LEVEL ==========
             if dry_run:
                 csv_rows.append({
@@ -391,16 +391,18 @@ async def run_resizarr(
 
             if rules["trigger_logic"] == "manual":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                release = best_candidate.get("release", {})
                 conn.execute("""
                     INSERT INTO pending_replacements
-                    (movie_id, movie_title, current_size_gb, current_quality,
-                    found_size_gb, found_quality, quality_downgrade, status,
-                    release_guid, download_url, mode)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual')
+                    (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+                     found_size_gb, found_quality, quality_downgrade, status,
+                     release_guid, download_url, mode, indexer, seeders, release_title)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual', ?, ?, ?)
                 """, (
-                    movie_id, movie_title, size_gb, str(current_quality),
+                    movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
                     found_size_gb, str(found_quality), 1 if is_downgrade else 0,
-                    proper_guid, best_candidate.get("download_url")
+                    proper_guid, best_candidate.get("download_url"),
+                    release.get("indexer"), best_candidate.get("peers", 0), release.get("title")
                 ))
                 conn.commit()
                 summary["pending_approval"] += 1

@@ -36,7 +36,9 @@ async def get_pending(page: int = 1, per_page: int = 20):
     """).fetchone()[0]
 
     records = conn.execute("""
-        SELECT * FROM pending_replacements
+        SELECT id, movie_title, movie_year, current_size_gb, current_quality,
+               found_size_gb, found_quality, created_at, indexer, seeders, release_title
+        FROM pending_replacements
         WHERE status = 'pending'
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
@@ -331,7 +333,7 @@ async def delete_pending(record_id: int):
         mode="rejected",
         status="rejected"
     )
-    
+
     conn.execute(
         "DELETE FROM pending_replacements WHERE id = ?",
         (record_id,)
