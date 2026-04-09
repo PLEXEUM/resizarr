@@ -458,22 +458,51 @@ async def run_resizarr(
                     # ========== END TRACKING ==========
                     continue 
 
-            # ========== DRY RUN CHECK - MUST BE AT THIS LEVEL ==========
+            # ========== DRY RUN CSV LOGGING (for ALL movies) ==========
             if dry_run:
+                # Determine outcome based on what happened
+                if not valid_releases:
+                    outcome = "No Releases Found"
+                    found_size = "N/A"
+                    found_quality = "N/A"
+                    quality_decision = "No releases available"
+                    would_trigger = "No"
+                elif not candidate_releases:
+                    outcome = "Quality Skipped - No matching releases"
+                    found_size = "N/A"
+                    found_quality = "N/A"
+                    quality_decision = "No releases matched filters"
+                    would_trigger = "No"
+                elif not should_proceed:
+                    outcome = "Quality Skipped"
+                    found_size = f"{found_size_gb:.2f}"
+                    found_quality = found_quality
+                    quality_decision = reason
+                    would_trigger = "No"
+                else:
+                    outcome = "Would Trigger"
+                    found_size = f"{found_size_gb:.2f}"
+                    found_quality = found_quality
+                    quality_decision = reason
+                    would_trigger = "Yes"
+                
                 csv_rows.append({
                     "Movie": movie_title,
+                    "Year": movie.get('year', 'N/A'),
                     "Current Size (GB)": f"{size_gb:.2f}",
                     "Current Quality": current_quality,
-                    "Found Size (GB)": f"{found_size_gb:.2f}",
+                    "Found Size (GB)": found_size,
                     "Found Quality": found_quality,
-                    "Would Trigger": "Yes" if should_proceed else "No",
-                    "Quality Decision": reason,
+                    "Would Trigger": would_trigger,
+                    "Outcome": outcome,
+                    "Quality Decision": quality_decision,
                     "Is Downgrade": "Yes" if is_downgrade else "No",
                     "Mode": rules["trigger_logic"]
                 })
+                
                 # Skip all actual operations in dry run
                 continue
-            # ========== END DRY RUN CHECK ==========
+            # ========== END DRY RUN CSV LOGGING ==========
 
             if rules["trigger_logic"] == "manual":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
@@ -572,10 +601,23 @@ async def run_resizarr(
         # Dry-run CSV
         if dry_run and csv_rows:
             output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=csv_rows[0].keys())
+            fieldnames = ['Movie', 'Year', 'Current Size (GB)', 'Current Quality', 
+                         'Found Size (GB)', 'Found Quality', 'Would Trigger', 
+                         'Outcome', 'Quality Decision', 'Is Downgrade', 'Mode']
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(csv_rows)
             summary["csv_data"] = output.getvalue()
+        elif dry_run and not csv_rows:
+            # Even if no rows, create a header-only CSV
+            output = io.StringIO()
+            fieldnames = ['Movie', 'Year', 'Current Size (GB)', 'Current Quality', 
+                         'Found Size (GB)', 'Found Quality', 'Would Trigger', 
+                         'Outcome', 'Quality Decision', 'Is Downgrade', 'Mode']
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            summary["csv_data"] = output.getvalue()
+            logger.info("Created header-only CSV for dry run (no movies to report)")
 
          # ========== UPDATE run history with final stats ==========
         completed_at = datetime.utcnow()
