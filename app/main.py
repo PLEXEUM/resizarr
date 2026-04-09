@@ -130,7 +130,7 @@ async def settings_page(request: Request):
 
 @app.get("/completed")
 async def completed_page(request: Request):
-    return templates.TemplateResponse("completed_jobs.html", {"request": request})
+    return templates.TemplateResponse("completed.html", {"request": request})
 
 @app.get("/logs")
 async def logs_page(request: Request):
