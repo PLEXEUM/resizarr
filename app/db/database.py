@@ -174,6 +174,10 @@ def init_db():
     if 'release_title' not in pending_columns:
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN release_title TEXT")
         print("Added 'release_title' column to pending_replacements table")
+
+    if 'tmdb_rating' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN tmdb_rating REAL")
+        print("Added 'tmdb_rating' column to pending_replacements table")
     # ========== END NEW COLUMNS ==========
 
     # === NEW: no_releases_found column for run_history ===

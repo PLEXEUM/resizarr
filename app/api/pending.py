@@ -37,7 +37,7 @@ async def get_pending(page: int = 1, per_page: int = 20):
 
     records = conn.execute("""
         SELECT id, movie_title, movie_year, current_size_gb, current_quality,
-               found_size_gb, found_quality, created_at, indexer, seeders, release_title
+           found_size_gb, found_quality, created_at, indexer, seeders, release_title, tmdb_rating
         FROM pending_replacements
         WHERE status = 'pending'
         ORDER BY created_at DESC

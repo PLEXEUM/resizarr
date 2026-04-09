@@ -392,17 +392,21 @@ async def run_resizarr(
             if rules["trigger_logic"] == "manual":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                 release = best_candidate.get("release", {})
+
+                # Get TMDB rating from movie data (Radarr typically has this)
+                tmdb_rating = movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating")
+
                 conn.execute("""
                     INSERT INTO pending_replacements
                     (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-                     found_size_gb, found_quality, quality_downgrade, status,
-                     release_guid, download_url, mode, indexer, seeders, release_title)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual', ?, ?, ?)
+                    found_size_gb, found_quality, quality_downgrade, status,
+                    release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual', ?, ?, ?, ?)
                 """, (
                     movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
                     found_size_gb, str(found_quality), 1 if is_downgrade else 0,
                     proper_guid, best_candidate.get("download_url"),
-                    release.get("indexer"), best_candidate.get("peers", 0), release.get("title")
+                    release.get("indexer"), best_candidate.get("peers", 0), release.get("title"), tmdb_rating
                 ))
                 conn.commit()
                 summary["pending_approval"] += 1

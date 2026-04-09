@@ -64,6 +64,33 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* ========== ADDED CSS FOR BETTER TABLE SPACING ========== */
+        /* Better table styling */
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        th {
+            font-weight: 600;
+            letter-spacing: 0.025em;
+        }
+        
+        td {
+            vertical-align: middle;
+        }
+        
+        /* Hover effect for table rows */
+        tbody tr:hover {
+            background: rgba(128, 128, 128, 0.05);
+        }
+        
+        /* Star rating color */
+        .tmdb-star {
+            color: #f5c518;
+        }
+        /* ========== END ADDED CSS ========== */
     </style>
 </head>
 <body class="min-h-screen">

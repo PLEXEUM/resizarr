@@ -103,7 +103,7 @@
                 View History →
             </a>
         </div>
-        <div id="pending-summary" class="overflow-x-auto max-h-96 overflow-y-auto">
+        <div id="pending-summary" class="overflow-x-auto">
             <p class="text-sm" style="color: var(--text-secondary)">Loading...</p>
         </div>
     </div>
@@ -184,43 +184,67 @@
             }
             
             container.innerHTML = `
-                <table class="w-full text-sm">
+                <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
                     <thead>
-                        <tr style="color: var(--text-secondary)">
-                            <th class="text-left pb-2 font-medium">Movie</th>
-                            <th class="text-left pb-2 font-medium">Year</th>
-                            <th class="text-left pb-2 font-medium">Current</th>
-                            <th class="text-left pb-2 font-medium">Found</th>
-                            <th class="text-left pb-2 font-medium">Indexer</th>
-                            <th class="text-left pb-2 font-medium">Peers</th>
-                            <th class="text-left pb-2 font-medium">Age</th>
-                            <th class="text-left pb-2 font-medium">Actions</th>
+                        <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+                            <th class="text-left py-3 px-2 font-medium">Movie</th>
+                            <th class="text-left py-3 px-2 font-medium">Year</th>
+                            <th class="text-left py-3 px-2 font-medium">TMDB</th>
+                            <th class="text-left py-3 px-2 font-medium">Current</th>
+                            <th class="text-left py-3 px-2 font-medium">Found</th>
+                            <th class="text-left py-3 px-2 font-medium">Indexer</th>
+                            <th class="text-left py-3 px-2 font-medium">Peers</th>
+                            <th class="text-left py-3 px-2 font-medium">Age</th>
+                            <th class="text-left py-3 px-2 font-medium">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${data.records.map(r => `
-                            <tr style="border-top: 1px solid var(--border-color)">
-                                <td class="py-2">${escapeHtml(r.movie_title)}</td>
-                                <td class="py-2">${r.movie_year || 'N/A'}</td>
-                                <td class="py-2">
-                                    ${r.current_size_gb?.toFixed(2)} GB<br>
-                                    <span class="text-xs" style="color: var(--text-secondary)">${r.current_quality || 'N/A'}</span>
-                                </td>
-                                <td class="py-2">
-                                    ${r.found_size_gb?.toFixed(2)} GB<br>
-                                    <span class="text-xs" style="color: var(--text-secondary)">${r.found_quality || 'N/A'}</span>
-                                </td>
-                                <td class="py-2 text-xs">${r.indexer || 'Unknown'}</td>
-                                <td class="py-2 text-xs">${r.seeders || 0}</td>
-                                <td class="py-2 text-xs" style="color: var(--text-secondary)">${getAge(r.created_at)}</td>
-                                <td class="py-2">
-                                    <button onclick="quickApprove(${r.id})" class="px-2 py-1 rounded text-xs text-white" style="background: var(--accent);">Approve</button>
-                                    <button onclick="quickReject(${r.id})" class="px-2 py-1 rounded text-xs border ml-1" style="border-color: #ef4444; color: #ef4444;">Reject</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td class="py-3 px-2 font-medium" style="color: var(--text-primary)">${escapeHtml(r.movie_title)}</td>
+                                <td class="py-3 px-2" style="color: var(--text-secondary)">${r.movie_year || 'N/A'}</td>
+                                <td class="py-3 px-2">
+                                    ${r.tmdb_rating ? `
+                                        <div class="flex items-center gap-1">
+                                            <span style="color: #f5c518;">★</span>
+                                            <span style="color: var(--text-primary); font-weight: 500;">${r.tmdb_rating.toFixed(1)}</span>
+                                        </div>
+                                ` : '<span style="color: var(--text-secondary)">N/A</span>'}
+                            </td>
+                            <td class="py-3 px-2">
+                                <div style="font-weight: 500; color: var(--text-primary);">${r.current_size_gb?.toFixed(2)} GB</div>
+                                <div class="text-xs" style="color: var(--text-secondary); margin-top: 2px;">${r.current_quality || 'N/A'}</div>
+                            </td>
+                            <td class="py-3 px-2">
+                                <div style="font-weight: 500; color: var(--accent);">${r.found_size_gb?.toFixed(2)} GB</div>
+                                <div class="text-xs" style="color: var(--text-secondary); margin-top: 2px;">${r.found_quality || 'N/A'}</div>
+                            </td>
+                            <td class="py-3 px-2 text-xs" style="color: var(--text-secondary);">${r.indexer || 'Unknown'}</td>
+                            <td class="py-3 px-2">
+                                <div class="flex items-center gap-1">
+                                    <span style="color: #10b981;">▼</span>
+                                    <span style="color: var(--text-primary);">${r.seeders || 0}</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-2 text-xs" style="color: var(--text-secondary);">${getAge(r.created_at)}</td>
+                            <td class="py-3 px-2">
+                                <div class="flex gap-2">
+                                    <button onclick="quickApprove(${r.id})" 
+                                        class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-80" 
+                                        style="background: var(--accent);">
+                                        Approve
+                                    </button>
+                                    <button onclick="quickReject(${r.id})" 
+                                        class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-red-50" 
+                                        style="border-color: #ef4444; color: #ef4444;">
+                                        Reject
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
             `;
         
             // Show count of pending approvals
