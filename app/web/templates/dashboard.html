@@ -396,7 +396,7 @@
             if (data.last_run) {
                 const r = data.last_run;
                 document.getElementById('last-run-summary').innerHTML = `
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold">${r.total_movies_processed || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Processed</div>
@@ -412,6 +412,10 @@
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold text-yellow-400">${r.quality_skipped || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Quality Skipped</div>
+                        </div>
+                        <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
+                            <div class="text-2xl font-bold text-orange-400">${r.no_releases_found || 0}</div>
+                            <div class="text-xs mt-1" style="color: var(--text-secondary)">No Releases</div>
                         </div>
                         <div class="text-center p-3 rounded-lg" style="background: var(--bg-primary)">
                             <div class="text-2xl font-bold text-red-400">${r.replacements_failed || 0}</div>

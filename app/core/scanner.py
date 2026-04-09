@@ -102,6 +102,7 @@ async def run_resizarr(
         "replacements_queued": 0,
         "replacements_failed": 0,
         "quality_skipped": 0,
+        "no_releases_found": 0,
         "pending_approval": 0,
         "csv_data": None
     }
@@ -331,6 +332,8 @@ async def run_resizarr(
                     })
 
             if not candidate_releases:
+                summary["no_releases_found"] += 1   # ← NEW
+                logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
 
             candidate_releases.sort(key=lambda x: x["size_gb"])
@@ -484,14 +487,15 @@ async def run_resizarr(
         conn.execute("""
             INSERT INTO run_history
             (started_at, completed_at, total_movies_processed, candidates_found,
-             replacements_queued, replacements_failed, quality_skipped, pending_approval,
-             dry_run, mode, csv_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             replacements_queued, replacements_failed, quality_skipped, no_releases_found,
+             pending_approval, dry_run, mode, csv_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             started_at, completed_at,
             summary["total_movies_processed"], summary["candidates_found"],
             summary["replacements_queued"], summary["replacements_failed"],
-            summary["quality_skipped"], summary["pending_approval"],
+            summary["quality_skipped"], summary["no_releases_found"],   # ← NEW
+            summary["pending_approval"],
             1 if dry_run else 0,
             "shrink" if rules["current_operator"] == ">" else "upgrade",
             summary.get("csv_data")
