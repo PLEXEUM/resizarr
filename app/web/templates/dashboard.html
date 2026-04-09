@@ -100,10 +100,10 @@
             <h2 class="text-sm font-semibold uppercase tracking-wide"
                 style="color: var(--text-secondary)">Pending Approvals</h2>
             <a href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
-                View All →
+                View History →
             </a>
         </div>
-        <div id="pending-summary" class="overflow-x-auto">
+        <div id="pending-summary" class="overflow-x-auto max-h-96 overflow-y-auto">
             <p class="text-sm" style="color: var(--text-secondary)">Loading...</p>
         </div>
     </div>
@@ -167,7 +167,7 @@
     // Load pending approvals for dashboard
     async function loadPendingApprovals() {
         try {
-            const res = await fetch('/api/pending?page=1&per_page=5');
+            const res = await fetch('/api/pending?page=1&per_page=25');
             const data = await res.json();
             const container = document.getElementById('pending-summary');
             
@@ -203,6 +203,16 @@
                     </tbody>
                 </table>
             `;
+        
+            // Show count of pending approvals
+            const totalCount = data.total || data.records.length;
+            const showingCount = data.records.length;
+            container.insertAdjacentHTML('beforeend', `
+                <div class="text-xs text-center mt-3 pt-2 border-t" style="color: var(--text-secondary)">
+                    Showing ${showingCount} of ${totalCount} pending approvals
+                </div>
+            `);
+            
         } catch (e) {
             console.error('Failed to load pending approvals:', e);
             document.getElementById('pending-summary').innerHTML = '<p class="text-sm" style="color: var(--text-secondary)">Failed to load pending approvals.</p>';
