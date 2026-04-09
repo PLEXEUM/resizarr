@@ -310,13 +310,12 @@ async def run_resizarr(
             
             # ========== ADD THIS ==========
             # Track processed movie for non-dry run
-            if not dry_run:
-                processed_movies.append({
-                    'title': movie_title,
-                    'year': movie.get('year'),
-                    'current_size_gb': size_gb,
-                    'current_quality': current_quality
-                })
+            processed_movies.append({
+                'title': movie_title,
+                'year': movie.get('year'),
+                'current_size_gb': size_gb,
+                'current_quality': current_quality
+            })
             # ========== END TRACKING ==========
 
             already_queued = await client.check_existing_replacement(movie_id)
@@ -336,13 +335,12 @@ async def run_resizarr(
             if not valid_releases:
                 summary["no_releases_found"] += 1
                 # ========== ADD THIS ==========
-                if not dry_run:
-                    no_releases_movies.append({
-                        'title': movie_title,
-                        'year': movie.get('year'),
-                        'current_size_gb': size_gb,
-                        'current_quality': current_quality
-                    })
+                no_releases_movies.append({
+                    'title': movie_title,
+                    'year': movie.get('year'),
+                    'current_size_gb': size_gb,
+                    'current_quality': current_quality
+                })
                 # ========== END TRACKING ==========
                 logger.info(f"No valid releases found for: {movie_title}")
                 continue
@@ -378,16 +376,15 @@ async def run_resizarr(
                 # We found releases, but none matched our size/peers/language filters
                 summary["quality_skipped"] += 1  # ← ADD THIS BACK
                  # ========== ADD THIS ==========
-                if not dry_run:
-                    quality_skipped_movies.append({
-                        'title': movie_title,
-                        'year': movie.get('year'),
-                        'current_size_gb': size_gb,
-                        'current_quality': current_quality,
-                        'found_size_gb': None,
-                        'found_quality': None,
-                        'skip_reason': 'No releases matched size/peers/language filters'
-                    })
+                quality_skipped_movies.append({
+                    'title': movie_title,
+                    'year': movie.get('year'),
+                    'current_size_gb': size_gb,
+                    'current_quality': current_quality,
+                    'found_size_gb': None,
+                    'found_quality': None,
+                    'skip_reason': 'No releases matched size/peers/language filters'
+                })
                 # ========== END TRACKING ==========
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
@@ -414,16 +411,15 @@ async def run_resizarr(
                         logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
                         summary["quality_skipped"] += 1
                         # ========== ADD THIS ==========
-                        if not dry_run:
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': found_size_gb,
-                                'found_quality': found_quality,
-                                'skip_reason': reason
-                            })
+                        quality_skipped_movies.append({
+                            'title': movie_title,
+                            'year': movie.get('year'),
+                            'current_size_gb': size_gb,
+                            'current_quality': current_quality,
+                            'found_size_gb': found_size_gb,
+                            'found_quality': found_quality,
+                            'skip_reason': reason
+                        })
                         # ========== END TRACKING ==========
                 else:
                     # No minimum quality threshold - aggressive size-only mode
@@ -434,16 +430,15 @@ async def run_resizarr(
                 if not should_proceed:
                     summary["quality_skipped"] += 1
                     # ========== ADD THIS ==========
-                    if not dry_run:
-                        quality_skipped_movies.append({
-                            'title': movie_title,
-                            'year': movie.get('year'),
-                            'current_size_gb': size_gb,
-                            'current_quality': current_quality,
-                            'found_size_gb': found_size_gb,
-                            'found_quality': found_quality,
-                            'skip_reason': reason
-                        })
+                    quality_skipped_movies.append({
+                        'title': movie_title,
+                        'year': movie.get('year'),
+                        'current_size_gb': size_gb,
+                        'current_quality': current_quality,
+                        'found_size_gb': found_size_gb,
+                        'found_quality': found_quality,
+                        'skip_reason': reason
+                    })
                     # ========== END TRACKING ==========
             else:
                 # Manual mode
@@ -451,16 +446,15 @@ async def run_resizarr(
                 if not should_proceed:
                     summary["quality_skipped"] += 1
                     # ========== ADD THIS ==========
-                    if not dry_run:
-                        quality_skipped_movies.append({
-                            'title': movie_title,
-                            'year': movie.get('year'),
-                            'current_size_gb': size_gb,
-                            'current_quality': current_quality,
-                            'found_size_gb': found_size_gb,
-                            'found_quality': found_quality,
-                            'skip_reason': reason
-                        })
+                    quality_skipped_movies.append({
+                        'title': movie_title,
+                        'year': movie.get('year'),
+                        'current_size_gb': size_gb,
+                        'current_quality': current_quality,
+                        'found_size_gb': found_size_gb,
+                        'found_quality': found_quality,
+                        'skip_reason': reason
+                    })
                     # ========== END TRACKING ==========
                     continue 
 
@@ -613,59 +607,54 @@ async def run_resizarr(
         ))
         # ========== END RUN HISTORY UPDATE ==========
 
-        # ========== ADD THIS: Save tracking details for non-dry runs ==========
-        if not dry_run:
-            # NOTE: run_id_from_db is already defined from the INSERT we did earlier
-            # Do NOT redefine it here! Remove the line below:
-            # run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
-            # Save quality skipped movies
-            for movie in quality_skipped_movies:
-                conn.execute("""
-                    INSERT INTO run_details
-                    (run_id, movie_title, movie_year, category, current_size_gb, current_quality,
-                     found_size_gb, found_quality, skip_reason)
-                    VALUES (?, ?, ?, 'quality_skipped', ?, ?, ?, ?, ?)
-                """, (
-                    run_id_from_db,
-                    movie['title'],
-                    movie.get('year'),
-                    movie['current_size_gb'],
-                    movie['current_quality'],
-                    movie.get('found_size_gb'),
-                    movie.get('found_quality'),
-                    movie['skip_reason']
-                 ))
-    
-            # Save no releases movies
-            for movie in no_releases_movies:
-                conn.execute("""
-                    INSERT INTO run_details
-                    (run_id, movie_title, movie_year, category, current_size_gb, current_quality)
-                    VALUES (?, ?, ?, 'no_releases', ?, ?)
-                """, (
-                    run_id_from_db,
-                    movie['title'],
-                    movie.get('year'),
-                    movie['current_size_gb'],
-                    movie['current_quality']
-                ))
-    
-            # Save processed movies (optional - can be large, maybe limit to 500)
-            for movie in processed_movies[:500]:  # Limit to 500 to avoid huge inserts
-                conn.execute("""
-                    INSERT INTO run_details
-                    (run_id, movie_title, movie_year, category, current_size_gb, current_quality)
-                    VALUES (?, ?, ?, 'processed', ?, ?)
-                """, (
-                    run_id_from_db,
-                    movie['title'],
-                    movie.get('year'),
-                    movie['current_size_gb'],
-                    movie['current_quality']
-                ))
-    
-            logger.info(f"Saved {len(quality_skipped_movies)} quality_skipped, {len(no_releases_movies)} no_releases, {len(processed_movies[:500])} processed movies to run_details")
+        # ========== SAVE TRACKING DETAILS FOR ALL RUNS (dry and real) ==========
+        # Save quality skipped movies
+        for movie in quality_skipped_movies:
+            conn.execute("""
+                INSERT INTO run_details
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality,
+                 found_size_gb, found_quality, skip_reason)
+                VALUES (?, ?, ?, 'quality_skipped', ?, ?, ?, ?, ?)
+            """, (
+                run_id_from_db,
+                movie['title'],
+                movie.get('year'),
+                movie['current_size_gb'],
+                movie['current_quality'],
+                movie.get('found_size_gb'),
+                movie.get('found_quality'),
+                movie['skip_reason']
+             ))
+
+        # Save no releases movies
+        for movie in no_releases_movies:
+            conn.execute("""
+                INSERT INTO run_details
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality)
+                VALUES (?, ?, ?, 'no_releases', ?, ?)
+            """, (
+                run_id_from_db,
+                movie['title'],
+                movie.get('year'),
+                movie['current_size_gb'],
+                movie['current_quality']
+            ))
+
+        # Save processed movies (optional - can be large, maybe limit to 500)
+        for movie in processed_movies[:500]:  # Limit to 500 to avoid huge inserts
+            conn.execute("""
+                INSERT INTO run_details
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality)
+                VALUES (?, ?, ?, 'processed', ?, ?)
+            """, (
+                run_id_from_db,
+                movie['title'],
+                movie.get('year'),
+                movie['current_size_gb'],
+                movie['current_quality']
+            ))
+
+        logger.info(f"Saved {len(quality_skipped_movies)} quality_skipped, {len(no_releases_movies)} no_releases, {len(processed_movies[:500])} processed movies to run_details")
         # ========== END TRACKING SAVE ==========
         conn.commit()
 
