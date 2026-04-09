@@ -36,14 +36,28 @@ async def poll_pending_replacements():
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
 
-        # Get all pending or queued replacements
+        # Get all pending or queued replacements (EXCLUDE manual mode)
         pending = conn.execute("""
             SELECT * FROM pending_replacements
             WHERE status IN ('pending', 'queued')
+            AND mode != 'manual'
         """).fetchall()
 
+        # Get count of skipped manual items for logging
+        manual_count = conn.execute("""
+            SELECT COUNT(*) FROM pending_replacements
+            WHERE status IN ('pending', 'queued')
+            AND mode = 'manual'
+        """).fetchone()[0]
+
+        if manual_count > 0:
+            logger.info(f"Skipping {manual_count} manual pending approvals (waiting for user action)")
+
         if not pending:
-            logger.info("No pending replacements to poll")
+            if manual_count > 0:
+                logger.info(f"No auto/quality-match replacements to poll ({manual_count} manual pending)")
+            else:
+                logger.info("No pending replacements to poll")
             return
 
         logger.info(f"Polling {len(pending)} pending replacements...")
