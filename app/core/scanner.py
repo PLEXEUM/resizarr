@@ -190,6 +190,23 @@ async def run_resizarr(
         excluded_extensions = json.loads(rules["excluded_extensions"] or "[]")
         min_size_gb = size_to_gb(rules.get("min_size") or 0, rules.get("min_size_unit") or "GB")
 
+        # Insert empty run history record to get an ID
+        conn.execute("""
+            INSERT INTO run_history
+            (started_at, total_movies_processed, candidates_found,
+             replacements_queued, replacements_failed, quality_skipped, no_releases_found,
+             pending_approval, dry_run, mode, csv_data)
+            VALUES (?, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
+        """, (
+            started_at,
+            1 if dry_run else 0,
+            "shrink" if rules["current_operator"] == ">" else "upgrade"
+        ))
+        
+        # Get the run_id for this run
+        run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        logger.info(f"Created run history record with ID: {run_id_from_db}")
+
         candidates = []
         resume_processing = last_processed_id is None
 
@@ -474,14 +491,15 @@ async def run_resizarr(
                 conn.execute("""
                     INSERT INTO pending_replacements
                     (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-                    found_size_gb, found_quality, quality_downgrade, status,
-                    release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual', ?, ?, ?, ?)
+                     found_size_gb, found_quality, quality_downgrade, status,
+                     release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating, run_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual', ?, ?, ?, ?, ?)
                 """, (
                     movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
                     found_size_gb, str(found_quality), 1 if is_downgrade else 0,
                     proper_guid, best_candidate.get("download_url"),
-                    release.get("indexer"), best_candidate.get("peers", 0), release.get("title"), tmdb_rating
+                    release.get("indexer"), best_candidate.get("peers", 0), release.get("title"), tmdb_rating,
+                    run_id_from_db  # ← Now defined!
                 ))
                 conn.commit()
                 summary["pending_approval"] += 1
@@ -565,30 +583,41 @@ async def run_resizarr(
             writer.writerows(csv_rows)
             summary["csv_data"] = output.getvalue()
 
-        # Save run history
+         # ========== UPDATE run history with final stats ==========
         completed_at = datetime.utcnow()
         summary["completed_at"] = completed_at.isoformat()
+        
         conn.execute("""
-            INSERT INTO run_history
-            (started_at, completed_at, total_movies_processed, candidates_found,
-             replacements_queued, replacements_failed, quality_skipped, no_releases_found,
-             pending_approval, dry_run, mode, csv_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            UPDATE run_history 
+            SET completed_at = ?,
+                total_movies_processed = ?,
+                candidates_found = ?,
+                replacements_queued = ?,
+                replacements_failed = ?,
+                quality_skipped = ?,
+                no_releases_found = ?,
+                pending_approval = ?,
+                csv_data = ?
+            WHERE id = ?
         """, (
-            started_at, completed_at,
-            summary["total_movies_processed"], summary["candidates_found"],
-            summary["replacements_queued"], summary["replacements_failed"],
-            summary["quality_skipped"], summary["no_releases_found"],
+            completed_at,
+            summary["total_movies_processed"],
+            summary["candidates_found"],
+            summary["replacements_queued"],
+            summary["replacements_failed"],
+            summary["quality_skipped"],
+            summary["no_releases_found"],
             summary["pending_approval"],
-            1 if dry_run else 0,
-            "shrink" if rules["current_operator"] == ">" else "upgrade",
-            summary.get("csv_data")
+            summary.get("csv_data"),
+            run_id_from_db  # ← This should already be defined from earlier
         ))
+        # ========== END RUN HISTORY UPDATE ==========
 
         # ========== ADD THIS: Save tracking details for non-dry runs ==========
         if not dry_run:
-            # Get the run_id we just inserted
-            run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            # NOTE: run_id_from_db is already defined from the INSERT we did earlier
+            # Do NOT redefine it here! Remove the line below:
+            # run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     
             # Save quality skipped movies
             for movie in quality_skipped_movies:

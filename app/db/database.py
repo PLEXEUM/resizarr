@@ -141,8 +141,6 @@ def init_db():
         -- ========== END NEW TABLE ==========
     """)
 
-    # === MIGRATIONS (run every startup - safe if columns already exist) ===
-
     # Migration: Add pending_approval column to run_history (your existing one)
     cursor.execute("PRAGMA table_info(run_history)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -162,7 +160,6 @@ def init_db():
         cursor.execute("ALTER TABLE rules ADD COLUMN folder_pattern TEXT")
         print("Added 'folder_pattern' column to rules table")
 
-    # ========== ADD THIS MIGRATION HERE ==========
     # Migration: Add min_quality_threshold column to rules (replaces min_quality_profile_id)
     if 'min_quality_threshold' not in columns:
         cursor.execute("ALTER TABLE rules ADD COLUMN min_quality_threshold TEXT")
@@ -171,7 +168,6 @@ def init_db():
         # If there was existing min_quality_profile_id data, we could migrate it
         # For now, just set to NULL
         cursor.execute("UPDATE rules SET min_quality_threshold = NULL")
-    # ========== END MIGRATION ==========
 
         # Migration for pending_replacements missing columns
     cursor.execute("PRAGMA table_info(pending_replacements)")
@@ -185,7 +181,6 @@ def init_db():
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN mode TEXT DEFAULT 'manual'")
         print("Added 'mode' column to pending_replacements table")
 
-    # ========== ADD NEW COLUMNS FOR PENDING REPLACEMENTS ==========
     if 'movie_year' not in pending_columns:
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN movie_year INTEGER")
         print("Added 'movie_year' column to pending_replacements table")
@@ -205,7 +200,6 @@ def init_db():
     if 'tmdb_rating' not in pending_columns:
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN tmdb_rating REAL")
         print("Added 'tmdb_rating' column to pending_replacements table")
-    # ========== END NEW COLUMNS ==========
 
     # === NEW: no_releases_found column for run_history ===
     cursor.execute("PRAGMA table_info(run_history)")
@@ -214,7 +208,13 @@ def init_db():
         cursor.execute("ALTER TABLE run_history ADD COLUMN no_releases_found INTEGER DEFAULT 0")
         print("Added 'no_releases_found' column to run_history table")
 
-    # ========== ADD THIS MIGRATION HERE ==========
+    # Migration: Add run_id column to pending_replacements
+    cursor.execute("PRAGMA table_info(pending_replacements)")
+    pending_columns = [row[1] for row in cursor.fetchall()]
+    if 'run_id' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN run_id INTEGER")
+        print("Added 'run_id' column to pending_replacements table")
+
     # Migration: Add run_details table for tracking movie details per run
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='run_details'")
     if not cursor.fetchone():
@@ -238,7 +238,6 @@ def init_db():
         cursor.execute("CREATE INDEX idx_run_details_run_id ON run_details(run_id)")
         cursor.execute("CREATE INDEX idx_run_details_category ON run_details(category)")
         print("Added run_details table for per-run movie tracking")
-    # ========== END MIGRATION ==========
 
     conn.commit()
     conn.close()

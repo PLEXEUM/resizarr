@@ -278,18 +278,19 @@ async def get_run_details(category: str, run_started: str = None):
         """).fetchall()
         movies = [dict(row) for row in rows]
     
-    # FAILED: Get from pending_replacements with status 'failed'
+    # FAILED: Get from pending_replacements with status 'failed' for this run only
     elif category == 'failed':
         rows = conn.execute("""
-            SELECT movie_title as title, movie_year as year,
-                   current_size_gb, current_quality,
-                   found_size_gb, found_quality,
-                   'Download/queue failed' as error_message
-            FROM pending_replacements 
-            WHERE status = 'failed'
-            ORDER BY completed_at DESC
+            SELECT pr.movie_title as title, pr.movie_year as year,
+                pr.current_size_gb, pr.current_quality,
+                pr.found_size_gb, pr.found_quality,
+               'Download/queue failed' as error_message
+            FROM pending_replacements pr
+            INNER JOIN run_history rh ON rh.id = pr.run_id
+            WHERE pr.status = 'failed' AND rh.id = ?
+            ORDER BY pr.completed_at DESC
             LIMIT 100
-        """).fetchall()
+        """, (run_id,)).fetchall()
         movies = [dict(row) for row in rows]
     
     # QUALITY_SKIPPED: First try run_details table, then fallback to CSV
