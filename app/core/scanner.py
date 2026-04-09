@@ -301,6 +301,7 @@ async def run_resizarr(
 
             releases = await client.search_for_releases(movie_id)
             if not releases:
+                summary["no_releases_found"] += 1
                 logger.info(f"No releases found for: {movie_title}")
                 continue
 
