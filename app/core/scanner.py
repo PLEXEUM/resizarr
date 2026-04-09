@@ -294,13 +294,17 @@ async def run_resizarr(
             preferred_language = rules.get("language", "Any")
 
             releases = await client.search_for_releases(movie_id)
-            if not releases:
+
+            # Filter for valid releases (has title AND size > 0)
+            valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
+
+            if not valid_releases:
                 summary["no_releases_found"] += 1
-                logger.info(f"No releases found for: {movie_title}")
+                logger.info(f"No valid releases found for: {movie_title}")
                 continue
 
             candidate_releases = []
-            for release in releases:
+            for release in valid_releases:
                 release_size_gb = release.get("size", 0) / (1024 ** 3)
                 peers = (release.get("seeders", 0) + release.get("leechers", 0) or
                     release.get("peers", 0) or release.get("peerCount", 0))
@@ -328,7 +332,7 @@ async def run_resizarr(
 
             if not candidate_releases:
                 # We found releases, but none matched our size/peers/language filters
-                # Don't increment quality_skipped here - this is a filter failure, not a quality issue
+                summary["quality_skipped"] += 1  # ← ADD THIS BACK
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
 
