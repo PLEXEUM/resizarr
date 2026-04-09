@@ -335,6 +335,8 @@ async def run_resizarr(
                 summary["quality_skipped"] += 1  # ← ADD THIS BACK
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
+            else:
+                logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
 
             candidate_releases.sort(key=lambda x: x["size_gb"])
             best_candidate = candidate_releases[0]
