@@ -288,10 +288,6 @@ async def run_resizarr(
                         if profile.get("profile_id") == current_profile_id:
                             current_quality = profile.get("profile_name", "Unknown")
                             break
-
-            # ========== ADD DEBUG LOG HERE ==========
-            logger.info(f"Detected current quality for '{movie_title}': {current_quality}")
-            # ========== END DEBUG LOG ==========
             
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
@@ -306,13 +302,6 @@ async def run_resizarr(
             if not releases:
                 logger.info(f"No releases found for: {movie_title}")
                 continue
-
-             # ========== DEBUG: Print quality info for first few releases ==========
-            for idx, rel in enumerate(releases[:3]):
-                logger.info(f"Release {idx+1} quality data: {rel.get('quality')}")
-                logger.info(f"Release {idx+1} qualityId: {rel.get('qualityId')}")
-                logger.info(f"Release {idx+1} title: {rel.get('title')}")
-            # ========== END DEBUG ==========
 
             candidate_releases = []
             for release in releases:
@@ -353,31 +342,29 @@ async def run_resizarr(
                 current_quality, found_quality, rules["quality_rule"]
             )
 
-            # Determine if we should proceed based on mode
+            # Determine if we should proceed based on mode + track quality_skipped
             if rules["trigger_logic"] == "auto":
-                # Auto mode: respect minimum quality threshold if set
                 min_quality_threshold = rules.get("min_quality_threshold")
                 if min_quality_threshold and min_quality_threshold != "":
-                    # A specific quality threshold is set - enforce it
                     should_proceed = is_allowed
                     if should_proceed:
                         logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
                     else:
                         logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
+                        summary["quality_skipped"] += 1
                 else:
                     # No minimum quality threshold - aggressive size-only mode
                     should_proceed = True
                     logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode (no minimum quality threshold)")
             elif rules["trigger_logic"] == "quality_match":
-                # Quality match mode: trigger only if quality profile matches
                 should_proceed = is_allowed
-                if should_proceed:
-                    logger.info(f"[QUALITY MATCH MODE] Quality check passed: {reason} - Will queue automatically")
-                else:
-                    logger.info(f"[QUALITY MATCH MODE] Quality check failed: {reason} - Skipping")
+                if not should_proceed:
+                    summary["quality_skipped"] += 1
             else:
-                # Manual mode: respect quality rules
+                # Manual mode
                 should_proceed = is_allowed
+                if not should_proceed:
+                    summary["quality_skipped"] += 1
 
             # ========== DRY RUN CHECK - MUST BE AT THIS LEVEL ==========
             if dry_run:
@@ -432,7 +419,6 @@ async def run_resizarr(
                             if match:
                                 torrent_id = match.group(1)
                                 proper_guid = f"Prowlarr:{torrent_id}"
-                        logger.info(f"Extracted torrent ID: {torrent_id}, using GUID: {proper_guid}")
                     
                     # Delete existing file first
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")

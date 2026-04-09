@@ -142,6 +142,13 @@
         startStatusChecking();
     });
 
+    // Cleanup on page leave
+    window.addEventListener('beforeunload', () => {
+        if (pollInterval) clearInterval(pollInterval);
+        if (statusCheckInterval) clearInterval(statusCheckInterval);
+        if (cancelPollInterval) clearInterval(cancelPollInterval);
+    });
+
     async function loadRuleSummary() {
         try {
             const res = await fetch('/api/rules');
@@ -212,7 +219,7 @@
                     Showing ${showingCount} of ${totalCount} pending approvals
                 </div>
             `);
-            
+
         } catch (e) {
             console.error('Failed to load pending approvals:', e);
             document.getElementById('pending-summary').innerHTML = '<p class="text-sm" style="color: var(--text-secondary)">Failed to load pending approvals.</p>';
@@ -571,58 +578,59 @@
     }
 
     function startCancelConfirmationPolling() {
-    if (cancelPollInterval) clearInterval(cancelPollInterval);
-    
-    cancelPollInterval = setInterval(async () => {
-        try {
-            const res = await fetch('/api/run/progress');
-            const data = await res.json();
-            
-            // Check if run is no longer active (cancelled or completed)
-            if (!data.is_running) {
-                clearInterval(cancelPollInterval);
-                cancelPollInterval = null;
-                
-                const cancelBtn = document.getElementById('cancel-run-btn');
-                cancelBtn.classList.add('hidden');
-                cancelBtn.disabled = false;
-                cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    <span>Cancel</span>
-                </div>`;
-                cancelBtn.classList.remove('text-green-600');
-                
-                // Reset progress bar
-                document.getElementById('progress-bar').style.width = '0%';
-                document.getElementById('progress-pct').textContent = '0%';
-                document.getElementById('progress-label').textContent = 'Scan cancelled or completed';
-                document.getElementById('progress-bar').style.background = 'var(--accent)';
-                
-                // Hide progress section after delay
-                setTimeout(() => {
-                    document.getElementById('progress-section').classList.add('hidden');
-                }, 2000);
-                
-                if (data.cancelled) {
-                    showToast(`Scan cancelled after ${data.current} movies`, 'warning');
-                } else if (data.completed) {
-                    showToast('Scan completed!', 'success');
+        // Kill ALL polling immediately to prevent races
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        if (statusCheckInterval) { clearInterval(statusCheckInterval); statusCheckInterval = null; }
+        if (cancelPollInterval) { clearInterval(cancelPollInterval); cancelPollInterval = null; }
+
+        cancelPollInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/run/progress');
+                const data = await res.json();
+
+                if (!data.is_running) {
+                    clearInterval(cancelPollInterval);
+                    cancelPollInterval = null;
+
+                    const cancelBtn = document.getElementById('cancel-run-btn');
+                    cancelBtn.classList.add('hidden');
+                    cancelBtn.disabled = false;
+                    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Cancel</span>
+                    </div>`;
+                    cancelBtn.classList.remove('text-green-600');
+
+                    // Force reset progress UI
+                    document.getElementById('progress-bar').style.width = '0%';
+                    document.getElementById('progress-pct').textContent = '0%';
+                    document.getElementById('progress-label').textContent = data.cancelled 
+                        ? `⛔ Cancelled after ${data.current} movies` 
+                        : 'Scan completed';
+                    document.getElementById('progress-bar').style.background = 'var(--accent)';
+
+                    setTimeout(() => {
+                        document.getElementById('progress-section').classList.add('hidden');
+                        document.getElementById('run-btn').disabled = false;
+                        document.getElementById('run-btn').textContent = '▶ Run Now';
+                    }, 1500);
+
+                    if (data.cancelled) {
+                        showToast(`Scan cancelled after ${data.current} movies`, 'warning');
+                    } else if (data.completed) {
+                        showToast('Scan completed!', 'success');
+                    }
+
+                    currentRunId = null;
+                    await loadStatus();
+                    await loadPendingApprovals();
                 }
-                
-                currentRunId = null;
-                // Force full UI refresh
-                await loadStatus();
-                await loadPendingApprovals();
-                // Also refresh the run button state
-                document.getElementById('run-btn').disabled = false;
-                document.getElementById('run-btn').textContent = '▶ Run Now';
+            } catch (e) {
+                console.error('Cancel polling error:', e);
             }
-        } catch (e) {
-            console.error('Cancel polling error:', e);
-        }
-    }, 1000);
-}
+        }, 800);  // slightly faster poll during cancellation
+    }
 </script>
 {% endblock %}
