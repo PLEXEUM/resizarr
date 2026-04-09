@@ -9,6 +9,7 @@ from datetime import datetime
 from app.utils.logger import get_logger
 from app.core.radarr_client import RadarrClient
 from app.core.quality_checker import check_quality
+from app.utils.quality_ranking import get_quality_score
 from app.db.database import get_connection
 
 logger = get_logger()
@@ -122,11 +123,10 @@ async def run_resizarr(
     conn = get_connection()
     try:
         # --- CLEAR EXISTING PENDING APPROVALS ---
-        # Clear existing pending approvals before new run (unless dry run)
-        if not dry_run:
-            deleted_count = conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
-            conn.commit()
-            logger.info(f"Cleared {deleted_count.rowcount} existing pending approvals before new run")
+        # Clear existing pending approvals before new run
+        deleted_count = conn.execute("DELETE FROM pending_replacements WHERE status = 'pending'")
+        conn.commit()
+        logger.info(f"Cleared {deleted_count.rowcount} existing pending approvals before new run")
         # --- END CLEAR BLOCK ---
         
         # Auto-create download_url column if missing
@@ -183,7 +183,7 @@ async def run_resizarr(
         current_threshold_gb = size_to_gb(rules["current_size"], rules["current_unit"])
         excluded_extensions = json.loads(rules["excluded_extensions"] or "[]")
         min_size_gb = size_to_gb(rules.get("min_size") or 0, rules.get("min_size_unit") or "GB")
-        selected_quality_profile_id = rules.get("min_quality_profile_id")
+        min_quality_threshold = rules.get("min_quality_threshold")  # Quality name like "1080p"
 
         candidates = []
         resume_processing = last_processed_id is None
@@ -195,11 +195,19 @@ async def run_resizarr(
                     resume_processing = True
                 continue
 
-            # Quality profile filter
-            if selected_quality_profile_id and movie.get("qualityProfileId") != selected_quality_profile_id:
-                continue
+            # Get the movie's current quality using your existing method
+            if min_quality_threshold and min_quality_threshold != "":
+                current_quality = await client.get_movie_quality(movie_id)
+                if current_quality:
+                    # Use your quality ranking system to compare
+                    current_score = get_quality_score(current_quality)
+                    threshold_score = get_quality_score(min_quality_threshold)
+            
+                    if current_score < threshold_score:
+                        logger.debug(f"Skipping {movie.get('title', 'Unknown')} - quality {current_quality} is below threshold {min_quality_threshold}")
+                        continue
 
-            # Folder pattern filter (new)
+            # Folder pattern filter
             if folder_pattern:
                 movie_path = movie.get("path", "")
                 if not re.search(folder_pattern, movie_path, re.IGNORECASE):
@@ -309,7 +317,7 @@ async def run_resizarr(
             for release in releases:
                 release_size_gb = release.get("size", 0) / (1024 ** 3)
                 peers = (release.get("seeders", 0) + release.get("leechers", 0) or
-                         release.get("peers", 0) or release.get("peerCount", 0))
+                    release.get("peers", 0) or release.get("peerCount", 0))
 
                 languages = release.get("languages", [])
                 release_language = (languages[0].get("name", "Unknown")
@@ -333,7 +341,8 @@ async def run_resizarr(
                     })
 
             if not candidate_releases:
-                summary["no_releases_found"] += 1   # ← NEW
+                # We found releases, but none matched our size/peers/language filters
+                summary["quality_skipped"] += 1  # ← CHANGED: was no_releases_found
                 logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
                 continue
 
@@ -392,9 +401,9 @@ async def run_resizarr(
                 conn.execute("""
                     INSERT INTO pending_replacements
                     (movie_id, movie_title, current_size_gb, current_quality,
-                     found_size_gb, found_quality, quality_downgrade, status,
-                     release_guid, download_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                    found_size_gb, found_quality, quality_downgrade, status,
+                    release_guid, download_url, mode)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'manual')
                 """, (
                     movie_id, movie_title, size_gb, str(current_quality),
                     found_size_gb, str(found_quality), 1 if is_downgrade else 0,
