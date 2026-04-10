@@ -204,11 +204,22 @@ class RadarrClient:
         return await self._request("POST", "release", json=payload)
 
     async def search_for_releases(self, movie_id: int) -> list:
-        """Search for available releases for a movie."""
+        """Search for available releases for a movie using TMDB ID for accuracy."""
         start_time = datetime.utcnow()
         try:
-            logger.info(f"Searching for releases for movie ID: {movie_id}")
-            result = await self._request("GET", "release", timeout=120, params={"movieId": movie_id})
+            # First get the movie to retrieve its TMDB ID
+            movie = await self.get_movie(movie_id)
+            tmdb_id = movie.get("tmdbId")
+        
+            if tmdb_id:
+                # Search by TMDB ID - much more accurate
+                logger.info(f"Searching for releases using TMDB ID: {tmdb_id} for movie ID: {movie_id}")
+                result = await self._request("GET", "release", timeout=120, params={"tmdbId": tmdb_id})
+            else:
+                # Fallback to movie ID search
+                logger.info(f"No TMDB ID found, searching by movie ID: {movie_id}")
+                result = await self._request("GET", "release", timeout=120, params={"movieId": movie_id})
+        
             elapsed = (datetime.utcnow() - start_time).total_seconds()
             logger.info(f"Search completed in {elapsed:.1f} seconds for movie {movie_id}")
             return result if isinstance(result, list) else []

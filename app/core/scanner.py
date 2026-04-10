@@ -326,6 +326,19 @@ async def run_resizarr(
 
             releases = await client.search_for_releases(movie_id)
 
+            # ========== ADD THIS BLOCK ==========
+            # Filter by TMDB ID to prevent false matches (like F1 movie vs F1 TV content)
+            tmdb_id = movie.get("tmdbId")
+            if tmdb_id:
+                tmdb_id_str = str(tmdb_id)
+                original_count = len(releases)
+                releases = [
+                    r for r in releases 
+                    if tmdb_id_str in r.get('title', '') or tmdb_id_str in r.get('guid', '')
+                ]
+                logger.info(f"Filtered {original_count} releases by TMDB ID {tmdb_id}, kept {len(releases)}")
+            # ========== END ADDED BLOCK ==========
+
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
 
