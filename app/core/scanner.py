@@ -346,6 +346,7 @@ async def run_resizarr(
                     'current_quality': current_quality
                 })
                 logger.info(f"No valid releases found for: {movie_title}")
+                # Don't continue yet - let CSV logging handle it
             else:
                 # Build candidate releases
                 for release in valid_releases:
@@ -380,7 +381,7 @@ async def run_resizarr(
                     smallest_release = min(valid_releases, key=lambda r: r.get('size', 0)) if valid_releases else None
                     smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
                     smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
-
+    
                     quality_skipped_movies.append({
                         'title': movie_title,
                         'year': movie.get('year'),
@@ -451,7 +452,7 @@ async def run_resizarr(
                                 'skip_reason': reason
                             })
 
-            # ========== DRY RUN CSV LOGGING (MUST RUN FOR EVERY MOVIE) ==========
+            # ========== DRY RUN CSV LOGGING - AT THE END (ALL variables defined) ==========
             if dry_run:
                 # Determine outcome for CSV
                 if not valid_releases:
