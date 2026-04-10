@@ -195,8 +195,8 @@ async def run_resizarr(
                     INSERT INTO run_history
                     (started_at, total_movies_processed, candidates_found,
                     replacements_queued, replacements_failed, quality_skipped, no_releases_found,
-                    pending_approval, dry_run_would_trigger, dry_run, mode, csv_data)
-                    VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
+                    pending_approval, dry_run, mode, csv_data)
+                    VALUES (?, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
                 """, (
                 started_at,
                 1 if dry_run else 0,
@@ -325,6 +325,7 @@ async def run_resizarr(
             preferred_language = rules.get("language", "Any")
 
             releases = await client.search_for_releases(movie_id)
+            
 
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
@@ -475,7 +476,7 @@ async def run_resizarr(
                         outcome = "Quality Skipped"
                         quality_decision = reason
                     else:
-                        outcome = "Would Trigger (Preview)"
+                        outcome = "Pending Approval"
                         quality_decision = reason
                         # In dry-run, insert into pending_replacements for preview
                         proper_guid = extract_proper_guid(best_candidate.get("release", {}))
