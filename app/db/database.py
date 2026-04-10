@@ -239,6 +239,14 @@ def init_db():
         cursor.execute("CREATE INDEX idx_run_details_category ON run_details(category)")
         print("Added run_details table for per-run movie tracking")
 
+    # Add dry_run_would_trigger column to run_history (for dashboard reconciliation)
+        cursor = conn.execute("PRAGMA table_info(run_history)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'dry_run_would_trigger' not in columns:
+            conn.execute("ALTER TABLE run_history ADD COLUMN dry_run_would_trigger INTEGER DEFAULT 0")
+            conn.commit()
+            logger.info("Added missing 'dry_run_would_trigger' column to run_history table")
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")

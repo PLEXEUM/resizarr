@@ -104,6 +104,7 @@ async def run_resizarr(
         "quality_skipped": 0,
         "no_releases_found": 0,
         "pending_approval": 0,
+        "dry_run_would_trigger": 0,
         "csv_data": None
     }
 
@@ -192,16 +193,16 @@ async def run_resizarr(
 
         # Insert empty run history record to get an ID
         conn.execute("""
-            INSERT INTO run_history
-            (started_at, total_movies_processed, candidates_found,
-             replacements_queued, replacements_failed, quality_skipped, no_releases_found,
-             pending_approval, dry_run, mode, csv_data)
-            VALUES (?, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
-        """, (
-            started_at,
-            1 if dry_run else 0,
-            "shrink" if rules["current_operator"] == ">" else "upgrade"
-        ))
+                    INSERT INTO run_history
+                    (started_at, total_movies_processed, candidates_found,
+                    replacements_queued, replacements_failed, quality_skipped, no_releases_found,
+                    pending_approval, dry_run_would_trigger, dry_run, mode, csv_data)
+                    VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
+                """, (
+                started_at,
+                1 if dry_run else 0,
+                "shrink" if rules["current_operator"] == ">" else "upgrade"
+            ))
         
         # Get the run_id for this run
         run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -346,7 +347,6 @@ async def run_resizarr(
                     'current_quality': current_quality
                 })
                 logger.info(f"No valid releases found for: {movie_title}")
-                # Don't continue yet - let CSV logging handle it
             else:
                 # Build candidate releases
                 for release in valid_releases:
@@ -381,7 +381,7 @@ async def run_resizarr(
                     smallest_release = min(valid_releases, key=lambda r: r.get('size', 0)) if valid_releases else None
                     smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
                     smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
-    
+
                     quality_skipped_movies.append({
                         'title': movie_title,
                         'year': movie.get('year'),
@@ -452,7 +452,7 @@ async def run_resizarr(
                                 'skip_reason': reason
                             })
 
-            # ========== DRY RUN CSV LOGGING - AT THE END (ALL variables defined) ==========
+            # ========== DRY RUN CSV LOGGING (MUST RUN FOR EVERY MOVIE) ==========
             if dry_run:
                 # Determine outcome for CSV
                 if not valid_releases:
@@ -482,6 +482,7 @@ async def run_resizarr(
                         outcome = "Would Trigger"
                         quality_decision = reason
                         would_trigger = "Yes"
+                        summary["dry_run_would_trigger"] += 1
                 
                 csv_rows.append({
                     "Movie": movie_title,
@@ -622,29 +623,31 @@ async def run_resizarr(
         summary["completed_at"] = completed_at.isoformat()
         
         conn.execute("""
-            UPDATE run_history 
-            SET completed_at = ?,
-                total_movies_processed = ?,
-                candidates_found = ?,
-                replacements_queued = ?,
-                replacements_failed = ?,
-                quality_skipped = ?,
-                no_releases_found = ?,
-                pending_approval = ?,
-                csv_data = ?
-            WHERE id = ?
-        """, (
-            completed_at,
-            summary["total_movies_processed"],
-            summary["candidates_found"],
-            summary["replacements_queued"],
-            summary["replacements_failed"],
-            summary["quality_skipped"],
-            summary["no_releases_found"],
-            summary["pending_approval"],
-            summary.get("csv_data"),
-            run_id_from_db  # ← This should already be defined from earlier
-        ))
+                    UPDATE run_history 
+                    SET completed_at = ?,
+                        total_movies_processed = ?,
+                        candidates_found = ?,
+                        replacements_queued = ?,
+                        replacements_failed = ?,
+                        quality_skipped = ?,
+                        no_releases_found = ?,
+                        pending_approval = ?,
+                        dry_run_would_trigger = ?,
+                        csv_data = ?
+                    WHERE id = ?
+                """, (
+                    completed_at,
+                    summary["total_movies_processed"],
+                    summary["candidates_found"],
+                    summary["replacements_queued"],
+                    summary["replacements_failed"],
+                    summary["quality_skipped"],
+                    summary["no_releases_found"],
+                    summary["pending_approval"],
+                    summary.get("dry_run_would_trigger", 0),
+                    summary.get("csv_data"),
+                    run_id_from_db
+                ))
         # ========== END RUN HISTORY UPDATE ==========
 
         # ========== SAVE TRACKING DETAILS FOR ALL RUNS (dry and real) ==========
