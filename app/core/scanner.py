@@ -104,7 +104,6 @@ async def run_resizarr(
         "quality_skipped": 0,
         "no_releases_found": 0,
         "pending_approval": 0,
-        "dry_run_would_trigger": 0,
         "csv_data": None
     }
 
@@ -196,8 +195,8 @@ async def run_resizarr(
                     INSERT INTO run_history
                     (started_at, total_movies_processed, candidates_found,
                     replacements_queued, replacements_failed, quality_skipped, no_releases_found,
-                    pending_approval, dry_run_would_trigger, dry_run, mode, csv_data)
-                    VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
+                    pending_approval, dry_run, mode, csv_data)
+                    VALUES (?, 0, 0, 0, 0, 0, 0, 0, ?, ?, NULL)
                 """, (
                 started_at,
                 1 if dry_run else 0,
@@ -452,7 +451,7 @@ async def run_resizarr(
                                 'skip_reason': reason
                             })
 
-            # ========== DRY RUN CSV LOGGING (MUST RUN FOR EVERY MOVIE) ==========
+            # ========== DRY RUN CSV LOGGING ==========
             if dry_run:
                 # Determine outcome for CSV
                 if not valid_releases:
@@ -460,14 +459,12 @@ async def run_resizarr(
                     quality_decision = "No releases available"
                     found_size_display = "N/A"
                     found_quality_display = "N/A"
-                    would_trigger = "No"
                     is_downgrade_display = "N/A"
                 elif not candidate_releases:
                     outcome = "Quality Skipped"
                     quality_decision = "No releases matched size/peers/language filters"
                     found_size_display = "N/A"
                     found_quality_display = "N/A"
-                    would_trigger = "No"
                     is_downgrade_display = "N/A"
                 else:
                     found_size_display = f"{found_size_gb:.2f}"
@@ -477,12 +474,29 @@ async def run_resizarr(
                     if not should_proceed:
                         outcome = "Quality Skipped"
                         quality_decision = reason
-                        would_trigger = "No"
                     else:
-                        outcome = "Would Trigger"
+                        outcome = "Pending Approval"
                         quality_decision = reason
-                        would_trigger = "Yes"
-                        summary["dry_run_would_trigger"] += 1
+                        # In dry-run, insert into pending_replacements for preview
+                        proper_guid = extract_proper_guid(best_candidate.get("release", {}))
+                        release = best_candidate.get("release", {})
+                        tmdb_rating = movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating")
+                        
+                        conn.execute("""
+                            INSERT INTO pending_replacements
+                            (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+                             found_size_gb, found_quality, quality_downgrade, status,
+                             release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating, run_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'dry_run', ?, ?, ?, ?, ?)
+                        """, (
+                            movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
+                            found_size_gb, str(found_quality), 1 if is_downgrade else 0,
+                            proper_guid, best_candidate.get("download_url"),
+                            release.get("indexer"), best_candidate.get("peers", 0), release.get("title"), tmdb_rating,
+                            run_id_from_db
+                        ))
+                        conn.commit()
+                        summary["pending_approval"] += 1
                 
                 csv_rows.append({
                     "Movie": movie_title,
@@ -491,7 +505,6 @@ async def run_resizarr(
                     "Current Quality": current_quality,
                     "Found Size (GB)": found_size_display,
                     "Found Quality": found_quality_display,
-                    "Would Trigger": would_trigger,
                     "Outcome": outcome,
                     "Quality Decision": quality_decision,
                     "Is Downgrade": is_downgrade_display,
@@ -601,18 +614,17 @@ async def run_resizarr(
         if dry_run and csv_rows:
             output = io.StringIO()
             fieldnames = ['Movie', 'Year', 'Current Size (GB)', 'Current Quality', 
-                         'Found Size (GB)', 'Found Quality', 'Would Trigger', 
-                         'Outcome', 'Quality Decision', 'Is Downgrade', 'Mode']
+                         'Found Size (GB)', 'Found Quality', 'Outcome', 
+                         'Quality Decision', 'Is Downgrade', 'Mode']
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(csv_rows)
             summary["csv_data"] = output.getvalue()
         elif dry_run and not csv_rows:
-            # Even if no rows, create a header-only CSV
             output = io.StringIO()
             fieldnames = ['Movie', 'Year', 'Current Size (GB)', 'Current Quality', 
-                         'Found Size (GB)', 'Found Quality', 'Would Trigger', 
-                         'Outcome', 'Quality Decision', 'Is Downgrade', 'Mode']
+                         'Found Size (GB)', 'Found Quality', 'Outcome', 
+                         'Quality Decision', 'Is Downgrade', 'Mode']
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             summary["csv_data"] = output.getvalue()
@@ -632,7 +644,6 @@ async def run_resizarr(
                         quality_skipped = ?,
                         no_releases_found = ?,
                         pending_approval = ?,
-                        dry_run_would_trigger = ?,
                         csv_data = ?
                     WHERE id = ?
                 """, (
@@ -644,7 +655,6 @@ async def run_resizarr(
                     summary["quality_skipped"],
                     summary["no_releases_found"],
                     summary["pending_approval"],
-                    summary.get("dry_run_would_trigger", 0),
                     summary.get("csv_data"),
                     run_id_from_db
                 ))
