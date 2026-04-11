@@ -90,6 +90,11 @@ async def get_status():
         LIMIT 1
     """).fetchone()
 
+    # Get live pending count (current, not historical)
+    live_pending = conn.execute("""
+        SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'
+    """).fetchone()[0]
+
     # Get approved count since last run
     approved_count = 0
     if last_run:
@@ -112,6 +117,7 @@ async def get_status():
     last_run_dict = dict(last_run) if last_run else None
     if last_run_dict:
         last_run_dict["approved"] = approved_count
+        last_run_dict["live_pending"] = live_pending
 
     return {
         "is_running": is_running(),
