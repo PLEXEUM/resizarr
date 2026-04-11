@@ -388,7 +388,6 @@ async def clear_completed():
     logger.info(f"Cleared {count} completed job records")
     return {"success": True, "count": count}
 
-
 async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             current_size_gb: float, current_quality: str,
                             found_size_gb: float, found_quality: str,
@@ -405,4 +404,54 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
           found_size_gb, found_quality, mode, status, indexer, seeders, tmdb_rating))
     conn.commit()
     conn.close()
+
+
+@router.post("/completed/update-missing-details")
+async def update_missing_completed_details():
+    """Update missing indexer, seeders, tmdb_rating, and year in completed_jobs from pending_replacements."""
+    conn = get_connection()
+
+    # Update indexer, seeders, tmdb_rating
+    result1 = conn.execute("""
+        UPDATE completed_jobs 
+        SET indexer = (
+            SELECT indexer FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            ORDER BY id DESC LIMIT 1
+        ),
+        seeders = (
+            SELECT seeders FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            ORDER BY id DESC LIMIT 1
+        ),
+        tmdb_rating = (
+            SELECT tmdb_rating FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            ORDER BY id DESC LIMIT 1
+        )
+        WHERE indexer IS NULL OR seeders IS NULL OR tmdb_rating IS NULL
+    """)
+
+    # Update movie_year
+    result2 = conn.execute("""
+        UPDATE completed_jobs 
+        SET movie_year = (
+            SELECT movie_year FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            AND pending_replacements.movie_year > 0 
+            ORDER BY id DESC LIMIT 1
+        )
+        WHERE movie_year IS NULL OR movie_year = 0
+    """)
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "details_updated": result1.rowcount,
+        "years_updated": result2.rowcount,
+        "message": f"Updated {result1.rowcount} records with missing details, {result2.rowcount} records with missing years"
+    }
+
 # ========== END COMPLETED JOBS ENDPOINTS ==========

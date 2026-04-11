@@ -10,11 +10,16 @@
                 History of movies that were replaced, queued, or rejected.
             </p>
         </div>
-        <button onclick="clearCompletedJobs()"
-            class="text-xs px-2 py-1 rounded border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
-            Clear History
-        </button>
-    </div>
+        <div class="flex gap-2">
+            <button onclick="updateMissingDetails()"
+                class="text-xs px-2 py-1 rounded border border-blue-500 text-blue-500 hover:bg-blue-50 transition-colors">
+                Update Missing Details
+            </button>
+            <button onclick="clearCompletedJobs()"
+                class="text-xs px-2 py-1 rounded border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
+                Clear History
+            </button>
+        </div>
 
     <!-- Completed Jobs Table -->
     <div class="card rounded-xl overflow-hidden">
@@ -166,6 +171,23 @@
         }
     }
 
+    async function updateMissingDetails() {
+        if (!confirm('This will try to fill in missing Indexer, Peers, TMDB Rating, and Year from pending replacement data. Continue?')) return;
+        
+        try {
+            const res = await fetch('/api/completed/update-missing-details', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message, 'success');
+                loadCompleted(currentPage);
+            } else {
+                showToast(data.detail || 'Failed to update details', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
+        }
+    }
+    
     async function clearCompletedJobs() {
         if (!confirm('Are you sure you want to clear ALL completed job history? This cannot be undone.')) return;
         
