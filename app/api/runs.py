@@ -101,7 +101,7 @@ async def get_status():
         started_at = last_run["started_at"]
         approved_count = conn.execute("""
             SELECT COUNT(*) FROM completed_jobs 
-            WHERE status = 'queued' 
+            WHERE status IN ('queued', 'completed')
             AND completed_at > ?
         """, (started_at,)).fetchone()[0]
 
