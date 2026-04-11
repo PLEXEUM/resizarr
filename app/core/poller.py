@@ -130,6 +130,12 @@ async def poll_pending_replacements():
                         SET status = 'completed', completed_at = ?, found_size_gb = ?
                         WHERE id = ?
                     """, (datetime.utcnow(), current_size_gb, record_id))
+
+                    conn.execute("""
+                        UPDATE completed_jobs
+                        SET status = 'completed', completed_at = ?
+                        WHERE movie_title = ? AND status = 'queued'
+                    """, (datetime.utcnow(), movie_title))
                 else:
                     logger.info(
                         f"No change yet for '{movie_title}' "
