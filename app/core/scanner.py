@@ -325,8 +325,22 @@ async def run_resizarr(
             preferred_language = rules.get("language", "Any")
 
             releases = await client.search_for_releases(movie_id)
-            
 
+            # === SIMPLE TITLE + YEAR MATCHING ===
+            filter_title = movie.get("title", "").lower()
+            movie_year = str(movie.get("year", ""))
+            original_count = len(releases)
+
+            # Filter by title
+            releases = [r for r in releases if filter_title in r.get('title', '').lower()]
+
+            # Filter by year (if available)
+            if movie_year:
+                releases = [r for r in releases if movie_year in r.get('title', '')]
+
+            if original_count != len(releases):
+                logger.info(f"Title+year filter: kept {len(releases)} of {original_count} releases for '{filter_title} ({movie_year})'")
+            
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
 
