@@ -331,8 +331,12 @@ async def run_resizarr(
             movie_year = str(movie.get("year", ""))
             original_count = len(releases)
 
-            # Filter by title
-            releases = [r for r in releases if filter_title in r.get('title', '').lower()]
+            # Filter by title (regex word boundary for short titles)
+            if len(filter_title) <= 3:
+                pattern = r'\b' + re.escape(filter_title) + r'\b'
+                releases = [r for r in releases if re.search(pattern, r.get('title', ''), re.IGNORECASE)]
+            else:
+                releases = [r for r in releases if filter_title in r.get('title', '').lower()]
 
             # Filter by year (if available)
             if movie_year:
