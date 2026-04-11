@@ -444,6 +444,23 @@ async def update_missing_completed_details():
         WHERE movie_year IS NULL OR movie_year = 0
     """)
 
+    # Refresh status for items that are 'completed' in pending_replacements but still 'queued' in completed_jobs
+    result3 = conn.execute("""
+        UPDATE completed_jobs 
+        SET status = 'completed', completed_at = (
+            SELECT completed_at FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            AND pending_replacements.status = 'completed'
+            ORDER BY completed_at DESC LIMIT 1
+        )
+        WHERE status = 'queued' 
+        AND EXISTS (
+            SELECT 1 FROM pending_replacements 
+            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
+            AND pending_replacements.status = 'completed'
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -451,7 +468,8 @@ async def update_missing_completed_details():
         "success": True,
         "details_updated": result1.rowcount,
         "years_updated": result2.rowcount,
-        "message": f"Updated {result1.rowcount} records with missing details, {result2.rowcount} records with missing years"
+        "status_updated": result3.rowcount,
+        "message": f"Updated {result1.rowcount} details, {result2.rowcount} years, {result3.rowcount} statuses to completed"
     }
 
 # ========== END COMPLETED JOBS ENDPOINTS ==========
