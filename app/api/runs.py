@@ -90,6 +90,16 @@ async def get_status():
         LIMIT 1
     """).fetchone()
 
+    # Get approved count since last run
+    approved_count = 0
+    if last_run:
+        started_at = last_run["started_at"]
+        approved_count = conn.execute("""
+            SELECT COUNT(*) FROM completed_jobs 
+            WHERE status = 'queued' 
+            AND completed_at > ?
+        """, (started_at,)).fetchone()[0]
+
     # Get run history (last 10)
     history = conn.execute("""
         SELECT * FROM run_history
@@ -99,10 +109,14 @@ async def get_status():
 
     conn.close()
 
+    last_run_dict = dict(last_run) if last_run else None
+    if last_run_dict:
+        last_run_dict["approved"] = approved_count
+
     return {
         "is_running": is_running(),
         "next_run": get_next_run_time(),
-        "last_run": dict(last_run) if last_run else None,
+        "last_run": last_run_dict,
         "history": [dict(r) for r in history]
     }
 
