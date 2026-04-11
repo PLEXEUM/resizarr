@@ -156,13 +156,16 @@ async def approve_pending(record_id: int, data: ApproveInput):
         await add_completed_job(
             movie_id=record["movie_id"],
             movie_title=record["movie_title"],
-            movie_year=0,
+            movie_year=record.get("movie_year", 0),
             current_size_gb=record["current_size_gb"],
             current_quality=record["current_quality"],
             found_size_gb=record["found_size_gb"],
             found_quality=record["found_quality"],
             mode="manual",
-            status="queued"
+            status="queued",
+            indexer=record.get("indexer"),
+            seeders=record.get("seeders", 0),
+            tmdb_rating=record.get("tmdb_rating")
         )
         
         logger.info(f"Approved pending replacement for '{record['movie_title']}'")
@@ -257,13 +260,16 @@ async def approve_batch(data: BatchApproveInput):
             await add_completed_job(
                 movie_id=record["movie_id"],
                 movie_title=record["movie_title"],
-                movie_year=0,
+                movie_year=record.get("movie_year", 0),
                 current_size_gb=record["current_size_gb"],
                 current_quality=record["current_quality"],
                 found_size_gb=record["found_size_gb"],
                 found_quality=record["found_quality"],
                 mode="manual",
-                status="queued"
+                status="queued",
+                indexer=record.get("indexer"),
+                seeders=record.get("seeders", 0),
+                tmdb_rating=record.get("tmdb_rating")
             )
 
             approved.append(record_id)
@@ -325,7 +331,7 @@ async def delete_pending(record_id: int):
     await add_completed_job(
         movie_id=record["movie_id"],
         movie_title=record["movie_title"],
-        movie_year=0,
+        movie_year=record.get("movie_year", 0),
         current_size_gb=record["current_size_gb"],
         current_quality=record["current_quality"],
         found_size_gb=record["found_size_gb"],
@@ -386,16 +392,17 @@ async def clear_completed():
 async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             current_size_gb: float, current_quality: str,
                             found_size_gb: float, found_quality: str,
-                            mode: str, status: str):
+                            mode: str, status: str, indexer: str = None,
+                            seeders: int = 0, tmdb_rating: float = None):
     """Add a job to completed jobs table."""
     conn = get_connection()
     conn.execute("""
         INSERT INTO completed_jobs
         (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-         found_size_gb, found_quality, mode, status, completed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         found_size_gb, found_quality, mode, status, completed_at, indexer, seeders, tmdb_rating)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
     """, (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-          found_size_gb, found_quality, mode, status))
+          found_size_gb, found_quality, mode, status, indexer, seeders, tmdb_rating))
     conn.commit()
     conn.close()
 # ========== END COMPLETED JOBS ENDPOINTS ==========

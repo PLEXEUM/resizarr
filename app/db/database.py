@@ -31,7 +31,10 @@ def init_db():
             found_quality TEXT,
             mode TEXT,
             status TEXT,
-            completed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            indexer TEXT,
+            seeders INTEGER DEFAULT 0,
+            tmdb_rating REAL
         );
                          
         CREATE TABLE IF NOT EXISTS rules (
@@ -238,6 +241,22 @@ def init_db():
         cursor.execute("CREATE INDEX idx_run_details_run_id ON run_details(run_id)")
         cursor.execute("CREATE INDEX idx_run_details_category ON run_details(category)")
         print("Added run_details table for per-run movie tracking")
+
+        # Migration: Add indexer, seeders, tmdb_rating to completed_jobs
+    cursor.execute("PRAGMA table_info(completed_jobs)")
+    completed_columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'indexer' not in completed_columns:
+        cursor.execute("ALTER TABLE completed_jobs ADD COLUMN indexer TEXT")
+        print("Added 'indexer' column to completed_jobs table")
+    
+    if 'seeders' not in completed_columns:
+        cursor.execute("ALTER TABLE completed_jobs ADD COLUMN seeders INTEGER DEFAULT 0")
+        print("Added 'seeders' column to completed_jobs table")
+    
+    if 'tmdb_rating' not in completed_columns:
+        cursor.execute("ALTER TABLE completed_jobs ADD COLUMN tmdb_rating REAL")
+        print("Added 'tmdb_rating' column to completed_jobs table")
 
     conn.commit()
     conn.close()

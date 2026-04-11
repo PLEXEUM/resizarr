@@ -25,13 +25,16 @@
                         <th class="text-left px-4 py-3 font-medium">Date</th>
                         <th class="text-left px-4 py-3 font-medium">Movie</th>
                         <th class="text-left px-4 py-3 font-medium">From → To</th>
+                        <th class="text-left px-4 py-3 font-medium">Indexer</th>
+                        <th class="text-left px-4 py-3 font-medium">Peers</th>
+                        <th class="text-left px-4 py-3 font-medium">TMDB</th>
                         <th class="text-left px-4 py-3 font-medium">Mode</th>
                         <th class="text-left px-4 py-3 font-medium">Status</th>
                     </tr>
                 </thead>
                 <tbody id="completed-table">
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center"
+                        <td colspan="8" class="px-4 py-8 text-center"
                             style="color: var(--text-secondary)">Loading...</td>
                     </tr>
                 </tbody>
@@ -63,7 +66,7 @@
             if (!data.records || data.records.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center"
+                        <td colspan="8" class="px-4 py-8 text-center"
                             style="color: var(--text-secondary)">
                             No completed jobs yet.
                         </td>
@@ -74,14 +77,29 @@
 
             tbody.innerHTML = data.records.map(r => `
                 <tr style="border-top: 1px solid var(--border-color)">
-                    <td class="px-4 py-3">${new Date(r.completed_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">${new Date(r.completed_at).toLocaleDateString()}</td>
                     <td class="px-4 py-3">
-                        <div class="font-medium">${r.movie_title}</div>
-                        <div class="text-xs" style="color: var(--text-secondary)">${r.movie_year || 'N/A'}</div>
+                        <div class="font-medium">${escapeHtml(r.movie_title)}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">${r.movie_year || 'Year N/A'}</div>
                     </td>
                     <td class="px-4 py-3">
-                        ${r.current_size_gb?.toFixed(2)} GB (${r.current_quality})<br>
-                        → ${r.found_size_gb?.toFixed(2)} GB (${r.found_quality})
+                        <div class="text-red-400">${r.current_size_gb?.toFixed(2) || 'N/A'} GB (${r.current_quality || 'N/A'})</div>
+                        <div class="text-green-400">→ ${r.found_size_gb?.toFixed(2) || 'N/A'} GB (${r.found_quality || 'N/A'})</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">
+                            ${((r.current_size_gb - r.found_size_gb) || 0).toFixed(2)} GB saved
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="text-xs">${r.indexer || 'N/A'}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-1">
+                            <span style="color: #10b981;">▼</span>
+                            <span>${r.seeders || 0}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        ${r.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${r.tmdb_rating.toFixed(1)}</span></div>` : 'N/A'}
                     </td>
                     <td class="px-4 py-3">
                         <span class="text-xs px-2 py-1 rounded ${getModeClass(r.mode)}">${r.mode}</span>
@@ -117,11 +135,22 @@
         }
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
     function getModeClass(mode) {
         switch(mode) {
             case 'auto': return 'bg-green-800 text-green-200';
             case 'manual': return 'bg-blue-800 text-blue-200';
             case 'quality_match': return 'bg-purple-800 text-purple-200';
+            case 'dry_run': return 'bg-gray-800 text-gray-200';
             case 'rejected': return 'bg-red-800 text-red-200';
             default: return 'bg-gray-800 text-gray-200';
         }
