@@ -40,7 +40,7 @@ async def poll_pending_replacements():
         pending = conn.execute("""
             SELECT * FROM pending_replacements
             WHERE status IN ('pending', 'queued')
-            AND mode IN ('auto', 'quality_match', 'manual')
+            AND mode IN ('auto', 'quality_match')
         """).fetchall()
 
         # Get count of skipped manual items for logging
