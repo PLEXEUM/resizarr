@@ -159,40 +159,69 @@
 
 {% block scripts %}
 <script>
-// Load quality profiles and rules when page loads
-window.addEventListener('DOMContentLoaded', async () => {
-    await loadQualityTypes();
-    loadRules();
+// Cache for quality types (persists across page loads)
+let qualityTypesCache = null;
+
+// Load rules immediately (no waiting for quality types)
+window.addEventListener('DOMContentLoaded', () => {
+    loadRules();  // Rules load instantly with saved value
+    // Don't load quality types automatically - load on demand
 });
 
 async function loadQualityTypes() {
     const select = document.getElementById('min-quality-threshold');
+
+    // If we already have cached data, just populate
+    if (qualityTypesCache) {
+        populateQualityDropdown(select, qualityTypesCache);
+        return;
+    }
+    
+    // Show loading state
+    const savedValue = select.value;
+    select.innerHTML = '<option value="">Loading quality types...</option>';
+    select.disabled = true;
     
     try {
         const res = await fetch('/api/quality-types');
         const data = await res.json();
+        qualityTypesCache = data.quality_types;
 
-        // Clear existing options except the first "No minimum"
-        while (select.options.length > 1) select.remove(1);
-        data.quality_types.forEach(quality => {
-            const opt = document.createElement('option');
-            opt.value = quality;
-            opt.textContent = quality;
-            select.appendChild(opt);
-        });
-
-        console.log(`Loaded ${data.quality_types.length} quality types`);
+        // Restore dropdown
+        select.disabled = false;
+        populateQualityDropdown(select, qualityTypesCache);
+        
+        // Restore the saved value
+        if (savedValue && savedValue !== "") {
+            select.value = savedValue;
+        }
     } catch (e) {
         console.error('Failed to load quality types:', e);
+        select.innerHTML = '<option value="">Error loading</option>';
+        select.disabled = false;
     }
 }
 
+function populateQualityDropdown(select, qualityTypes) {
+    // Clear existing options except the first "No minimum"
+    select.innerHTML = '<option value="">No minimum</option>';
+    
+    qualityTypes.forEach(quality => {
+        const opt = document.createElement('option');
+        opt.value = quality;
+        opt.textContent = quality;
+        select.appendChild(opt);
+    });
+}
+
+// Modified loadRules - no waiting for quality types
 async function loadRules() {
     try {
         const res = await fetch('/api/rules');
         const data = await res.json();
         if (!data.configured) return;
 
+        // Set all other fields (these are instant)
         document.getElementById('current-operator').value = data.current_operator;
         document.getElementById('current-size').value = data.current_size;
         document.getElementById('current-unit').value = data.current_unit;
@@ -202,7 +231,19 @@ async function loadRules() {
         document.getElementById('min-size').value = data.min_size;
         document.getElementById('min-size-unit').value = data.min_size_unit;
         document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
-        document.getElementById('min-quality-threshold').value = data.min_quality_threshold || '';
+        
+        // Store threshold value (but don't set yet if dropdown not populated)
+        const savedThreshold = data.min_quality_threshold || '';
+        const thresholdSelect = document.getElementById('min-quality-threshold');
+        
+        // If dropdown already has options, set value immediately
+        if (thresholdSelect.options.length > 1) {
+            thresholdSelect.value = savedThreshold;
+        } else {
+            // Store the value to be set when dropdown is populated
+            thresholdSelect.setAttribute('data-saved-value', savedThreshold);
+        }
+        
         document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
         document.getElementById('language').value = data.language || 'Any';
         document.getElementById('operation-delay').value = data.operation_delay_seconds || 3;
@@ -265,5 +306,24 @@ async function saveRules() {
         document.getElementById('save-spinner').classList.add('hidden');
     }
 }
+
+// Set up on-demand loading for quality types
+document.addEventListener('DOMContentLoaded', () => {
+    const thresholdSelect = document.getElementById('min-quality-threshold');
+    
+    // Load quality types when user clicks the dropdown
+    thresholdSelect.addEventListener('mousedown', () => loadQualityTypes());
+    
+    // Also load on focus (for keyboard navigation)
+    thresholdSelect.addEventListener('focus', () => loadQualityTypes());
+    
+    // Check for any stored saved value that needs to be applied
+    const savedValue = thresholdSelect.getAttribute('data-saved-value');
+    if (savedValue && savedValue !== "" && thresholdSelect.options.length > 1) {
+        thresholdSelect.value = savedValue;
+        thresholdSelect.removeAttribute('data-saved-value');
+    }
+});
+
 </script>
 {% endblock %}
