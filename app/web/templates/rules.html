@@ -162,10 +162,41 @@
 // Cache for quality types (persists across page loads)
 let qualityTypesCache = null;
 
-// Load rules immediately (no waiting for quality types)
+// Single DOMContentLoaded listener - everything in one place
 window.addEventListener('DOMContentLoaded', () => {
-    loadRules();  // Rules load instantly with saved value
-    // Don't load quality types automatically - load on demand
+    const thresholdSelect = document.getElementById('min-quality-threshold');
+    
+    // 1. First, add common qualities immediately
+    const commonQualities = [
+        "2160p", "4K", "1080p", "720p", "480p",
+        "BluRay-1080p", "BluRay-720p", "BluRay-480p",
+        "WEBDL-1080p", "WEBDL-720p", "WEBDL-480p",
+        "WEBRip-1080p", "WEBRip-720p", "WEBRip-480p",
+        "HDTV-1080p", "HDTV-720p", "DVD"
+    ];
+
+    if (thresholdSelect.options.length === 1) {
+        commonQualities.forEach(quality => {
+            const opt = document.createElement('option');
+            opt.value = quality;
+            opt.textContent = quality;
+            thresholdSelect.appendChild(opt);
+        });
+    }
+    
+    // 2. Set up event listeners for on-demand loading
+    thresholdSelect.addEventListener('mousedown', () => loadQualityTypes());
+    thresholdSelect.addEventListener('focus', () => loadQualityTypes());
+    
+    // 3. Load rules (which will now have dropdown options ready)
+    loadRules();
+    
+    // 4. Check for any stored saved value that needs to be applied
+    const savedValue = thresholdSelect.getAttribute('data-saved-value');
+    if (savedValue && savedValue !== "" && thresholdSelect.options.length > 1) {
+        thresholdSelect.value = savedValue;
+        thresholdSelect.removeAttribute('data-saved-value');
+    }
 });
 
 async function loadQualityTypes() {
@@ -319,41 +350,6 @@ async function saveRules() {
         document.getElementById('save-spinner').classList.add('hidden');
     }
 }
-
-// Set up on-demand loading for quality types
-document.addEventListener('DOMContentLoaded', () => {
-    const thresholdSelect = document.getElementById('min-quality-threshold');
-    
-    const commonQualities = [
-        "2160p", "4K", "1080p", "720p", "480p",
-        "BluRay-1080p", "BluRay-720p", "BluRay-480p",
-        "WEBDL-1080p", "WEBDL-720p", "WEBDL-480p",
-        "WEBRip-1080p", "WEBRip-720p", "WEBRip-480p",
-        "HDTV-1080p", "HDTV-720p", "DVD"
-    ];
-
-    if (thresholdSelect.options.length === 1) {
-        commonQualities.forEach(quality => {
-            const opt = document.createElement('option');
-            opt.value = quality;
-            opt.textContent = quality;
-            thresholdSelect.appendChild(opt);
-        });
-    }
-
-    // Load quality types when user clicks the dropdown
-    thresholdSelect.addEventListener('mousedown', () => loadQualityTypes());
-    
-    // Also load on focus (for keyboard navigation)
-    thresholdSelect.addEventListener('focus', () => loadQualityTypes());
-    
-    // Check for any stored saved value that needs to be applied
-    const savedValue = thresholdSelect.getAttribute('data-saved-value');
-    if (savedValue && savedValue !== "" && thresholdSelect.options.length > 1) {
-        thresholdSelect.value = savedValue;
-        thresholdSelect.removeAttribute('data-saved-value');
-    }
-});
 
 </script>
 {% endblock %}
