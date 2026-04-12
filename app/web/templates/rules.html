@@ -174,6 +174,12 @@ async function loadQualityTypes() {
     // If we already have cached data, just populate
     if (qualityTypesCache) {
         populateQualityDropdown(select, qualityTypesCache);
+        // Restore saved value after populating
+        const savedValue = select.getAttribute('data-saved-value');
+        if (savedValue && savedValue !== "") {
+            select.value = savedValue;
+            select.removeAttribute('data-saved-value');
+        }
         return;
     }
     
@@ -191,9 +197,15 @@ async function loadQualityTypes() {
         select.disabled = false;
         populateQualityDropdown(select, qualityTypesCache);
         
-        // Restore the saved value
-        if (savedValue && savedValue !== "") {
-            select.value = savedValue;
+        // Restore the saved value - check both possible locations
+        let valueToRestore = savedValue;
+        if (!valueToRestore || valueToRestore === "") {
+            valueToRestore = select.getAttribute('data-saved-value');
+        }
+
+        if (valueToRestore && valueToRestore !== "") {
+            select.value = valueToRestore;
+            select.removeAttribute('data-saved-value');
         }
     } catch (e) {
         console.error('Failed to load quality types:', e);
@@ -236,12 +248,13 @@ async function loadRules() {
         const savedThreshold = data.min_quality_threshold || '';
         const thresholdSelect = document.getElementById('min-quality-threshold');
         
+        // ALWAYS store as data attribute first
+        thresholdSelect.setAttribute('data-saved-value', savedThreshold);
+
         // If dropdown already has options, set value immediately
         if (thresholdSelect.options.length > 1) {
             thresholdSelect.value = savedThreshold;
-        } else {
-            // Store the value to be set when dropdown is populated
-            thresholdSelect.setAttribute('data-saved-value', savedThreshold);
+            thresholdSelect.removeAttribute('data-saved-value');
         }
         
         document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
@@ -311,6 +324,23 @@ async function saveRules() {
 document.addEventListener('DOMContentLoaded', () => {
     const thresholdSelect = document.getElementById('min-quality-threshold');
     
+    const commonQualities = [
+        "2160p", "4K", "1080p", "720p", "480p",
+        "BluRay-1080p", "BluRay-720p", "BluRay-480p",
+        "WEBDL-1080p", "WEBDL-720p", "WEBDL-480p",
+        "WEBRip-1080p", "WEBRip-720p", "WEBRip-480p",
+        "HDTV-1080p", "HDTV-720p", "DVD"
+    ];
+
+    if (thresholdSelect.options.length === 1) {
+        commonQualities.forEach(quality => {
+            const opt = document.createElement('option');
+            opt.value = quality;
+            opt.textContent = quality;
+            thresholdSelect.appendChild(opt);
+        });
+    }
+
     // Load quality types when user clicks the dropdown
     thresholdSelect.addEventListener('mousedown', () => loadQualityTypes());
     
