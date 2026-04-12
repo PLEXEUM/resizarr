@@ -166,10 +166,13 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadQualityTypes() {
+    const select = document.getElementById('min-quality-threshold');
+    const savedValue = select.value;  // ← Save current value
+    
     try {
         const res = await fetch('/api/quality-types');
         const data = await res.json();
-        const select = document.getElementById('min-quality-threshold');
+
         // Clear existing options except the first "No minimum"
         while (select.options.length > 1) select.remove(1);
         data.quality_types.forEach(quality => {
@@ -178,6 +181,11 @@ async function loadQualityTypes() {
             opt.textContent = quality;
             select.appendChild(opt);
         });
+
+        if (savedValue && savedValue !== "") {
+            select.value = savedValue;
+        }
+        
         console.log(`Loaded ${data.quality_types.length} quality types`);
     } catch (e) {
         console.error('Failed to load quality types:', e);
