@@ -175,6 +175,7 @@
                 ${data.target_size} ${data.target_unit}</strong></p>
                 <p class="mt-1">Quality: <strong>${data.quality_rule}</strong> |
                 Trigger: <strong>${data.trigger_logic}</strong></p>
+                ${data.min_quality_threshold ? `<p class="mt-1">Min Quality Threshold: <strong>${data.min_quality_threshold}</strong></p>` : ''}
             `;
         } catch (e) {
             console.error('Failed to load rule summary:', e);
