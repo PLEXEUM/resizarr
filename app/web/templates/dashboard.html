@@ -83,9 +83,9 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold uppercase tracking-wide"
                 style="color: var(--text-secondary)">Last Run Summary</h2>
-            <button onclick="clearRunHistory()" 
-                class="text-xs px-2 py-1 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
-                Clear History
+            <button onclick="clearDashboard()" 
+                class="text-xs px-3 py-1.5 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
+                🗑️ Clear Dashboard
             </button>
         </div>
         <div id="last-run-summary">
@@ -109,10 +109,6 @@
                 <a href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
                     View History →
                 </a>
-                <button id="clear-category-btn" onclick="clearCurrentCategory()" 
-                    class="hidden text-xs px-2 py-1 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
-                    Clear List
-                </button>
             </div>
         </div>
         <div id="category-content" class="overflow-x-auto">
@@ -200,14 +196,6 @@
         };
         
         document.getElementById('category-title').textContent = titles[category] || 'Run Details';
-        
-        // Show/hide clear button based on category
-        const clearBtn = document.getElementById('clear-category-btn');
-        if (category === 'pending') {
-            clearBtn.classList.add('hidden');
-        } else {
-            clearBtn.classList.remove('hidden');
-        }
         
         // Show loading state
         const container = document.getElementById('category-content');
@@ -343,26 +331,6 @@
         
         html += `</tbody></table>`;
         container.innerHTML = html;
-    }
-    
-    // NEW FUNCTION 3: Clear current category list (for non-pending categories)
-    async function clearCurrentCategory() {
-        if (!confirm(`Are you sure you want to clear all ${currentCategory.replace('_', ' ')} items?`)) {
-            return;
-        }
-        
-        try {
-            const res = await fetch(`/api/run/details/${currentCategory}/clear`, { method: 'DELETE' });
-            if (res.ok) {
-                showToast(`${currentCategory.replace('_', ' ')} cleared`, 'success');
-                await loadCategory(currentCategory);
-                await loadStatus(); // Refresh stats
-            } else {
-                showToast('Failed to clear', 'error');
-            }
-        } catch (e) {
-            showToast('Error: ' + e.message, 'error');
-        }
     }
     
     function getAge(createdAt) {
@@ -598,6 +566,17 @@
                 } else {
                     document.getElementById('csv-download').classList.add('hidden');
                 }
+            } else {
+                // 👇 ADD THIS ELSE CLAUSE FOR EMPTY STATE
+                document.getElementById('last-run-summary').innerHTML = 
+                    '<p class="text-sm" style="color: var(--text-secondary)">No runs yet. Click "Run Now" to start.</p>';
+                document.getElementById('csv-download').classList.add('hidden');
+                
+                // Also show empty state for the category content
+                const container = document.getElementById('category-content');
+                if (container && !container.innerHTML.includes('Loading')) {
+                    container.innerHTML = '<div class="text-center py-8" style="color: var(--text-secondary)">No runs yet. Run a scan to see results.</div>';
+                }
             }
 
             await checkRunStatus();
@@ -801,20 +780,28 @@
         }, 800);  // slightly faster poll during cancellation
     }
 
-    // Clear run history
-    async function clearRunHistory() {
-        if (!confirm('Are you sure you want to clear all run history? This action cannot be undone.')) {
+        // Clear entire dashboard
+    async function clearDashboard() {
+        if (!confirm('⚠️ CLEAR DASHBOARD\n\n' +
+                      'This will reset the dashboard to a clean state:\n\n' +
+                      '• Clear all run history\n' +
+                      '• Clear all category lists (queued, failed, skipped, etc.)\n' +
+                      '• Clear pending approvals\n' +
+                      '• Reset the last run summary\n\n' +
+                      'This does NOT affect your rules configuration or Radarr settings.\n\n' +
+                      'This action cannot be undone. Continue?')) {
             return;
         }
         
         try {
-            const res = await fetch('/api/history/clear', { method: 'DELETE' });
+            const res = await fetch('/api/dashboard/clear', { method: 'DELETE' });
             if (res.ok) {
-                showToast('Run history cleared', 'success');
+                showToast('Dashboard cleared successfully', 'success');
                 await loadStatus();
                 await loadCategory('pending');
             } else {
-                showToast('Failed to clear history', 'error');
+                const data = await res.json();
+                showToast(data.detail || 'Failed to clear dashboard', 'error');
             }
         } catch (e) {
             showToast('Error: ' + e.message, 'error');

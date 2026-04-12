@@ -454,3 +454,41 @@ async def clear_run_history():
     logger.info(f"Cleared {count} run history records")
     return {"success": True, "count": count}
 # ========== END CLEAR RUN HISTORY ENDPOINT ==========
+
+# ========== CLEAR DASHBOARD ENDPOINT ==========
+@router.delete("/dashboard/clear")
+async def clear_dashboard():
+    """Clear all dashboard data: run history, run details, and pending approvals."""
+    conn = get_connection()
+    
+    # Count records before deleting
+    history_count = conn.execute("SELECT COUNT(*) FROM run_history").fetchone()[0]
+    details_count = conn.execute("SELECT COUNT(*) FROM run_details").fetchone()[0]
+    pending_count = conn.execute("SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'").fetchone()[0]
+    
+    # Clear all run history
+    conn.execute("DELETE FROM run_history")
+    
+    # Clear all run details
+    conn.execute("DELETE FROM run_details")
+    
+    # Clear pending approvals
+    conn.execute("DELETE FROM pending_replacements")
+    
+    # Reset run state (so next run starts from beginning)
+    conn.execute("DELETE FROM run_state")
+    
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"Cleared dashboard: {history_count} history records, {details_count} details, {pending_count} pending approvals")
+    
+    return {
+        "success": True,
+        "cleared": {
+            "run_history": history_count,
+            "run_details": details_count,
+            "pending_approvals": pending_count
+        }
+    }
+# ========== END CLEAR DASHBOARD ENDPOINT ==========
