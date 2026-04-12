@@ -160,14 +160,13 @@
 {% block scripts %}
 <script>
 // Load quality profiles and rules when page loads
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    await loadQualityTypes();
     loadRules();
-    loadQualityTypes();
 });
 
 async function loadQualityTypes() {
     const select = document.getElementById('min-quality-threshold');
-    const savedValue = select.value;  // ← Save current value
     
     try {
         const res = await fetch('/api/quality-types');
@@ -182,10 +181,6 @@ async function loadQualityTypes() {
             select.appendChild(opt);
         });
 
-        if (savedValue && savedValue !== "") {
-            select.value = savedValue;
-        }
-        
         console.log(`Loaded ${data.quality_types.length} quality types`);
     } catch (e) {
         console.error('Failed to load quality types:', e);
