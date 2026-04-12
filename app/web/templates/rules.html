@@ -160,27 +160,10 @@
 {% block scripts %}
 <script>
 // Load quality profiles and rules when page loads
-window.addEventListener('DOMContentLoaded', async () => {
-    await loadQualityTypes();  // ADD THIS LINE
-    await loadRules();
+window.addEventListener('DOMContentLoaded', () => {
+    loadRules();
+    loadQualityTypes();
 });
-
-async function loadProfiles() {
-    try {
-        const res = await fetch('/api/quality-profiles');
-        const data = await res.json();
-        const select = document.getElementById('min-quality-profile');
-        while (select.options.length > 1) select.remove(1);
-        data.forEach(profile => {
-            const opt = document.createElement('option');
-            opt.value = profile.id;
-            opt.textContent = profile.name;
-            select.appendChild(opt);
-        });
-    } catch (e) {
-        console.error('Failed to load profiles:', e);
-    }
-}
 
 async function loadQualityTypes() {
     try {
