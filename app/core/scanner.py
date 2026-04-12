@@ -64,6 +64,49 @@ def extract_proper_guid(release: dict) -> str:
             return f"{release.get('indexer')}:{match.group(1)}"
     return guid
 
+def extract_quality_value(quality_name: str) -> int:
+    """Extract resolution from quality name (e.g., 'BluRay-1080p' -> 1080, '4K' -> 2160)"""
+    if not quality_name:
+        return 0
+    quality_lower = str(quality_name).lower()
+    
+    # Handle 4K/2160p
+    if '4k' in quality_lower or '2160p' in quality_lower:
+        return 2160
+    # Handle 1080p
+    if '1080p' in quality_lower:
+        return 1080
+    # Handle 720p
+    if '720p' in quality_lower:
+        return 720
+    # Handle 480p/DVD
+    if '480p' in quality_lower or 'dvd' in quality_lower:
+        return 480
+    
+    # Generic pattern matching
+    import re
+    match = re.search(r'(\d+)p', quality_lower)
+    return int(match.group(1)) if match else 0
+
+def check_quality_threshold(found_quality: str, threshold: str) -> tuple:
+    """Check if found quality meets or exceeds the minimum threshold.
+    Returns (passed: bool, reason: str)
+    """
+    if not threshold or threshold == "":
+        return True, "No threshold set"
+    
+    found_value = extract_quality_value(found_quality)
+    threshold_value = extract_quality_value(threshold)
+    
+    if found_value == 0 or threshold_value == 0:
+        # If we can't parse, assume it passes (don't block)
+        return True, f"Could not parse quality values (found: {found_quality}, threshold: {threshold})"
+    
+    if found_value >= threshold_value:
+        return True, f"Quality {found_quality} ({found_value}p) meets threshold {threshold} ({threshold_value}p)"
+    else:
+        return False, f"Quality {found_quality} ({found_value}p) below threshold {threshold} ({threshold_value}p)"
+
 # Cancellation helpers
 def get_active_run_id() -> Optional[str]:
     return _active_run.get("run_id") if _active_run.get("is_running") else None
@@ -425,10 +468,28 @@ async def run_resizarr(
                     if rules["trigger_logic"] == "auto":
                         min_quality_threshold = rules.get("min_quality_threshold")
                         if min_quality_threshold and min_quality_threshold != "":
-                            should_proceed = is_allowed
-                            if should_proceed:
-                                logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
+                            # Check quality against threshold
+                            threshold_passed, threshold_reason = check_quality_threshold(found_quality, min_quality_threshold)
+                            
+                            if threshold_passed and is_allowed:
+                                should_proceed = True
+                                logger.info(f"[AUTO MODE] Quality check passed: {reason} and threshold passed: {threshold_reason} - Will queue automatically")
+                            elif not threshold_passed:
+                                should_proceed = False
+                                reason = f"{reason} | {threshold_reason}"
+                                logger.info(f"[AUTO MODE] Quality threshold failed: {threshold_reason} - Skipping")
+                                summary["quality_skipped"] += 1
+                                quality_skipped_movies.append({
+                                    'title': movie_title,
+                                    'year': movie.get('year'),
+                                    'current_size_gb': size_gb,
+                                    'current_quality': current_quality,
+                                    'found_size_gb': found_size_gb,
+                                    'found_quality': found_quality,
+                                    'skip_reason': reason
+                                })
                             else:
+                                should_proceed = False
                                 logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (minimum quality: {min_quality_threshold})")
                                 summary["quality_skipped"] += 1
                                 quality_skipped_movies.append({
@@ -441,21 +502,22 @@ async def run_resizarr(
                                     'skip_reason': reason
                                 })
                         else:
-                            should_proceed = True
-                            logger.info(f"[AUTO MODE] Quality check: {reason} - IGNORING for auto mode (no minimum quality threshold)")
-                    elif rules["trigger_logic"] == "quality_match":
-                        should_proceed = is_allowed
-                        if not should_proceed:
-                            summary["quality_skipped"] += 1
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': found_size_gb,
-                                'found_quality': found_quality,
-                                'skip_reason': reason
-                            })
+                            # No threshold set, just use quality rule
+                            should_proceed = is_allowed
+                            if should_proceed:
+                                logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
+                            else:
+                                logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping (no threshold set)")
+                                summary["quality_skipped"] += 1
+                                quality_skipped_movies.append({
+                                    'title': movie_title,
+                                    'year': movie.get('year'),
+                                    'current_size_gb': size_gb,
+                                    'current_quality': current_quality,
+                                    'found_size_gb': found_size_gb,
+                                    'found_quality': found_quality,
+                                    'skip_reason': reason
+                                })
                     else:  # Manual mode
                         should_proceed = is_allowed
                         if not should_proceed:
