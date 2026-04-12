@@ -235,7 +235,25 @@ async function loadQualityTypes() {
         }
 
         if (valueToRestore && valueToRestore !== "") {
-            select.value = valueToRestore;
+            // Check if the value exists in the dropdown
+            let valueExists = false;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === valueToRestore) {
+                    valueExists = true;
+                    break;
+                }
+            }
+    
+            if (valueExists) {
+                select.value = valueToRestore;
+            } else {
+                // Add the missing option
+                const opt = document.createElement('option');
+                opt.value = valueToRestore;
+                opt.textContent = valueToRestore;
+                select.appendChild(opt);
+                select.value = valueToRestore;
+            }
             select.removeAttribute('data-saved-value');
         }
     } catch (e) {
@@ -275,33 +293,38 @@ async function loadRules() {
         document.getElementById('min-size-unit').value = data.min_size_unit;
         document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
         
-        // Store threshold value (but don't set yet if dropdown not populated)
-        const savedThreshold = data.min_quality_threshold || '';
-        const thresholdSelect = document.getElementById('min-quality-threshold');
-        
-        // ALWAYS store as data attribute first
-        thresholdSelect.setAttribute('data-saved-value', savedThreshold);
+        // Store threshold value
+const savedThreshold = data.min_quality_threshold || '';
+const thresholdSelect = document.getElementById('min-quality-threshold');
 
-        // If dropdown already has options, set value immediately
-        if (thresholdSelect.options.length > 1) {
-            thresholdSelect.value = savedThreshold;
-            thresholdSelect.removeAttribute('data-saved-value');
+// ALWAYS store as data attribute first
+thresholdSelect.setAttribute('data-saved-value', savedThreshold);
+
+// If dropdown already has options, set value immediately
+if (thresholdSelect.options.length > 1) {
+    // Check if the saved value exists in the dropdown
+    let valueExists = false;
+    for (let i = 0; i < thresholdSelect.options.length; i++) {
+        if (thresholdSelect.options[i].value === savedThreshold) {
+            valueExists = true;
+            break;
         }
-        
-        document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
-        document.getElementById('language').value = data.language || 'Any';
-        document.getElementById('operation-delay').value = data.operation_delay_seconds || 3;
-        document.getElementById('folder-pattern').value = data.folder_pattern || '';
-
-        const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
-        if (qualityRuleRadio) qualityRuleRadio.checked = true;
-
-        const triggerLogicRadio = document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`);
-        if (triggerLogicRadio) triggerLogicRadio.checked = true;
-
-    } catch (e) {
-        console.error('Failed to load rules:', e);
     }
+    
+    if (valueExists) {
+        thresholdSelect.value = savedThreshold;
+        thresholdSelect.removeAttribute('data-saved-value');
+    } else if (savedThreshold && savedThreshold !== "") {
+        // Add the saved value as an option if it doesn't exist
+        const opt = document.createElement('option');
+        opt.value = savedThreshold;
+        opt.textContent = savedThreshold;
+        thresholdSelect.appendChild(opt);
+        thresholdSelect.value = savedThreshold;
+        thresholdSelect.removeAttribute('data-saved-value');
+        console.log(`Added missing quality option: ${savedThreshold}`);
+    }
+}
 }
 
 async function saveRules() {
