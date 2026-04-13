@@ -36,9 +36,16 @@ input:focus, select:focus, textarea:focus {
 
             <!-- Schedule -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="p-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Schedule</h2>
-                    <div class="space-y-4">
+                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <h2 class="font-semibold">Schedule</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Configure when and how scans run</p>
+                    </div>
+                </div>
+                <div class="p-4 space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Batch Size</label>
                         <select id="batch-size"
@@ -81,13 +88,20 @@ input:focus, select:focus, textarea:focus {
                         </p>
                     </div>
                 </div>
-            </div></div>
+            </div>
 
             <!-- Logging -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="p-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Logging</h2>
-                    <div class="space-y-4">
+                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <div>
+                        <h2 class="font-semibold">Logging</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Control log levels and file rotation</p>
+                    </div>
+                </div>
+                <div class="p-4 space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Log Level</label>
                         <select id="log-level"
@@ -118,18 +132,19 @@ input:focus, select:focus, textarea:focus {
                             style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
                     </div>
                 </div>
-            </div></div>
-
-            <!-- Save Button -->
-            <button onclick="saveSettings()"
-                class="w-full py-2 rounded-lg text-sm font-medium text-white"
-                style="background: var(--accent);">
-                <span id="save-label">Save Settings</span>
-                <span id="save-spinner" class="spinner hidden ml-2"></span>
-            </button>
-
+            </div>
         </div>
-    </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-6 pt-4 border-t" style="border-color: var(--border-color);">
+            <button onclick="saveSettings()" class="w-full py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90" 
+                    style="background: var(--accent);">
+                <span id="save-label">Save Settings</span>
+                <span id="save-spinner" class="hidden ml-2">⏳</span>
+            </button>
+        </div>
+
+    </div>  <!-- Close the card div -->
 </div>
 {% endblock %}
 
