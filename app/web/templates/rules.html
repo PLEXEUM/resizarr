@@ -83,23 +83,19 @@ input[type="range"]::-webkit-slider-thumb {
         <div class="space-y-4">
             
             <!-- FILE SIZE RULES (Collapsible) -->
-            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <button onclick="toggleSection('size-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
-                        </svg>
-                        <div>
-                            <h2 class="font-semibold">File Size Rules</h2>
-                            <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
-                        </div>
-                    </div>
-                    <svg id="size-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            <div class="w-full flex items-center justify-between p-4 text-left">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
                     </svg>
-                </button>
-                <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                    <div>
+                        <h2 class="font-semibold">File Size Rules</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
+                    </div>
+                </div>
+            </div>
+            <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Current File Condition -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -159,21 +155,18 @@ input[type="range"]::-webkit-slider-thumb {
 
             <!-- QUALITY PROTECTION (Collapsible) -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <button onclick="toggleSection('quality-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                <div class="w-full flex items-center justify-between p-4 text-left">
                     <div class="flex items-center gap-3">
                         <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <div>
-                            <h2 class="font-semibold">Quality Protection</h2>
-                            <p class="text-xs" style="color: var(--text-secondary);">Control quality standards for replacements</p>
-                        </div>
+                    <div>
+                        <h2 class="font-semibold">Quality Protection</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Control quality standards for replacements</p>
                     </div>
-                    <svg id="quality-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-                <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                </div>
+            </div>
+            <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Quality Rule Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
@@ -216,21 +209,18 @@ input[type="range"]::-webkit-slider-thumb {
 
             <!-- TRIGGER LOGIC (Collapsible) -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <button onclick="toggleSection('trigger-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                <div class="w-full flex items-center justify-between p-4 text-left">
                     <div class="flex items-center gap-3">
                         <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                    <div>
-                        <h2 class="font-semibold">Trigger Logic</h2>
-                        <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
+                        <div>
+                            <h2 class="font-semibold">Trigger Logic</h2>
+                            <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
+                        </div>
                     </div>
                 </div>
-                <svg id="trigger-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </button>
-            <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: none;">
+                <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: block;">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
                         <input type="radio" name="trigger-logic" value="manual" class="hidden">
@@ -648,14 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
-    // Rotate icons for open sections
-    const openIcons = ['size-section-icon', 'quality-section-icon', 'trigger-section-icon'];
-    openIcons.forEach(iconId => {
-        const icon = document.getElementById(iconId);
-        if (icon) icon.style.transform = 'rotate(180deg)';
-    });
-    
+ 
     // Setup range sliders
     setupRangeSliders();
     
