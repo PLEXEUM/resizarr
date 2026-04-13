@@ -22,6 +22,44 @@ label.border:hover {
     border-color: var(--accent);
     transform: translateY(-1px);
 }
+
+/* ========== ADD DARK THEME FIXES RIGHT HERE ========== */
+/* Dashboard-consistent dark theme fixes */
+input, select, textarea {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 99, 102, 241), 0.2);
+}
+
+input[type="range"] {
+    background: var(--bg-secondary);
+    height: 4px;
+    border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    background: var(--accent);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.card, .border.rounded-lg {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+/* ========== END DARK THEME FIXES ========== */
+
 </style>
 <!-- ========== END CSS ========== -->
 <div class="max-w-3xl mx-auto">
