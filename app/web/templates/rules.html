@@ -431,6 +431,12 @@ async function loadQualityTypes() {
         const data = await res.json();
         qualityTypesCache = data.quality_types;
         populateQualityDropdown(select, qualityTypesCache);
+        // Restore saved value from data attribute
+        const savedValue = select.getAttribute('data-saved-value');
+        if (savedValue && savedValue !== "") {
+            select.value = savedValue;
+            select.removeAttribute('data-saved-value');
+        }
     } catch (e) {
         console.error('Failed to load quality types:', e);
         select.innerHTML = '<option value="">Error loading</option>';
@@ -488,6 +494,7 @@ async function loadRules() {
         // Quality threshold
         const thresholdSelect = document.getElementById('min-quality-threshold');
         const savedThreshold = data.min_quality_threshold || '';
+        thresholdSelect.setAttribute('data-saved-value', savedThreshold);
         if (savedThreshold && thresholdSelect) {
             let optionExists = false;
             for (let i = 0; i < thresholdSelect.options.length; i++) {
@@ -652,9 +659,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup range sliders
     setupRangeSliders();
     
-    // Load data
-    loadQualityTypes();
+    // Load rules FIRST (displays saved values immediately)
     loadRules();
+    
+    // Load quality types in background (doesn't block)
+    loadQualityTypes();
 });
 </script>
 {% endblock %}
