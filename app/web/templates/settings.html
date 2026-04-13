@@ -1,6 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+/* Card and border styling to match rules page */
+.card, .border.rounded-lg {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+/* Dark theme consistent styling for inputs */
+input, select, textarea {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 99, 102, 241), 0.2);
+}
+</style>
+
 <div class="max-w-2xl mx-auto">
     <div class="card rounded-xl p-8">
         <h1 class="text-2xl font-bold mb-2">Settings</h1>
@@ -11,10 +35,10 @@
         <div class="space-y-8">
 
             <!-- Schedule -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Schedule</h2>
-                <div class="space-y-4">
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <div class="p-4">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Schedule</h2>
+                    <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Batch Size</label>
                         <select id="batch-size"
@@ -57,13 +81,13 @@
                         </p>
                     </div>
                 </div>
-            </div>
+            </div></div>
 
             <!-- Logging -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                    style="color: var(--text-secondary)">Logging</h2>
-                <div class="space-y-4">
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <div class="p-4">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Logging</h2>
+                    <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Log Level</label>
                         <select id="log-level"
@@ -94,7 +118,7 @@
                             style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
                     </div>
                 </div>
-            </div>
+            </div></div>
 
             <!-- Save Button -->
             <button onclick="saveSettings()"
