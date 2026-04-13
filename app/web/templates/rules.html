@@ -85,18 +85,17 @@ input[type="range"]::-webkit-slider-thumb {
             <!-- FILE SIZE RULES -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
                 <div class="w-full flex items-center justify-between p-4 text-left">
-                <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
-                    </svg>
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
+                        </svg>
                     <div>
                         <h2 class="font-semibold">File Size Rules</h2>
                         <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
                     </div>
-                </div>
-            </div>    
-            <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
+                </div>  
+                <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Current File Condition -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -154,7 +153,8 @@ input[type="range"]::-webkit-slider-thumb {
                 </div>
             </div>
         </div>
-
+        </div>
+        
             <!-- QUALITY PROTECTION -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
                 <div class="w-full flex items-center justify-between p-4 text-left">
@@ -208,6 +208,7 @@ input[type="range"]::-webkit-slider-thumb {
                     </div>
                 </div>
             </div>
+            </div>
 
             <!-- TRIGGER LOGIC -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
@@ -247,6 +248,7 @@ input[type="range"]::-webkit-slider-thumb {
                     </label>
                 </div>
             </div>
+        </div>
         </div>
 
             <!-- ADVANCED OPTIONS -->
