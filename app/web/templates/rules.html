@@ -8,9 +8,10 @@ input[type="radio"].hidden {
     display: none;
 }
 
-label:has(input[type="radio"].hidden:checked) {
+label:has(input[type="radio"]:checked) {
     border-color: var(--accent) !important;
-    background: rgba(var(--accent-rgb, 99, 102, 241), 0.05);
+    background: rgba(var(--accent-rgb, 99, 102, 241), 0.08);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 /* Make cards more interactive */
@@ -185,34 +186,25 @@ input[type="range"]::-webkit-slider-thumb {
                 <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
                     <!-- Quality Rule Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <label class="border rounded-lg p-3 cursor-pointer transition hover:border-indigo-300" style="border-color: var(--border-color);">
-                            <input type="radio" name="quality-rule" value="equal_or_better" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Equal or better</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">Only upgrade quality</div>
-                                </div>
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="manual" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Manual approval</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
                             </div>
                         </label>
-                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
-                            <input type="radio" name="quality-rule" value="same_only" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Same quality only</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">Exact quality match</div>
-                                </div>
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="auto" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Auto queue</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
                             </div>
                         </label>
-                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
-                            <input type="radio" name="quality-rule" value="any" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Any quality</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">No restrictions</div>
-                                </div>
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="quality_match" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Quality match only</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
                             </div>
                         </label>
                     </div>
