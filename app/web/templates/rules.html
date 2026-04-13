@@ -1,272 +1,457 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-    <div class="card rounded-xl p-8">
-        <h1 class="text-2xl font-bold mb-2">Replacement Rules</h1>
-        <p class="text-sm mb-8" style="color: var(--text-secondary)">
-            Define when and how movies should be replaced.
-        </p>
+<!-- ========== ADD THIS CSS HERE ========== -->
+<style>
+/* Radio button card styling */
+input[type="radio"].hidden {
+    display: none;
+}
 
-        <div class="space-y-8">
+label:has(input[type="radio"].hidden:checked) {
+    border-color: var(--accent) !important;
+    background: rgba(var(--accent-rgb, 99, 102, 241), 0.05);
+}
 
-            <!-- Current File Condition -->
+/* Make cards more interactive */
+label.border {
+    transition: all 0.2s ease;
+}
+
+label.border:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+</style>
+<!-- ========== END CSS ========== -->
+<div class="max-w-3xl mx-auto">
+    <!-- Progress indicator -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between text-sm mb-2">
+            <span class="font-medium">Setup Progress</span>
+            <span id="progress-text" class="text-xs" style="color: var(--text-secondary)">Complete your rules</span>
+        </div>
+        <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full transition-all duration-300" style="width: 0%; background: var(--accent);"></div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6">
+        <div class="flex items-start justify-between mb-6">
             <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Current File Condition</h2>
-                <div class="flex gap-3 items-center">
-                    <span class="text-sm">Replace movies where file size is</span>
-                    <select id="current-operator" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value=">">greater than</option>
-                        <option value="<">less than</option>
-                    </select>
-                    <input id="current-size" type="number" min="0.1" step="0.1" value="4" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="current-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="GB">GB</option>
-                        <option value="MB">MB</option>
-                    </select>
+                <h1 class="text-2xl font-bold mb-1">Replacement Rules</h1>
+                <p class="text-sm" style="color: var(--text-secondary)">
+                    Define when and how movies should be replaced
+                </p>
+            </div>
+            <button onclick="resetToDefaults()" class="text-xs px-3 py-1 rounded-lg border hover:bg-gray-50 transition" 
+                    style="border-color: var(--border-color);">
+                Reset to Defaults
+            </button>
+        </div>
+
+        <!-- Collapsible sections for better organization -->
+        <div class="space-y-4">
+            
+            <!-- FILE SIZE RULES (Collapsible) -->
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <button onclick="toggleSection('size-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
+                        </svg>
+                        <div>
+                            <h2 class="font-semibold">File Size Rules</h2>
+                            <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
+                        </div>
+                    </div>
+                    <svg id="size-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                    <!-- Current File Condition -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Current File Condition
+                            </label>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-sm">Size is</span>
+                                <select id="current-operator" class="px-2 py-1.5 rounded-lg text-sm border flex-1" style="background: var(--bg-primary); border-color: var(--border-color);">
+                                    <option value=">">greater than</option>
+                                    <option value="<">less than</option>
+                                </select>
+                                <input id="current-size" type="number" min="0.1" step="0.1" value="4" class="w-20 px-2 py-1.5 rounded-lg text-sm border text-center" />
+                                <select id="current-unit" class="px-2 py-1.5 rounded-lg text-sm border w-16">
+                                    <option value="GB">GB</option>
+                                    <option value="MB">MB</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Target Replacement Size -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Target Replacement Size
+                            </label>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-sm">Find that is</span>
+                                <select id="target-operator" class="px-2 py-1.5 rounded-lg text-sm border flex-1">
+                                    <option value="<">less than</option>
+                                    <option value=">">greater than</option>
+                                </select>
+                                <input id="target-size" type="number" min="0.1" step="0.1" value="2" class="w-20 px-2 py-1.5 rounded-lg text-sm border text-center" />
+                                <select id="target-unit" class="px-2 py-1.5 rounded-lg text-sm border w-16">
+                                    <option value="GB">GB</option>
+                                    <option value="MB">MB</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Minimum File Size -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                            Minimum File Size (ignore smaller files)
+                        </label>
+                        <div class="flex gap-2 items-center">
+                            <input id="min-size" type="number" min="1" step="1" value="100" class="w-24 px-2 py-1.5 rounded-lg text-sm border text-center" />
+                            <select id="min-size-unit" class="px-2 py-1.5 rounded-lg text-sm border w-20">
+                                <option value="MB">MB</option>
+                                <option value="GB">GB</option>
+                            </select>
+                            <span class="text-xs" style="color: var(--text-secondary);">Files smaller than this are ignored</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Target Size -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Target Replacement Size</h2>
-                <div class="flex gap-3 items-center">
-                    <span class="text-sm">Find a replacement that is</span>
-                    <select id="target-operator" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="<">less than</option>
-                        <option value=">">greater than</option>
-                    </select>
-                    <input id="target-size" type="number" min="0.1" step="0.1" value="2" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="target-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="GB">GB</option>
-                        <option value="MB">MB</option>
-                    </select>
+            <!-- QUALITY PROTECTION (Collapsible) -->
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <button onclick="toggleSection('quality-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <h2 class="font-semibold">Quality Protection</h2>
+                            <p class="text-xs" style="color: var(--text-secondary);">Control quality standards for replacements</p>
+                        </div>
+                    </div>
+                    <svg id="quality-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                    <!-- Quality Rule Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="border rounded-lg p-3 cursor-pointer transition hover:border-indigo-300" style="border-color: var(--border-color);">
+                            <input type="radio" name="quality-rule" value="equal_or_better" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Equal or better</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">Only upgrade quality</div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
+                            <input type="radio" name="quality-rule" value="same_only" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Same quality only</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">Exact quality match</div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
+                            <input type="radio" name="quality-rule" value="any" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Any quality</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">No restrictions</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Minimum Quality Threshold -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                            Minimum Quality Threshold
+                        </label>
+                        <select id="min-quality-threshold" class="w-full px-3 py-2 rounded-lg text-sm border">
+                            <option value="">No minimum</option>
+                        </select>
+                        <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                            Only replace if found quality is at least this quality
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Minimum Size -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Minimum File Size (ignore smaller files)</h2>
-                <div class="flex gap-3 items-center">
-                    <input id="min-size" type="number" min="1" step="1" value="100" class="w-24 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <select id="min-size-unit" class="px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="MB">MB</option>
-                        <option value="GB">GB</option>
-                    </select>
+            <!-- TRIGGER LOGIC (Collapsible) -->
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <button onclick="toggleSection('trigger-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <div>
+                            <h2 class="font-semibold">Trigger Logic</h2>
+                            <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
+                        </div>
+                    </div>
+                    <svg id="trigger-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: none;">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="manual" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Manual approval</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="auto" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Auto queue</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="quality_match" class="hidden peer">
+                            <div class="flex items-start gap-2">
+                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Quality match only</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
 
-            <!-- Excluded Extensions -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Excluded Extensions</h2>
-                <input id="excluded-extensions" type="text" placeholder=".nfo, .jpg, .png, .srt" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                <p class="text-xs mt-1" style="color: var(--text-secondary)">Comma separated. Files with these extensions will be ignored.</p>
-            </div>
+            <!-- ADVANCED OPTIONS (Collapsible) -->
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <button onclick="toggleSection('advanced-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <div>
+                            <h2 class="font-semibold">Advanced Options</h2>
+                            <p class="text-xs" style="color: var(--text-secondary);">Fine-tune replacement behavior</p>
+                        </div>
+                    </div>
+                    <svg id="advanced-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="advanced-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Excluded Extensions -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Excluded Extensions
+                            </label>
+                            <input id="excluded-extensions" type="text" placeholder=".nfo, .jpg, .png, .srt" 
+                                   class="w-full px-3 py-2 rounded-lg text-sm border">
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">Comma separated</p>
+                        </div>
 
-            <!-- Quality Protection -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Quality Protection</h2>
-                <div class="space-y-2">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="equal_or_better" checked class="accent-indigo-500" />
-                        <span class="text-sm">Equal or better quality only</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="same_only" class="accent-indigo-500" />
-                        <span class="text-sm">Same quality only</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="quality-rule" value="any" class="accent-indigo-500" />
-                        <span class="text-sm">Any quality (no restriction)</span>
-                    </label>
+                        <!-- Folder Pattern -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Folder Pattern Filter
+                            </label>
+                            <input id="folder-pattern" type="text" placeholder="4K|Remux|Movies" 
+                                   class="w-full px-3 py-2 rounded-lg text-sm border">
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">Regex pattern</p>
+                        </div>
+
+                        <!-- Minimum Peers -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Minimum Peers
+                            </label>
+                            <div class="flex gap-2 items-center">
+                                <input id="min-peers" type="range" min="0" max="20" value="2" class="flex-1">
+                                <span id="min-peers-value" class="text-sm font-mono w-8 text-center">2</span>
+                            </div>
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">Minimum seeders + leechers required</p>
+                        </div>
+
+                        <!-- Operation Delay -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Operation Delay
+                            </label>
+                            <div class="flex gap-2 items-center">
+                                <input id="operation-delay" type="range" min="0" max="10" step="0.5" value="3" class="flex-1">
+                                <span id="operation-delay-value" class="text-sm font-mono w-12 text-center">3s</span>
+                            </div>
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">Delay between operations</p>
+                        </div>
+
+                        <!-- Language Preference -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                                Language Preference
+                            </label>
+                            <select id="language" class="w-full px-3 py-2 rounded-lg text-sm border">
+                                <option value="Any">Any</option>
+                                <option value="English">English</option>
+                                <option value="German">German</option>
+                                <option value="French">French</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="Italian">Italian</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="mt-4">
-                    <label class="block text-sm mb-2">Minimum Quality Threshold</label>
-                    <select id="min-quality-threshold" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                        <option value="">No minimum</option>
-                    </select>
-                    <p class="text-xs mt-1" style="color: var(--text-secondary)">Only replace if found quality is at least this quality (e.g., WEBDL-1080p)</p>
-                </div>
             </div>
+        </div>
 
-            <!-- Trigger Logic -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Trigger Logic</h2>
-                <div class="space-y-2">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="manual" checked class="accent-indigo-500" />
-                        <span class="text-sm">Manual approval — review before triggering</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="auto" class="accent-indigo-500" />
-                        <span class="text-sm">Auto queue — trigger immediately</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="trigger-logic" value="quality_match" class="accent-indigo-500" />
-                        <span class="text-sm">Quality match only — trigger only if quality profile matches</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- NEW: Operation Delay -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Operation Delay</h2>
-                <div class="flex gap-3 items-center">
-                    <input id="operation-delay" type="number" min="0" max="30" value="3" class="w-20 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <span class="text-sm">seconds between each movie (prevents hammering Radarr)</span>
-                </div>
-            </div>
-
-            <!-- NEW: Folder Pattern -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Folder Pattern Filter</h2>
-                <input id="folder-pattern" type="text" placeholder="4K|Remux|Movies" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                <p class="text-xs mt-1" style="color: var(--text-secondary)">Only process movies in folders matching this regex (e.g. 4K|Remux)</p>
-            </div>
-
-            <!-- NEW: Minimum Peers -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Minimum Peers</h2>
-                <div class="flex gap-3 items-center">
-                    <input id="min-peers" type="number" min="0" max="100" value="2" class="w-20 px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <span class="text-sm">minimum seeders + leechers required</span>
-                </div>
-            </div>
-
-            <!-- NEW: Language Preference -->
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-wide mb-4" style="color: var(--text-secondary)">Language Preference</h2>
-                <select id="language" class="w-full px-3 py-2 rounded-lg text-sm border" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                    <option value="Any">Any</option>
-                    <option value="English">English</option>
-                    <option value="German">German</option>
-                    <option value="French">French</option>
-                    <option value="Spanish">Spanish</option>
-                    <option value="Italian">Italian</option>
-                </select>
-            </div>
-
-            <!-- Save Button -->
-            <button onclick="saveRules()" class="w-full py-2 rounded-lg text-sm font-medium text-white" style="background: var(--accent);">
+        <!-- Action Buttons -->
+        <div class="flex gap-3 mt-6 pt-4 border-t" style="border-color: var(--border-color);">
+            <button onclick="saveRules()" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90" 
+                    style="background: var(--accent);">
                 <span id="save-label">Save Rules</span>
-                <span id="save-spinner" class="spinner hidden ml-2"></span>
+                <span id="save-spinner" class="hidden ml-2">⏳</span>
+            </button>
+            <button onclick="testRules()" class="px-4 py-2.5 rounded-lg text-sm font-medium border hover:bg-gray-50 transition" 
+                    style="border-color: var(--border-color);">
+                Test Rules
             </button>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-// Cache for quality types (persists across page loads)
+// ========== GLOBAL VARIABLES ==========
 let qualityTypesCache = null;
+let openSections = new Set(['size-section', 'quality-section', 'trigger-section']);
 
-// Single DOMContentLoaded listener - everything in one place
-window.addEventListener('DOMContentLoaded', () => {
-    const thresholdSelect = document.getElementById('min-quality-threshold');
-    
-    // 1. First, add common qualities immediately
-    const commonQualities = [
-        "2160p", "4K", "1080p", "720p", "480p",
-        "BluRay-1080p", "BluRay-720p", "BluRay-480p",
-        "WEBDL-1080p", "WEBDL-720p", "WEBDL-480p",
-        "WEBRip-1080p", "WEBRip-720p", "WEBRip-480p",
-        "HDTV-1080p", "HDTV-720p", "DVD"
-    ];
-
-    if (thresholdSelect.options.length === 1) {
-        commonQualities.forEach(quality => {
-            const opt = document.createElement('option');
-            opt.value = quality;
-            opt.textContent = quality;
-            thresholdSelect.appendChild(opt);
-        });
+// ========== TOAST NOTIFICATION ==========
+function showToast(message, type = 'info') {
+    let toast = document.getElementById('custom-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'custom-toast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            max-width: 350px;
+            font-size: 14px;
+        `;
+        document.body.appendChild(toast);
+        
+        // Add animation style
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
     }
     
-    // 2. Set up event listeners for on-demand loading
-    thresholdSelect.addEventListener('mousedown', () => loadQualityTypes());
-    thresholdSelect.addEventListener('focus', () => loadQualityTypes());
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        info: '#3b82f6',
+        warning: '#f59e0b'
+    };
+    toast.style.backgroundColor = colors[type] || colors.info;
+    toast.textContent = message;
+    toast.style.display = 'block';
     
-    // 3. Load rules (which will now have dropdown options ready)
-    loadRules();
-    
-    // 4. Check for any stored saved value that needs to be applied
-    const savedValue = thresholdSelect.getAttribute('data-saved-value');
-    if (savedValue && savedValue !== "" && thresholdSelect.options.length > 1) {
-        thresholdSelect.value = savedValue;
-        thresholdSelect.removeAttribute('data-saved-value');
-    }
-});
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+}
 
+// ========== COLLAPSIBLE SECTIONS ==========
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const icon = document.getElementById(`${sectionId}-icon`);
+    
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+        openSections.add(sectionId);
+    } else {
+        section.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+        openSections.delete(sectionId);
+    }
+    updateProgress();
+}
+
+function updateProgress() {
+    const totalSections = 4;
+    const completed = openSections.size;
+    const percent = (completed / totalSections) * 100;
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    
+    if (percent === 100 && progressText) {
+        progressText.innerHTML = '✓ All sections configured';
+    } else if (progressText) {
+        progressText.innerHTML = `${Math.round(percent)}% complete`;
+    }
+}
+
+// ========== LOAD QUALITY TYPES ==========
 async function loadQualityTypes() {
     const select = document.getElementById('min-quality-threshold');
-
-    // If we already have cached data, just populate
+    if (!select) return;
+    
     if (qualityTypesCache) {
         populateQualityDropdown(select, qualityTypesCache);
-        // Restore saved value after populating
-        const savedValue = select.getAttribute('data-saved-value');
-        if (savedValue && savedValue !== "") {
-            select.value = savedValue;
-            select.removeAttribute('data-saved-value');
-        }
         return;
     }
     
-    // Show loading state
-    const savedValue = select.value;
-    select.innerHTML = '<option value="">Loading quality types...</option>';
-    select.disabled = true;
+    select.innerHTML = '<option value="">Loading...</option>';
     
     try {
         const res = await fetch('/api/quality-types');
         const data = await res.json();
         qualityTypesCache = data.quality_types;
-
-        // Restore dropdown
-        select.disabled = false;
         populateQualityDropdown(select, qualityTypesCache);
-        
-        // Restore the saved value - check both possible locations
-        let valueToRestore = savedValue;
-        if (!valueToRestore || valueToRestore === "") {
-            valueToRestore = select.getAttribute('data-saved-value');
-        }
-
-        if (valueToRestore && valueToRestore !== "") {
-            // Check if the value exists in the dropdown
-            let valueExists = false;
-            for (let i = 0; i < select.options.length; i++) {
-                if (select.options[i].value === valueToRestore) {
-                    valueExists = true;
-                    break;
-                }
-            }
-    
-            if (valueExists) {
-                select.value = valueToRestore;
-            } else {
-                // Add the missing option
-                const opt = document.createElement('option');
-                opt.value = valueToRestore;
-                opt.textContent = valueToRestore;
-                select.appendChild(opt);
-                select.value = valueToRestore;
-            }
-            select.removeAttribute('data-saved-value');
-        }
     } catch (e) {
         console.error('Failed to load quality types:', e);
         select.innerHTML = '<option value="">Error loading</option>';
-        select.disabled = false;
     }
 }
 
 function populateQualityDropdown(select, qualityTypes) {
-    // Clear existing options except the first "No minimum"
     select.innerHTML = '<option value="">No minimum</option>';
-    
     qualityTypes.forEach(quality => {
         const opt = document.createElement('option');
         opt.value = quality;
@@ -275,97 +460,104 @@ function populateQualityDropdown(select, qualityTypes) {
     });
 }
 
-// Modified loadRules - no waiting for quality types
+// ========== LOAD RULES FROM SERVER ==========
 async function loadRules() {
     try {
         const res = await fetch('/api/rules');
         const data = await res.json();
         if (!data.configured) return;
 
-        // Set all other fields (these are instant)
-        document.getElementById('current-operator').value = data.current_operator;
-        document.getElementById('current-size').value = data.current_size;
-        document.getElementById('current-unit').value = data.current_unit;
-        document.getElementById('target-operator').value = data.target_operator;
-        document.getElementById('target-size').value = data.target_size;
-        document.getElementById('target-unit').value = data.target_unit;
-        document.getElementById('min-size').value = data.min_size;
-        document.getElementById('min-size-unit').value = data.min_size_unit;
-        document.getElementById('excluded-extensions').value = (data.excluded_extensions || []).join(', ');
+        // Basic fields
+        const fields = ['current-operator', 'current-size', 'current-unit', 
+                       'target-operator', 'target-size', 'target-unit',
+                       'min-size', 'min-size-unit', 'folder-pattern', 'language'];
         
-        // Store threshold value
-        const savedThreshold = data.min_quality_threshold || '';
+        fields.forEach(field => {
+            const el = document.getElementById(field);
+            if (el && data[field.replace('-', '_')] !== undefined) {
+                el.value = data[field.replace('-', '_')];
+            }
+        });
+        
+        // Excluded extensions
+        const extEl = document.getElementById('excluded-extensions');
+        if (extEl) extEl.value = (data.excluded_extensions || []).join(', ');
+        
+        // Range sliders
+        const minPeers = document.getElementById('min-peers');
+        const minPeersValue = document.getElementById('min-peers-value');
+        if (minPeers && minPeersValue) {
+            minPeers.value = data.min_peers || 2;
+            minPeersValue.textContent = data.min_peers || 2;
+        }
+        
+        const opDelay = document.getElementById('operation-delay');
+        const opDelayValue = document.getElementById('operation-delay-value');
+        if (opDelay && opDelayValue) {
+            opDelay.value = data.operation_delay_seconds || 3;
+            opDelayValue.textContent = `${data.operation_delay_seconds || 3}s`;
+        }
+        
+        // Quality threshold
         const thresholdSelect = document.getElementById('min-quality-threshold');
-        
-        // ALWAYS store as data attribute first
-        thresholdSelect.setAttribute('data-saved-value', savedThreshold);
-        
-        // If dropdown already has options, set value immediately
-        if (thresholdSelect.options.length > 1) {
-            // Check if the saved value exists in the dropdown
-            let valueExists = false;
+        const savedThreshold = data.min_quality_threshold || '';
+        if (savedThreshold && thresholdSelect) {
+            let optionExists = false;
             for (let i = 0; i < thresholdSelect.options.length; i++) {
                 if (thresholdSelect.options[i].value === savedThreshold) {
-                    valueExists = true;
+                    optionExists = true;
                     break;
                 }
             }
-            
-            if (valueExists) {
-                thresholdSelect.value = savedThreshold;
-                thresholdSelect.removeAttribute('data-saved-value');
-            } else if (savedThreshold && savedThreshold !== "") {
-                // Add the saved value as an option if it doesn't exist
+            if (!optionExists) {
                 const opt = document.createElement('option');
                 opt.value = savedThreshold;
                 opt.textContent = savedThreshold;
                 thresholdSelect.appendChild(opt);
-                thresholdSelect.value = savedThreshold;
-                thresholdSelect.removeAttribute('data-saved-value');
-                console.log(`Added missing quality option: ${savedThreshold}`);
             }
+            thresholdSelect.value = savedThreshold;
         }
         
-        document.getElementById('min-peers').value = data.min_peers !== undefined ? data.min_peers : 0;
-        document.getElementById('language').value = data.language || 'Any';
-        document.getElementById('operation-delay').value = data.operation_delay_seconds || 3;
-        document.getElementById('folder-pattern').value = data.folder_pattern || '';
-
-        const qualityRuleRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
-        if (qualityRuleRadio) qualityRuleRadio.checked = true;
-
-        const triggerLogicRadio = document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`);
-        if (triggerLogicRadio) triggerLogicRadio.checked = true;
-
+        // Radio buttons
+        const qualityRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
+        if (qualityRadio) qualityRadio.checked = true;
+        
+        const triggerRadio = document.querySelector(`input[name="trigger-logic"][value="${data.trigger_logic}"]`);
+        if (triggerRadio) triggerRadio.checked = true;
+        
     } catch (e) {
         console.error('Failed to load rules:', e);
     }
-}  // ← Make sure this closing brace is here
+}
 
+// ========== SAVE RULES TO SERVER ==========
 async function saveRules() {
-    document.getElementById('save-label').textContent = 'Saving...';
-    document.getElementById('save-spinner').classList.remove('hidden');
+    const saveLabel = document.getElementById('save-label');
+    const saveSpinner = document.getElementById('save-spinner');
+    
+    if (saveLabel) saveLabel.textContent = 'Saving...';
+    if (saveSpinner) saveSpinner.classList.remove('hidden');
 
-    const extensions = document.getElementById('excluded-extensions').value
+    const extensions = (document.getElementById('excluded-extensions')?.value || '')
         .split(',').map(e => e.trim()).filter(Boolean);
 
     const payload = {
-        current_operator: document.getElementById('current-operator').value,
-        current_size: parseFloat(document.getElementById('current-size').value),
-        current_unit: document.getElementById('current-unit').value,
-        target_operator: document.getElementById('target-operator').value,
-        target_size: parseFloat(document.getElementById('target-size').value),
-        target_unit: document.getElementById('target-unit').value,
-        min_size: parseFloat(document.getElementById('min-size').value),
-        min_size_unit: document.getElementById('min-size-unit').value,
+        current_operator: document.getElementById('current-operator')?.value || '>',
+        current_size: parseFloat(document.getElementById('current-size')?.value || 4),
+        current_unit: document.getElementById('current-unit')?.value || 'GB',
+        target_operator: document.getElementById('target-operator')?.value || '<',
+        target_size: parseFloat(document.getElementById('target-size')?.value || 2),
+        target_unit: document.getElementById('target-unit')?.value || 'GB',
+        min_size: parseFloat(document.getElementById('min-size')?.value || 100),
+        min_size_unit: document.getElementById('min-size-unit')?.value || 'MB',
         excluded_extensions: extensions,
-        quality_rule: document.querySelector('input[name="quality-rule"]:checked').value,
-        min_quality_threshold: document.getElementById('min-quality-threshold').value || null,
-        trigger_logic: document.querySelector('input[name="trigger-logic"]:checked').value,
-        min_peers: parseInt(document.getElementById('min-peers').value) || 0,
-        language: document.getElementById('language').value,
-        operation_delay_seconds: parseInt(document.getElementById('operation-delay').value) || 3,
-        folder_pattern: document.getElementById('folder-pattern').value.trim() || null
+        quality_rule: document.querySelector('input[name="quality-rule"]:checked')?.value || 'equal_or_better',
+        min_quality_threshold: document.getElementById('min-quality-threshold')?.value || null,
+        trigger_logic: document.querySelector('input[name="trigger-logic"]:checked')?.value || 'manual',
+        min_peers: parseInt(document.getElementById('min-peers')?.value || 2),
+        language: document.getElementById('language')?.value || 'Any',
+        operation_delay_seconds: parseInt(document.getElementById('operation-delay')?.value || 3),
+        folder_pattern: document.getElementById('folder-pattern')?.value?.trim() || null
     };
 
     try {
@@ -384,10 +576,139 @@ async function saveRules() {
     } catch (e) {
         showToast('Request failed: ' + e.message, 'error');
     } finally {
-        document.getElementById('save-label').textContent = 'Save Rules';
-        document.getElementById('save-spinner').classList.add('hidden');
+        if (saveLabel) saveLabel.textContent = 'Save Rules';
+        if (saveSpinner) saveSpinner.classList.add('hidden');
     }
 }
 
+// ========== TEST RULES ==========
+async function testRules() {
+    const testBtn = document.querySelector('button[onclick="testRules()"]');
+    if (!testBtn) return;
+    
+    const originalText = testBtn.textContent;
+    testBtn.textContent = 'Testing...';
+    testBtn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/rules/test', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.matches_found === 0) {
+            if (data.quality_skipped > 0 || data.no_releases_found > 0) {
+                showToast(`No matches found. ${data.quality_skipped} skipped due to quality, ${data.no_releases_found} had no releases.`, 'info');
+            } else {
+                showToast('✓ No movies match the current rules', 'success');
+            }
+        } else {
+            const spaceSavedGB = data.total_space_saved_gb || (data.total_space_saved_mb / 1024).toFixed(2);
+            let message = `Found ${data.matches_found} movies that could be replaced. Potential savings: ${spaceSavedGB} GB`;
+            
+            // Add additional context if there are skipped movies
+            if (data.quality_skipped > 0) {
+                message += ` (${data.quality_skipped} skipped due to quality)`;
+            }
+            if (data.no_releases_found > 0) {
+                message += ` (${data.no_releases_found} had no releases)`;
+            }
+            
+            showToast(message, 'info');
+        }
+    } catch (e) {
+        showToast('Test failed: ' + e.message, 'error');
+    } finally {
+        testBtn.textContent = originalText;
+        testBtn.disabled = false;
+    }
+}
+
+// ========== RESET TO DEFAULTS ==========
+function resetToDefaults() {
+    if (confirm('Reset all rules to default values?')) {
+        const defaults = {
+            'current-operator': '>',
+            'current-size': '4',
+            'target-operator': '<',
+            'target-size': '2',
+            'min-size': '100',
+            'min-size-unit': 'MB',
+            'excluded-extensions': '',
+            'folder-pattern': '',
+            'min-peers': '2',
+            'operation-delay': '3',
+            'language': 'Any'
+        };
+        
+        Object.entries(defaults).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        });
+        
+        // Update range displays
+        const minPeersValue = document.getElementById('min-peers-value');
+        if (minPeersValue) minPeersValue.textContent = '2';
+        
+        const opDelayValue = document.getElementById('operation-delay-value');
+        if (opDelayValue) opDelayValue.textContent = '3s';
+        
+        // Reset radios
+        const qualityRadio = document.querySelector('input[name="quality-rule"][value="equal_or_better"]');
+        if (qualityRadio) qualityRadio.checked = true;
+        
+        const triggerRadio = document.querySelector('input[name="trigger-logic"][value="manual"]');
+        if (triggerRadio) triggerRadio.checked = true;
+        
+        showToast('Reset to defaults', 'success');
+    }
+}
+
+// ========== RANGE SLIDER LIVE UPDATES ==========
+function setupRangeSliders() {
+    const minPeers = document.getElementById('min-peers');
+    const minPeersValue = document.getElementById('min-peers-value');
+    if (minPeers && minPeersValue) {
+        minPeers.addEventListener('input', (e) => {
+            minPeersValue.textContent = e.target.value;
+        });
+    }
+    
+    const opDelay = document.getElementById('operation-delay');
+    const opDelayValue = document.getElementById('operation-delay-value');
+    if (opDelay && opDelayValue) {
+        opDelay.addEventListener('input', (e) => {
+            opDelayValue.textContent = `${e.target.value}s`;
+        });
+    }
+}
+
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // Set initial section states
+    const sections = ['size-section', 'quality-section', 'trigger-section', 'advanced-section'];
+    sections.forEach(section => {
+        const el = document.getElementById(section);
+        if (el) {
+            if (section === 'advanced-section') {
+                el.style.display = 'none';
+            } else {
+                el.style.display = 'block';
+            }
+        }
+    });
+    
+    // Rotate icons for open sections
+    const openIcons = ['size-section-icon', 'quality-section-icon', 'trigger-section-icon'];
+    openIcons.forEach(iconId => {
+        const icon = document.getElementById(iconId);
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    });
+    
+    // Setup range sliders
+    setupRangeSliders();
+    
+    // Load data
+    loadQualityTypes();
+    loadRules();
+});
 </script>
 {% endblock %}

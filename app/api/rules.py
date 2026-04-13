@@ -108,6 +108,60 @@ async def get_quality_types():
         return {"quality_types": []}
 # ========== END NEW ENDPOINT ==========
 
+# ========== FIXED TEST ENDPOINT ==========
+@router.post("/rules/test")
+async def test_rules():
+    """Test current rules against library and return count of matches."""
+    from app.core.scanner import run_resizarr
+    
+    conn = get_connection()
+    config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
+    rules = conn.execute("SELECT * FROM rules WHERE id = 1").fetchone()
+    conn.close()
+    
+    if not config or not rules:
+        raise HTTPException(status_code=400, detail="Configuration incomplete")
+    
+    try:
+        # Run a dry run scan to test rules
+        result = await run_resizarr(dry_run=True)
+        
+        # Extract counts from result
+        matches_found = result.get("pending_approval", 0)
+        quality_skipped = result.get("quality_skipped", 0)
+        no_releases_found = result.get("no_releases_found", 0)
+        
+        # Calculate actual space savings from pending replacements
+        total_saved_mb = 0
+        conn2 = get_connection()
+        pending = conn2.execute("""
+            SELECT current_size_gb, found_size_gb 
+            FROM pending_replacements 
+            WHERE status = 'pending'
+        """).fetchall()
+        
+        for p in pending:
+            current_gb = p["current_size_gb"]
+            found_gb = p["found_size_gb"]
+            if current_gb and found_gb and current_gb > found_gb:
+                saved = (current_gb - found_gb) * 1024  # Convert to MB
+                total_saved_mb += saved
+        conn2.close()
+
+        return {
+            "matches_found": matches_found,
+            "total_space_saved_mb": round(total_saved_mb, 2),
+            "total_space_saved_gb": round(total_saved_mb / 1024, 2),
+            "quality_skipped": quality_skipped,
+            "no_releases_found": no_releases_found,
+            "matches": []
+        }
+
+    except Exception as e:
+        logger.error(f"Test failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+# ========== END FIXED TEST ENDPOINT ==========
+
 @router.post("/rules")
 async def save_rules(data: RulesInput):
     """Save replacement rules."""
