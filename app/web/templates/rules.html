@@ -187,24 +187,24 @@ input[type="range"]::-webkit-slider-thumb {
                     <!-- Quality Rule Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="manual" class="hidden">
+                            <input type="radio" name="quality-rule" value="equal_or_better" class="hidden">
                             <div>
-                                <div class="font-medium text-sm">Manual approval</div>
-                                <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
+                                <div class="font-medium text-sm">Equal or better</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Only upgrade quality</div>
                             </div>
                         </label>
                         <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="auto" class="hidden">
+                            <input type="radio" name="quality-rule" value="same_only" class="hidden">
                             <div>
-                                <div class="font-medium text-sm">Auto queue</div>
-                                <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
+                                <div class="font-medium text-sm">Same quality only</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Exact quality match</div>
                             </div>
                         </label>
                         <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="quality_match" class="hidden">
+                            <input type="radio" name="quality-rule" value="any" class="hidden">
                             <div>
-                                <div class="font-medium text-sm">Quality match only</div>
-                                <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
+                                <div class="font-medium text-sm">Any quality</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">No restrictions</div>
                             </div>
                         </label>
                     </div>
@@ -231,50 +231,41 @@ input[type="range"]::-webkit-slider-thumb {
                         <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                        <div>
-                            <h2 class="font-semibold">Trigger Logic</h2>
-                            <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
-                        </div>
-                    </div>
-                    <svg id="trigger-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-                <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: none;">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="manual" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Manual approval</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
-                                </div>
-                            </div>
-                        </label>
-                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="auto" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Auto queue</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
-                                </div>
-                            </div>
-                        </label>
-                        <label class="border rounded-lg p-3 cursor-pointer transition" style="border-color: var(--border-color);">
-                            <input type="radio" name="trigger-logic" value="quality_match" class="hidden peer">
-                            <div class="flex items-start gap-2">
-                                <div class="w-4 h-4 mt-0.5 rounded-full border-2 peer-checked:bg-indigo-500 peer-checked:border-indigo-500"></div>
-                                <div>
-                                    <div class="font-medium text-sm">Quality match only</div>
-                                    <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
-                                </div>
-                            </div>
-                        </label>
+                    <div>
+                        <h2 class="font-semibold">Trigger Logic</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
                     </div>
                 </div>
+                <svg id="trigger-section-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                        <input type="radio" name="trigger-logic" value="manual" class="hidden">
+                        <div>
+                            <div class="font-medium text-sm">Manual approval</div>
+                            <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
+                        </div>
+                    </label>
+                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                        <input type="radio" name="trigger-logic" value="auto" class="hidden">
+                        <div>
+                            <div class="font-medium text-sm">Auto queue</div>
+                            <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
+                        </div>
+                    </label>
+                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                        <input type="radio" name="trigger-logic" value="quality_match" class="hidden">
+                        <div>
+                            <div class="font-medium text-sm">Quality match only</div>
+                            <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
+                        </div>
+                    </label>
+                </div>
             </div>
+        </div>
 
             <!-- ADVANCED OPTIONS (Collapsible) -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
