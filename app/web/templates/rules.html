@@ -66,7 +66,7 @@ input[type="range"]::-webkit-slider-thumb {
 <div class="max-w-3xl mx-auto">
     <!-- Progress indicator -->
     <div class="card rounded-xl p-6">
-        <div class="flex items-start justify-between mb-6">
+        <div class="flex items-start mb-6">
             <div>
                 <h1 class="text-2xl font-bold mb-1">Replacement Rules</h1>
                 <p class="text-sm" style="color: var(--text-secondary)">
@@ -84,17 +84,16 @@ input[type="range"]::-webkit-slider-thumb {
             
             <!-- FILE SIZE RULES -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="w-full flex items-center justify-between p-4 text-left">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
-                        </svg>
+                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 11h6"></path>
+                    </svg>
                     <div>
                         <h2 class="font-semibold">File Size Rules</h2>
                         <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
                     </div>
-                </div>  
+                </div>
                 <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Current File Condition -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -152,23 +151,19 @@ input[type="range"]::-webkit-slider-thumb {
                     </div>
                 </div>
             </div>
-        </div>
-        </div>
         
             <!-- QUALITY PROTECTION -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="w-full flex items-center justify-between p-4 text-left">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                     <div>
                         <h2 class="font-semibold">Quality Protection</h2>
                         <p class="text-xs" style="color: var(--text-secondary);">Control quality standards for replacements</p>
                     </div>
                 </div>
-            </div>
-            <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
+                <div id="quality-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Quality Rule Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
@@ -208,52 +203,48 @@ input[type="range"]::-webkit-slider-thumb {
                     </div>
                 </div>
             </div>
-            </div>
 
             <!-- TRIGGER LOGIC -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="w-full flex items-center justify-between p-4 text-left">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        <div>
-                            <h2 class="font-semibold">Trigger Logic</h2>
-                            <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
-                        </div>
+                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <div>
+                        <h2 class="font-semibold">Trigger Logic</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">How replacements should be triggered</p>
                     </div>
                 </div>
                 <div id="trigger-section" class="border-t p-4" style="border-color: var(--border-color); display: block;">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                        <input type="radio" name="trigger-logic" value="manual" class="hidden">
-                        <div>
-                            <div class="font-medium text-sm">Manual approval</div>
-                            <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
-                        </div>
-                    </label>
-                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                        <input type="radio" name="trigger-logic" value="auto" class="hidden">
-                        <div>
-                            <div class="font-medium text-sm">Auto queue</div>
-                            <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
-                        </div>
-                    </label>
-                    <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
-                        <input type="radio" name="trigger-logic" value="quality_match" class="hidden">
-                        <div>
-                            <div class="font-medium text-sm">Quality match only</div>
-                            <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
-                        </div>
-                    </label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="manual" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Manual approval</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Review before triggering</div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="auto" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Auto queue</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Trigger immediately</div>
+                            </div>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer transition text-center" style="border-color: var(--border-color);">
+                            <input type="radio" name="trigger-logic" value="quality_match" class="hidden">
+                            <div>
+                                <div class="font-medium text-sm">Quality match only</div>
+                                <div class="text-xs" style="color: var(--text-secondary);">Only if profile matches</div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
-        </div>
-        </div>
 
             <!-- ADVANCED OPTIONS -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <button onclick="toggleSection('advanced-section')" class="w-full flex items-center justify-between p-4 text-left">
+                <button onclick="toggleSection('advanced-section')" class="w-full flex items-center p-4 text-left">
                     <div class="flex items-center gap-3">
                         <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
