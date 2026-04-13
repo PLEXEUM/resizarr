@@ -82,8 +82,9 @@ input[type="range"]::-webkit-slider-thumb {
         <!-- Collapsible sections for better organization -->
         <div class="space-y-4">
             
-            <!-- FILE SIZE RULES (Collapsible) -->
-            <div class="w-full flex items-center justify-between p-4 text-left">
+            <!-- FILE SIZE RULES -->
+            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
+                <div class="w-full flex items-center justify-between p-4 text-left">
                 <div class="flex items-center gap-3">
                     <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 4 4 4h8c2.5 0 4-2 4-4V7c0-2-1.5-4-4-4H8C5.5 3 4 5 4 7z"></path>
@@ -94,7 +95,7 @@ input[type="range"]::-webkit-slider-thumb {
                         <p class="text-xs" style="color: var(--text-secondary);">Configure size-based replacement conditions</p>
                     </div>
                 </div>
-            </div>
+            </div>    
             <div id="size-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: block;">
                     <!-- Current File Condition -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -152,6 +153,7 @@ input[type="range"]::-webkit-slider-thumb {
                     </div>
                 </div>
             </div>
+        </div>
 
             <!-- QUALITY PROTECTION (Collapsible) -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
@@ -249,7 +251,7 @@ input[type="range"]::-webkit-slider-thumb {
 
             <!-- ADVANCED OPTIONS (Collapsible) -->
             <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <button onclick="toggleSection('advanced-section')" class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left">
+                <button onclick="toggleSection('advanced-section')" class="w-full flex items-center justify-between p-4 text-left">
                     <div class="flex items-center gap-3">
                         <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
