@@ -65,16 +65,6 @@ input[type="range"]::-webkit-slider-thumb {
 <!-- ========== END CSS ========== -->
 <div class="max-w-3xl mx-auto">
     <!-- Progress indicator -->
-    <div class="mb-6">
-        <div class="flex items-center justify-between text-sm mb-2">
-            <span class="font-medium">Setup Progress</span>
-            <span id="progress-text" class="text-xs" style="color: var(--text-secondary)">Complete your rules</span>
-        </div>
-        <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full transition-all duration-300" style="width: 0%; background: var(--accent);"></div>
-        </div>
-    </div>
-
     <div class="card rounded-xl p-6">
         <div class="flex items-start justify-between mb-6">
             <div>
@@ -350,15 +340,11 @@ input[type="range"]::-webkit-slider-thumb {
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex gap-3 mt-6 pt-4 border-t" style="border-color: var(--border-color);">
-            <button onclick="saveRules()" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90" 
+        <div class="mt-6 pt-4 border-t" style="border-color: var(--border-color);">
+            <button onclick="saveRules()" class="w-full py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90" 
                     style="background: var(--accent);">
                 <span id="save-label">Save Rules</span>
                 <span id="save-spinner" class="hidden ml-2">⏳</span>
-            </button>
-            <button onclick="testRules()" class="px-4 py-2.5 rounded-lg text-sm font-medium border hover:bg-gray-50 transition" 
-                    style="border-color: var(--border-color);">
-                Test Rules
             </button>
         </div>
     </div>
@@ -367,7 +353,6 @@ input[type="range"]::-webkit-slider-thumb {
 <script>
 // ========== GLOBAL VARIABLES ==========
 let qualityTypesCache = null;
-let openSections = new Set(['size-section', 'quality-section', 'trigger-section']);
 
 // ========== TOAST NOTIFICATION ==========
 function showToast(message, type = 'info') {
@@ -423,28 +408,9 @@ function toggleSection(sectionId) {
     if (section.style.display === 'none') {
         section.style.display = 'block';
         icon.style.transform = 'rotate(180deg)';
-        openSections.add(sectionId);
     } else {
         section.style.display = 'none';
         icon.style.transform = 'rotate(0deg)';
-        openSections.delete(sectionId);
-    }
-    updateProgress();
-}
-
-function updateProgress() {
-    const totalSections = 4;
-    const completed = openSections.size;
-    const percent = (completed / totalSections) * 100;
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-    
-    if (progressBar) progressBar.style.width = `${percent}%`;
-    
-    if (percent === 100 && progressText) {
-        progressText.innerHTML = '✓ All sections configured';
-    } else if (progressText) {
-        progressText.innerHTML = `${Math.round(percent)}% complete`;
     }
 }
 
@@ -599,47 +565,6 @@ async function saveRules() {
     } finally {
         if (saveLabel) saveLabel.textContent = 'Save Rules';
         if (saveSpinner) saveSpinner.classList.add('hidden');
-    }
-}
-
-// ========== TEST RULES ==========
-async function testRules() {
-    const testBtn = document.querySelector('button[onclick="testRules()"]');
-    if (!testBtn) return;
-    
-    const originalText = testBtn.textContent;
-    testBtn.textContent = 'Testing...';
-    testBtn.disabled = true;
-    
-    try {
-        const res = await fetch('/api/rules/test', { method: 'POST' });
-        const data = await res.json();
-        
-        if (data.matches_found === 0) {
-            if (data.quality_skipped > 0 || data.no_releases_found > 0) {
-                showToast(`No matches found. ${data.quality_skipped} skipped due to quality, ${data.no_releases_found} had no releases.`, 'info');
-            } else {
-                showToast('✓ No movies match the current rules', 'success');
-            }
-        } else {
-            const spaceSavedGB = data.total_space_saved_gb || (data.total_space_saved_mb / 1024).toFixed(2);
-            let message = `Found ${data.matches_found} movies that could be replaced. Potential savings: ${spaceSavedGB} GB`;
-            
-            // Add additional context if there are skipped movies
-            if (data.quality_skipped > 0) {
-                message += ` (${data.quality_skipped} skipped due to quality)`;
-            }
-            if (data.no_releases_found > 0) {
-                message += ` (${data.no_releases_found} had no releases)`;
-            }
-            
-            showToast(message, 'info');
-        }
-    } catch (e) {
-        showToast('Test failed: ' + e.message, 'error');
-    } finally {
-        testBtn.textContent = originalText;
-        testBtn.disabled = false;
     }
 }
 
