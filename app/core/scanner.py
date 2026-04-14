@@ -443,40 +443,55 @@ async def run_resizarr(
                     smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
                     smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
 
-                    # Build specific skip reason - check ALL filters
+                    # Build specific skip reason - check which filters failed for ALL releases
                     failed_filters = []
     
-                    # Check if ANY release passed the size filter
-                    size_passed_any = any(
-                        matches_condition(r.get("size", 0) / (1024 ** 3), rules["target_operator"], target_threshold_gb)
-                        for r in valid_releases
-                    )
-                    if not size_passed_any:
-                        failed_filters.append(f"size (needs {rules['target_operator']}{rules['target_size']}{rules['target_unit']})")
+                    # Check if ANY release passes ALL filters
+                    any_passes_all = False
+                    for r in valid_releases:
+                        r_size_gb = r.get("size", 0) / (1024 ** 3)
+                        r_peers = (r.get("seeders", 0) + r.get("leechers", 0) or r.get("peers", 0))
+                        r_languages = r.get("languages", [])
+                        r_language = (r_languages[0].get("name", "Unknown") if r_languages and isinstance(r_languages[0], dict) else "Unknown")
+        
+                        size_ok = matches_condition(r_size_gb, rules["target_operator"], target_threshold_gb)
+                        peers_ok = r_peers >= min_peers if min_peers > 0 else True
+                        language_ok = preferred_language.lower() == "any" or preferred_language.lower() in r_language.lower()
+        
+                        if size_ok and peers_ok and language_ok:
+                            any_passes_all = True
+                            break
     
-                    # Check peers filter (only if min_peers > 0)
-                    if min_peers > 0:
-                        peers_passed_any = any(
-                            (r.get("seeders", 0) + r.get("leechers", 0) or r.get("peers", 0)) >= min_peers
+                    if not any_passes_all:
+                        # Check each filter individually to report which ones fail for ALL releases
+                        size_passed_any = any(
+                            matches_condition(r.get("size", 0) / (1024 ** 3), rules["target_operator"], target_threshold_gb)
                             for r in valid_releases
                         )
-                        if not peers_passed_any:
-                            failed_filters.append(f"peers (needs ≥{min_peers})")
-    
-                    # Check language filter (only if not "Any")
-                    if preferred_language.lower() != "any":
-                        language_passed_any = any(
-                            preferred_language.lower() in (r.get("languages", [{}])[0].get("name", "").lower() if r.get("languages") else "")
-                            for r in valid_releases
-                        )
-                        if not language_passed_any:
-                            failed_filters.append(f"language (needs '{preferred_language}')")
+                        if not size_passed_any:
+                            failed_filters.append(f"size (needs {rules['target_operator']}{rules['target_size']}{rules['target_unit']})")
+        
+                        if min_peers > 0:
+                            peers_passed_any = any(
+                                (r.get("seeders", 0) + r.get("leechers", 0) or r.get("peers", 0)) >= min_peers
+                                for r in valid_releases
+                            )
+                            if not peers_passed_any:
+                                failed_filters.append(f"peers (needs ≥{min_peers})")
+        
+                        if preferred_language.lower() != "any":
+                            language_passed_any = any(
+                                preferred_language.lower() in (r.get("languages", [{}])[0].get("name", "").lower() if r.get("languages") else "")
+                                for r in valid_releases
+                            )
+                            if not language_passed_any:
+                                failed_filters.append(f"language (needs '{preferred_language}')")
     
                     # Build the skip reason
                     if failed_filters:
                         skip_reason = f"No release passed: {', '.join(failed_filters)}"
                     else:
-                        skip_reason = "No matching releases found"
+                        skip_reason = "No release passed all filters (size + peers + language combined)"
     
                     # Add closest release info with its peer count if relevant
                     if smallest_release_size:
