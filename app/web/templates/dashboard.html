@@ -539,11 +539,12 @@
                             <div class="text-2xl font-bold text-blue-400">${r.live_pending || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Pending</div>
                         </div>
-                        <a href="/completed" class="text-center p-3 rounded-lg cursor-pointer hover:bg-purple-900 transition-colors block" 
-                            style="background: var(--bg-primary); text-decoration: none;">
+                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-purple-900 transition-colors" 
+                            style="background: var(--bg-primary)" 
+                            onclick="loadCategory('approved')">
                             <div class="text-2xl font-bold text-purple-400">${r.approved || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Approved</div>
-                        </a>
+                        </div>
                         <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-yellow-900 transition-colors" 
                              style="background: var(--bg-primary)" 
                              onclick="loadCategory('quality_skipped')">
