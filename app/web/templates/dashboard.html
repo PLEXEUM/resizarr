@@ -298,8 +298,12 @@
         }
 
         html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
-                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>
-                 <th class="text-left py-3 px-2 font-medium">Status</th>`;
+                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
+
+        // Only add Status column for Processed category
+        if (category === 'processed') {
+            html += `<th class="text-left py-3 px-2 font-medium">Status</th>`;
+        }
         
         if (category !== 'processed' && category !== 'no_releases') {
             html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
