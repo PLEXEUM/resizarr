@@ -106,7 +106,7 @@
             <h2 id="category-title" class="text-sm font-semibold uppercase tracking-wide"
                 style="color: var(--text-secondary)">Pending Approvals</h2>
             <div class="flex gap-2">
-                <a href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
+                <a id="history-button" href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
                     View History →
                 </a>
             </div>
@@ -185,7 +185,7 @@
     // NEW FUNCTION 1: Load category details (replaces loadPendingApprovals)
     async function loadCategory(category) {
         currentCategory = category;
-        
+    
         // Update the card title
         const titles = {
             'pending': 'Pending Approvals',
@@ -193,19 +193,41 @@
             'quality_skipped': 'Quality Skipped',
             'no_releases': 'No Releases Found',
             'failed': 'Failed Replacements',
-            'processed': 'Processed Movies'
+            'processed': 'Processed Movies',
+            'approved': 'Approved Replacements'
         };
-        
+    
         document.getElementById('category-title').textContent = titles[category] || 'Run Details';
-        
+    
+        // Update the dynamic history button
+        const historyBtn = document.getElementById('history-button');
+        if (historyBtn) {
+            if (category === 'pending') {
+                historyBtn.href = '/completed';
+                historyBtn.textContent = 'View Approved →';
+                historyBtn.style.opacity = '1';
+                historyBtn.style.cursor = 'pointer';
+            } else if (category === 'approved') {
+                historyBtn.href = '/completed';
+                historyBtn.textContent = 'View All Completed →';
+                historyBtn.style.opacity = '1';
+                historyBtn.style.cursor = 'pointer';
+            } else {
+                historyBtn.href = '#';
+                historyBtn.textContent = 'No history available';
+                historyBtn.style.opacity = '0.5';
+                historyBtn.style.cursor = 'default';
+            }
+        }
+    
         // Show loading state
         const container = document.getElementById('category-content');
         container.innerHTML = '<div class="text-center py-8" style="color: var(--text-secondary)">Loading...</div>';
-        
+    
         try {
             const res = await fetch(`/api/run/details/${category}`);
             const data = await res.json();
-            
+        
             if (data.movies && data.movies.length > 0) {
                 renderCategoryTable(container, data.movies, category);
             } else {
