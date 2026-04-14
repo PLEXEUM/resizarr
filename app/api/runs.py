@@ -453,6 +453,25 @@ async def clear_category(category: str):
     
     return {"success": True, "count": count, "category": category}
 
+@router.get("/total-space-saved")
+async def get_total_space_saved():
+    """Calculate total space saved from completed jobs (queued/completed status)."""
+    conn = get_connection()
+    
+    result = conn.execute("""
+        SELECT SUM(current_size_gb - found_size_gb) as total_saved
+        FROM completed_jobs
+        WHERE status IN ('queued', 'completed')
+        AND found_size_gb IS NOT NULL
+        AND found_size_gb > 0
+    """).fetchone()
+    
+    conn.close()
+    
+    total_saved = result["total_saved"] if result and result["total_saved"] else 0
+    
+    return {"total_saved_gb": round(total_saved, 2)}
+
 # ========== CLEAR RUN HISTORY ENDPOINT ==========
 @router.delete("/history/clear")
 async def clear_run_history():

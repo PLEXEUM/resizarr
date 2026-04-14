@@ -13,6 +13,10 @@
             <div id="rule-summary" class="text-sm" style="color: var(--text-secondary)">
                 Loading...
             </div>
+            <div id="space-saved" class="mt-4 pt-3 border-t text-sm" style="border-color: var(--border-color);">
+                <span class="font-semibold">💾 Total Space Saved:</span>
+                <span id="total-saved-value">Calculating...</span>
+            </div>
         </div>
 
         <!-- Run Controls -->
@@ -149,6 +153,7 @@
         loadRuleSummary();
         loadStatus();
         startStatusChecking();
+        loadTotalSpaceSaved();
         // loadCategory('pending') will be called inside loadStatus after last run loads
     });
 
@@ -179,6 +184,30 @@
             `;
         } catch (e) {
             console.error('Failed to load rule summary:', e);
+        }
+    }
+
+    async function loadTotalSpaceSaved() {
+        try {
+            const res = await fetch('/api/total-space-saved');
+            const data = await res.json();
+            const totalGb = data.total_saved_gb;
+        
+            let displayText = '';
+            if (totalGb >= 1024) {
+                displayText = `${(totalGb / 1024).toFixed(2)} TB`;
+            } else if (totalGb >= 1) {
+                displayText = `${totalGb.toFixed(2)} GB`;
+            } else if (totalGb > 0) {
+                displayText = `${(totalGb * 1024).toFixed(2)} MB`;
+            } else {
+                displayText = '0 GB';
+            }
+        
+            document.getElementById('total-saved-value').textContent = displayText;
+        } catch (e) {
+            console.error('Failed to load total space saved:', e);
+            document.getElementById('total-saved-value').textContent = 'Error loading';
         }
     }
 
@@ -515,6 +544,7 @@
                                 cancelBtn.classList.add('text-gray-400');
                                 loadStatus();
                                 loadCategory('pending');
+                                loadTotalSpaceSaved();
                             }
                         } catch(e) {
                             console.error('Progress poll error:', e);
@@ -845,6 +875,7 @@
                 showToast('Dashboard cleared successfully', 'success');
                 await loadStatus();
                 await loadCategory('pending');
+                await loadTotalSpaceSaved(); 
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to clear dashboard', 'error');
