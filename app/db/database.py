@@ -242,7 +242,7 @@ def init_db():
         cursor.execute("CREATE INDEX idx_run_details_category ON run_details(category)")
         print("Added run_details table for per-run movie tracking")
 
-        # Migration: Add indexer, seeders, tmdb_rating to completed_jobs
+    # Migration: Add indexer, seeders, tmdb_rating to completed_jobs
     cursor.execute("PRAGMA table_info(completed_jobs)")
     completed_columns = [row[1] for row in cursor.fetchall()]
     
@@ -257,6 +257,18 @@ def init_db():
     if 'tmdb_rating' not in completed_columns:
         cursor.execute("ALTER TABLE completed_jobs ADD COLUMN tmdb_rating REAL")
         print("Added 'tmdb_rating' column to completed_jobs table")
+
+    # Migration: Add date_added and tmdb_rating to run_details
+    cursor.execute("PRAGMA table_info(run_details)")
+    run_details_columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'date_added' not in run_details_columns:
+        cursor.execute("ALTER TABLE run_details ADD COLUMN date_added DATETIME")
+        print("Added 'date_added' column to run_details table")
+    
+    if 'tmdb_rating' not in run_details_columns:
+        cursor.execute("ALTER TABLE run_details ADD COLUMN tmdb_rating REAL")
+        print("Added 'tmdb_rating' column to run_details table")
 
     conn.commit()
     conn.close()

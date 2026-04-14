@@ -234,10 +234,22 @@
         
         html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
                  <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
+
+        if (category === 'processed') {
+            html += `<th class="text-left py-3 px-2 font-medium">Date Added</th>
+                     <th class="text-left py-3 px-2 font-medium">TMDB Rating</th>`;
+        }
         
         if (category !== 'processed' && category !== 'no_releases') {
             html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
                      <th class="text-left py-3 px-2 font-medium">Found Quality</th>`;
+        }
+
+        if (category === 'processed') {
+            const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
+            const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
+            html += `<td class="py-3 px-2">${escapeHtml(dateAdded)}</td>
+                     <td class="py-3 px-2">${rating}</td>`;
         }
         
         if (category === 'pending') {
@@ -280,7 +292,15 @@
                     <td class="py-3 px-2" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
                     <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
             `;
-            
+
+            // ADD THIS BLOCK FOR PROCESSED CATEGORY CELLS
+            if (category === 'processed') {
+                const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
+                const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
+                html += `<td class="py-3 px-2">${escapeHtml(dateAdded)}</td>
+                         <td class="py-3 px-2">${rating}</td>`;
+            }
+
             if (category !== 'processed' && category !== 'no_releases') {
                 html += `
                     <td class="py-3 px-2" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>

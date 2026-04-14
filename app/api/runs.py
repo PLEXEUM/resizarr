@@ -364,7 +364,8 @@ async def get_run_details(category: str, run_started: str = None):
     elif category == 'processed':
         rows = conn.execute("""
             SELECT movie_title as title, movie_year as year,
-                    current_size_gb, current_quality
+                    current_size_gb, current_quality,
+                    date_added, tmdb_rating
             FROM run_details 
             WHERE run_id = ? AND category = 'processed'
             ORDER BY created_at DESC
