@@ -357,7 +357,8 @@ async def run_resizarr(
                 'current_size_gb': size_gb,
                 'current_quality': current_quality,
                 'date_added': movie.get('added'),
-                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
+                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating'),
+                'status': 'Processed' 
             })
 
             already_queued = await client.check_existing_replacement(movie_id)
@@ -825,8 +826,8 @@ async def run_resizarr(
         for movie in processed_movies[:500]:  # Limit to 500 to avoid huge inserts
             conn.execute("""
                 INSERT INTO run_details
-                (run_id, movie_title, movie_year, category, current_size_gb, current_quality, date_added, tmdb_rating)
-                VALUES (?, ?, ?, 'processed', ?, ?, ?, ?)
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality, date_added, tmdb_rating, status)
+                VALUES (?, ?, ?, 'processed', ?, ?, ?, ?, ?)
             """, (
                 run_id_from_db,
                 movie['title'],
@@ -834,7 +835,8 @@ async def run_resizarr(
                 movie['current_size_gb'],
                 movie['current_quality'],
                 movie.get('date_added'),
-                movie.get('tmdb_rating')
+                movie.get('tmdb_rating'),
+                movie.get('status', 'Processed')  # Default status
             ))
 
         logger.info(f"Saved {len(quality_skipped_movies)} quality_skipped, {len(no_releases_movies)} no_releases, {len(processed_movies[:500])} processed movies to run_details")
