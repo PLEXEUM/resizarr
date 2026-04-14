@@ -244,13 +244,6 @@
             html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
                      <th class="text-left py-3 px-2 font-medium">Found Quality</th>`;
         }
-
-        if (category === 'processed') {
-            const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
-            const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
-            html += `<td class="py-3 px-2">${escapeHtml(dateAdded)}</td>
-                     <td class="py-3 px-2">${rating}</td>`;
-        }
         
         if (category === 'pending') {
             html += `<th class="text-left py-3 px-2 font-medium">Indexer</th>
