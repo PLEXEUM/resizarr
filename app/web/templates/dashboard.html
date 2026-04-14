@@ -223,8 +223,8 @@
             <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
                 <thead>
                     <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
-                        <th class="text-left py-3 px-2 font-medium">Movie</th>
-                        <th class="text-left py-3 px-2 font-medium">Year</th>
+                        <th class="text-left py-3 px-3 font-medium">Movie</th>
+                        <th class="text-left py-3 px-3 font-medium">Year</th>
         `;
         
         // Add category-specific columns
@@ -233,8 +233,8 @@
         }
         
         if (category === 'processed') {
-            html += `<th class="text-left py-3 px-2 font-medium">Date Added</th>
-                     <th class="text-left py-3 px-2 font-medium">TMDB Rating</th>`;
+            html += `<th class="text-left py-3 px-3 font-medium">Date Added</th>
+                     <th class="text-left py-3 px-3 font-medium">⭐ Rating</th>`;
         }
 
         html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
@@ -272,8 +272,8 @@
         movies.forEach(movie => {
             html += `
                 <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td class="py-3 px-2 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td class="py-3 px-3 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
             `;
             
             if (category === 'pending') {
@@ -285,13 +285,14 @@
             if (category === 'processed') {
                 const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
                 const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
-                html += `<td class="py-3 px-2">${escapeHtml(dateAdded)}</td>
-                         <td class="py-3 px-2">${rating}</td>`;
+                const ratingDisplay = rating !== 'N/A' ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span class="font-medium">${rating}</span></div>` : 'N/A';
+                html += `<td class="py-3 px-3 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
+                         <td class="py-3 px-3">${ratingDisplay}</td>`;
             }
 
             html += `
-                    <td class="py-3 px-2" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
             `;
 
             if (category !== 'processed' && category !== 'no_releases') {
