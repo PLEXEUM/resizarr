@@ -443,6 +443,44 @@ async def run_resizarr(
                     smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
                     smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
 
+                    # Build specific skip reason
+                    failed_filters = []
+    
+                    # Check if any release passed size filter
+                    size_passed = any(
+                        matches_condition(r.get("size", 0) / (1024 ** 3), rules["target_operator"], target_threshold_gb)
+                        for r in valid_releases
+                    )
+                    if not size_passed:
+                        failed_filters.append(f"size (needs {rules['target_operator']}{rules['target_size']}{rules['target_unit']})")
+    
+                    # Check peers filter (only if min_peers > 0)
+                    if min_peers > 0:
+                        peers_passed = any(
+                            (r.get("seeders", 0) + r.get("leechers", 0) or r.get("peers", 0)) >= min_peers
+                            for r in valid_releases
+                        )
+                        if not peers_passed:
+                            failed_filters.append(f"peers (needs ≥{min_peers})")
+    
+                    # Check language filter (only if not "Any")
+                    if preferred_language.lower() != "any":
+                        language_passed = any(
+                            preferred_language.lower() in (r.get("languages", [{}])[0].get("name", "").lower() if r.get("languages") else "")
+                            for r in valid_releases
+                        )
+                        if not language_passed:
+                            failed_filters.append(f"language (needs '{preferred_language}')")
+    
+                    # Build the skip reason
+                    if failed_filters:
+                        skip_reason = f"No release passed: {', '.join(failed_filters)}"
+                    else:
+                        skip_reason = "No matching releases found"
+    
+                    if smallest_release_size:
+                        skip_reason += f" | Closest: {smallest_release_size:.1f}GB"
+
                     quality_skipped_movies.append({
                         'title': movie_title,
                         'year': movie.get('year'),
@@ -450,9 +488,9 @@ async def run_resizarr(
                         'current_quality': current_quality,
                         'found_size_gb': smallest_release_size,
                         'found_quality': smallest_release_quality,
-                        'skip_reason': 'No releases matched size/peers/language filters'
+                        'skip_reason': skip_reason
                     })
-                    logger.info(f"No suitable releases found for: {movie_title} (size/peers/language filter)")
+                    logger.info(f"No suitable releases found for: {movie_title} - {skip_reason}")
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
                     candidate_releases.sort(key=lambda x: x["size_gb"])
