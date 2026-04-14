@@ -452,7 +452,7 @@ async def run_resizarr(
                         languages = smallest_release.get("languages", [])
                         closest_language = (languages[0].get("name", "Unknown") if languages and isinstance(languages[0], dict) else "Unknown")
 
-                    # Build filter status - ONLY show failures (✗)
+                    # Build filter status - ONLY show failures with emoji prefix
                     failed_filters = []
     
                     # Size check on closest release
@@ -460,27 +460,26 @@ async def run_resizarr(
                         size_passes = matches_condition(smallest_release_size, rules["target_operator"], target_threshold_gb)
                         if not size_passes:
                             size_needs = f"{rules['target_operator']}{rules['target_size']}{rules['target_unit']}"
-                            failed_filters.append(f"size (needs {size_needs}) found {smallest_release_size:.1f}GB ✗")
+                            failed_filters.append(f"size: needs {size_needs}, found {smallest_release_size:.1f}GB")
     
                     # Peers check on closest release
                     if min_peers > 0 and closest_peers is not None:
                         peers_passes = closest_peers >= min_peers
                         if not peers_passes:
-                            failed_filters.append(f"peers (needs ≥{min_peers}) found {closest_peers} ✗")
+                            failed_filters.append(f"peers: needs ≥{min_peers}, found {closest_peers}")
     
                     # Language check on closest release
                     if preferred_language.lower() != "any" and closest_language:
                         lang_passes = preferred_language.lower() in closest_language.lower()
                         if not lang_passes:
-                            failed_filters.append(f"language (needs '{preferred_language}') found '{closest_language}' ✗")
+                            failed_filters.append(f"language: needs '{preferred_language}', found '{closest_language}'")
     
-                    # Build the skip reason
+                    # Build the skip reason with emoji prefix
                     if failed_filters:
-                        skip_reason = f"No release passed: {' | '.join(failed_filters)}"
+                        skip_reason = "❌ " + " | ❌ ".join(failed_filters)
                     else:
-                        # All filters passed on the closest release? That means candidate_releases should not be empty
-                        # This shouldn't happen, but fallback just in case
-                        skip_reason = f"No release passed all filters (closest: {smallest_release_size:.1f}GB)" if smallest_release_size else "No releases found"
+                        # All filters passed on the closest release? This shouldn't happen, but fallback
+                        skip_reason = f"❌ no matching release (closest: {smallest_release_size:.1f}GB)" if smallest_release_size else "❌ no releases found"
 
                     quality_skipped_movies.append({
                         'title': movie_title,
