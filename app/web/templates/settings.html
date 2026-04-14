@@ -25,12 +25,19 @@ input:focus, select:focus, textarea:focus {
 }
 </style>
 
-<div class="max-w-2xl mx-auto">
-    <div class="card rounded-xl p-6">
-        <h1 class="text-2xl font-bold mb-2">Settings</h1>
-        <p class="text-sm mb-8" style="color: var(--text-secondary)">
-            Configure scheduling, polling, and logging.
-        </p>
+<div class="card rounded-xl p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold mb-1">Settings</h1>
+            <p class="text-sm" style="color: var(--text-secondary)">
+                Configure scheduling, polling, and logging.
+            </p>
+        </div>
+        <button onclick="resetSettings()" class="text-xs px-3 py-1 rounded-lg border hover:bg-gray-50 transition" 
+                style="border-color: var(--border-color);">
+            Reset to Defaults
+        </button>
+    </div>
 
         <div class="space-y-8">
 
@@ -230,6 +237,19 @@ input:focus, select:focus, textarea:focus {
         } finally {
             document.getElementById('save-label').textContent = 'Save Settings';
             document.getElementById('save-spinner').classList.add('hidden');
+        }
+    }
+
+     function resetSettings() {
+        if (confirm('Reset all settings to default values?')) {
+            document.getElementById('batch-size').value = '10';
+            document.getElementById('cron-schedule').value = '0 2 * * *';
+            document.getElementById('poller-interval').value = '5';
+            document.getElementById('log-level').value = 'INFO';
+            document.getElementById('log-max-size').value = '10';
+            document.getElementById('log-max-files').value = '5';
+            updateCronPreview();
+            showToast('Settings reset to defaults', 'success');
         }
     }
 </script>
