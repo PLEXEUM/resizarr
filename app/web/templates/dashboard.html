@@ -199,25 +199,34 @@
     
         document.getElementById('category-title').textContent = titles[category] || 'Run Details';
     
-        // Update the dynamic history button
+        // Update the dynamic history button - acts as "Next" navigation
         const historyBtn = document.getElementById('history-button');
         if (historyBtn) {
-            if (category === 'pending') {
-                historyBtn.href = '/completed';
-                historyBtn.textContent = 'View Approved →';
-                historyBtn.style.opacity = '1';
-                historyBtn.style.cursor = 'pointer';
-            } else if (category === 'approved') {
-                historyBtn.href = '/completed';
-                historyBtn.textContent = 'View All Completed →';
-                historyBtn.style.opacity = '1';
-                historyBtn.style.cursor = 'pointer';
-            } else {
-                historyBtn.href = '#';
-                historyBtn.textContent = 'No history available';
-                historyBtn.style.opacity = '0.5';
-                historyBtn.style.cursor = 'default';
-            }
+            // Define the category order for next navigation
+            const categoryOrder = ['processed', 'queued', 'pending', 'approved', 'quality_skipped', 'no_releases', 'failed'];
+            const currentIndex = categoryOrder.indexOf(category);
+            const nextCategory = categoryOrder[(currentIndex + 1) % categoryOrder.length];
+    
+            // Set the button to navigate to the next category
+            historyBtn.href = '#';
+            historyBtn.onclick = () => {
+                loadCategory(nextCategory);
+                return false;
+            };
+    
+            // Set button text based on next category
+            const nextTitles = {
+                'processed': 'Next: Queued →',
+                'queued': 'Next: Pending →',
+                'pending': 'Next: Approved →',
+                'approved': 'Next: Quality Skipped →',
+                'quality_skipped': 'Next: No Releases →',
+                'no_releases': 'Next: Failed →',
+                'failed': 'Next: Processed →'
+            };
+            historyBtn.textContent = nextTitles[category] || 'Next →';
+            historyBtn.style.opacity = '1';
+            historyBtn.style.cursor = 'pointer';
         }
     
         // Show loading state
