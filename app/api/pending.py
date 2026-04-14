@@ -165,7 +165,8 @@ async def approve_pending(record_id: int, data: ApproveInput):
             status="queued",
             indexer=record.get("indexer"),
             seeders=record.get("seeders", 0),
-            tmdb_rating=record.get("tmdb_rating")
+            tmdb_rating=record.get("tmdb_rating"),
+            run_id=record.get("run_id")
         )
         
         logger.info(f"Approved pending replacement for '{record['movie_title']}'")
@@ -269,7 +270,8 @@ async def approve_batch(data: BatchApproveInput):
                 status="queued",
                 indexer=record.get("indexer"),
                 seeders=record.get("seeders", 0),
-                tmdb_rating=record.get("tmdb_rating")
+                tmdb_rating=record.get("tmdb_rating"),
+                run_id=record.get("run_id")
             )
 
             approved.append(record_id)
@@ -336,8 +338,12 @@ async def delete_pending(record_id: int):
         current_quality=record["current_quality"],
         found_size_gb=record["found_size_gb"],
         found_quality=record["found_quality"],
-        mode="rejected",
-        status="rejected"
+        mode="manual",
+        status="queued",
+        indexer=record.get("indexer"),
+        seeders=record.get("seeders", 0),
+        tmdb_rating=record.get("tmdb_rating"),
+        run_id=record.get("run_id")
     )
 
     conn.execute(
@@ -392,16 +398,15 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             current_size_gb: float, current_quality: str,
                             found_size_gb: float, found_quality: str,
                             mode: str, status: str, indexer: str = None,
-                            seeders: int = 0, tmdb_rating: float = None):
-    """Add a job to completed jobs table."""
+                            seeders: int = 0, tmdb_rating: float = None, run_id: int = None):
     conn = get_connection()
     conn.execute("""
         INSERT INTO completed_jobs
         (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-         found_size_gb, found_quality, mode, status, completed_at, indexer, seeders, tmdb_rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+         found_size_gb, found_quality, mode, status, completed_at, indexer, seeders, tmdb_rating, run_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)
     """, (movie_id, movie_title, movie_year, current_size_gb, current_quality,
-          found_size_gb, found_quality, mode, status, indexer, seeders, tmdb_rating))
+          found_size_gb, found_quality, mode, status, indexer, seeders, tmdb_rating, run_id))
     conn.commit()
     conn.close()
 

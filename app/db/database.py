@@ -269,6 +269,14 @@ def init_db():
     if 'tmdb_rating' not in run_details_columns:
         cursor.execute("ALTER TABLE run_details ADD COLUMN tmdb_rating REAL")
         print("Added 'tmdb_rating' column to run_details table")
+    
+    # Migration: Add run_id column to completed_jobs
+    cursor.execute("PRAGMA table_info(completed_jobs)")
+    completed_columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'run_id' not in completed_columns:
+        cursor.execute("ALTER TABLE completed_jobs ADD COLUMN run_id INTEGER")
+        print("Added 'run_id' column to completed_jobs table")
 
     conn.commit()
     conn.close()

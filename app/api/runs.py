@@ -239,7 +239,7 @@ async def get_run_details(category: str, run_started: str = None):
     from app.db.database import get_connection
     
     # Validate category
-    valid_categories = ['processed', 'queued', 'pending', 'quality_skipped', 'no_releases', 'failed']
+    valid_categories = ['processed', 'queued', 'pending', 'quality_skipped', 'no_releases', 'failed', 'approved']
     if category not in valid_categories:
         raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {valid_categories}")
     
@@ -356,6 +356,22 @@ async def get_run_details(category: str, run_started: str = None):
             FROM run_details 
             WHERE run_id = ? AND category = 'no_releases'
             ORDER BY created_at DESC
+            LIMIT 100
+        """, (run_id,)).fetchall()
+        movies = [dict(row) for row in rows]
+
+    # APPROVED: Get from completed_jobs for the current run
+    elif category == 'approved':
+        rows = conn.execute("""
+            SELECT cj.movie_title as title, cj.movie_year as year,
+                   cj.current_size_gb, cj.current_quality,
+                   cj.found_size_gb, cj.found_quality,
+                   cj.status, cj.completed_at as created_at,
+                   cj.indexer, cj.seeders, cj.tmdb_rating
+            FROM completed_jobs cj
+            INNER JOIN run_history rh ON rh.id = cj.run_id
+            WHERE rh.id = ? AND cj.status IN ('queued', 'completed')
+            ORDER BY cj.completed_at DESC
             LIMIT 100
         """, (run_id,)).fetchall()
         movies = [dict(row) for row in rows]
