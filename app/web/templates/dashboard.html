@@ -216,13 +216,13 @@
     
             // Set button text based on next category
             const nextTitles = {
-                'processed': 'Next: Queued →',
-                'queued': 'Next: Pending →',
-                'pending': 'Next: Approved →',
-                'approved': 'Next: Quality Skipped →',
-                'quality_skipped': 'Next: No Releases →',
-                'no_releases': 'Next: Failed →',
-                'failed': 'Next: Processed →'
+                'processed': 'Queued →',
+                'queued': 'Pending →',
+                'pending': 'Approved →',
+                'approved': 'Quality Skipped →',
+                'quality_skipped': 'No Releases →',
+                'no_releases': 'Failed →',
+                'failed': 'Processed →'
             };
             historyBtn.textContent = nextTitles[category] || 'Next →';
             historyBtn.style.opacity = '1';
