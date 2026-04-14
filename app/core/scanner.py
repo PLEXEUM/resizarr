@@ -443,33 +443,33 @@ async def run_resizarr(
                     smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
                     smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
 
-                    # Build specific skip reason
+                    # Build specific skip reason - check ALL filters
                     failed_filters = []
     
-                    # Check if any release passed size filter
-                    size_passed = any(
+                    # Check if ANY release passed the size filter
+                    size_passed_any = any(
                         matches_condition(r.get("size", 0) / (1024 ** 3), rules["target_operator"], target_threshold_gb)
                         for r in valid_releases
                     )
-                    if not size_passed:
+                    if not size_passed_any:
                         failed_filters.append(f"size (needs {rules['target_operator']}{rules['target_size']}{rules['target_unit']})")
     
                     # Check peers filter (only if min_peers > 0)
                     if min_peers > 0:
-                        peers_passed = any(
+                        peers_passed_any = any(
                             (r.get("seeders", 0) + r.get("leechers", 0) or r.get("peers", 0)) >= min_peers
                             for r in valid_releases
                         )
-                        if not peers_passed:
+                        if not peers_passed_any:
                             failed_filters.append(f"peers (needs ≥{min_peers})")
     
                     # Check language filter (only if not "Any")
                     if preferred_language.lower() != "any":
-                        language_passed = any(
+                        language_passed_any = any(
                             preferred_language.lower() in (r.get("languages", [{}])[0].get("name", "").lower() if r.get("languages") else "")
                             for r in valid_releases
                         )
-                        if not language_passed:
+                        if not language_passed_any:
                             failed_filters.append(f"language (needs '{preferred_language}')")
     
                     # Build the skip reason
@@ -478,8 +478,16 @@ async def run_resizarr(
                     else:
                         skip_reason = "No matching releases found"
     
+                    # Add closest release info with its peer count if relevant
                     if smallest_release_size:
-                        skip_reason += f" | Closest: {smallest_release_size:.1f}GB"
+                        closest_peers = None
+                        if smallest_release:
+                            closest_peers = (smallest_release.get("seeders", 0) + smallest_release.get("leechers", 0) or 
+                                            smallest_release.get("peers", 0))
+                        if closest_peers is not None and min_peers > 0:
+                            skip_reason += f" | Closest: {smallest_release_size:.1f}GB ({closest_peers} peers)"
+                        else:
+                            skip_reason += f" | Closest: {smallest_release_size:.1f}GB"
 
                     quality_skipped_movies.append({
                         'title': movie_title,
