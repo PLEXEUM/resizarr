@@ -504,11 +504,13 @@ async def run_resizarr(
 
                     # === THRESHOLD CHECK FOR ALL MODES ===
                     threshold_passed = True
-                    threshold_reason = "No threshold set"
-                    min_quality_threshold = rules.get("min_quality_threshold")
-                    
-                    if min_quality_threshold and min_quality_threshold != "":
-                        threshold_passed, threshold_reason = check_quality_threshold(found_quality, min_quality_threshold)
+                    threshold_reason = "No threshold set (any quality allowed)"
+
+                    # Only check threshold if quality rule is NOT "any"
+                    if rules["quality_rule"] != "any":
+                        min_quality_threshold = rules.get("min_quality_threshold")
+                        if min_quality_threshold and min_quality_threshold != "":
+                            threshold_passed, threshold_reason = check_quality_threshold(found_quality, min_quality_threshold)
                     
                     # If threshold fails, skip regardless of mode
                     if not threshold_passed:
