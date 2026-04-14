@@ -329,6 +329,38 @@
         
         html += `</tr></thead><tbody>`;
         
+        // Add summary row for processed category
+        if (category === 'processed' && lastRunData) {
+            html += `
+                <tr style="background: rgba(var(--accent-rgb, 99, 102, 241), 0.08); border-bottom: 2px solid var(--border-color);">
+                    <td colspan="2" class="py-3 px-3 font-semibold" style="color: var(--accent);">
+                        📊 Run Summary
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="text-sm font-medium">${lastRunData.pending_approval || 0}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">Pending</div>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="text-sm font-medium text-purple-400">${lastRunData.approved || 0}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">Approved</div>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="text-sm font-medium text-yellow-400">${lastRunData.quality_skipped || 0}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">Quality Skipped</div>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="text-sm font-medium text-orange-400">${lastRunData.no_releases_found || 0}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">No Releases</div>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="text-sm font-medium text-red-400">${lastRunData.replacements_failed || 0}</div>
+                        <div class="text-xs" style="color: var(--text-secondary)">Failed</div>
+                    </td>
+                    <td class="py-3 px-3"></td>
+                </tr>
+            `;
+        }
+        
         movies.forEach(movie => {
             html += `
                 <tr style="border-bottom: 1px solid var(--border-color);">
