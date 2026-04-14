@@ -668,6 +668,15 @@ async def run_resizarr(
                     run_id_from_db
                 ))
                 conn.commit()
+
+                # Update status in run_details to 'Pending'
+                conn.execute("""
+                    UPDATE run_details
+                    SET status = 'Pending'
+                    WHERE run_id = ? AND movie_title = ? AND category = 'processed'
+                """, (run_id_from_db, movie_title))
+                conn.commit()
+
                 summary["pending_approval"] += 1
                 continue
 
@@ -703,6 +712,15 @@ async def run_resizarr(
                     )
                     
                     summary["replacements_queued"] += 1
+
+                    # Update status in run_details to 'Queued'
+                    conn.execute("""
+                        UPDATE run_details
+                        SET status = 'Queued'
+                        WHERE run_id = ? AND movie_title = ? AND category = 'processed'
+                    """, (run_id_from_db, movie_title))
+                    conn.commit()
+
                     logger.info(f"[QUALITY MATCH MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
@@ -728,6 +746,14 @@ async def run_resizarr(
                 summary["replacements_queued"] += 1
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
             
+                # Update status in run_details to 'Queued'
+                conn.execute("""
+                    UPDATE run_details
+                    SET status = 'Queued'
+                    WHERE run_id = ? AND movie_title = ? AND category = 'processed'
+                """, (run_id_from_db, movie_title))
+                conn.commit()
+
             # Save resume point
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_movie_id, last_run_date)

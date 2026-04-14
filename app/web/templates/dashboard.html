@@ -294,12 +294,12 @@
         
         if (category === 'processed') {
             html += `<th class="text-left py-3 px-3 font-medium">Date Added</th>
-                    <th class="text-left py-3 px-3 font-medium">⭐ Rating</th>
-                    <th class="text-left py-3 px-3 font-medium">Status</th>`;
-                    }
+                     <th class="text-left py-3 px-3 font-medium">⭐ Rating</th>`;
+        }
 
         html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
-                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
+                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>
+                 <th class="text-left py-3 px-2 font-medium">Status</th>`;
         
         if (category !== 'processed' && category !== 'no_releases') {
             html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
@@ -375,15 +375,14 @@
                 }
     
                 html += `<td class="py-3 px-3 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
-                        <td class="py-3 px-3">${ratingDisplay}</td>
+                         <td class="py-3 px-3">${ratingDisplay}</td>`;
+
+                html += `
+                        <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                        <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
                         <td class="py-3 px-3"><span class="${statusClass}">${status}</span></td>`;
             }
-
-            html += `
-                    <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-            `;
-
+            
             if (category !== 'processed' && category !== 'no_releases') {
                 html += `
                     <td class="py-3 px-2" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
