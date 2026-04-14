@@ -381,13 +381,13 @@ async def get_run_details(category: str, run_started: str = None):
         rows = conn.execute("""
             SELECT movie_title as title, movie_year as year,
                     current_size_gb, current_quality,
-                    date_added, tmdb_rating, status
+                    date_added, tmdb_rating
             FROM run_details 
             WHERE run_id = ? AND category = 'processed'
             ORDER BY created_at DESC
             LIMIT 100
         """, (run_id,)).fetchall()
-
+    
         if rows:
             movies = [dict(row) for row in rows]
         else:
@@ -403,7 +403,6 @@ async def get_run_details(category: str, run_started: str = None):
                         'year': None,
                         'current_size_gb': float(row.get('Current Size (GB)', 0)),
                         'current_quality': row.get('Current Quality', 'Unknown'),
-                        'status': 'Processed'
                     })
             movies = movies[:100]
     

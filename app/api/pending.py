@@ -152,14 +152,6 @@ async def approve_pending(record_id: int, data: ApproveInput):
         """, (record_id,))
         conn.commit()
 
-        # Update status in run_details for this movie (if exists)
-        conn.execute("""
-            UPDATE run_details
-            SET status = 'Approved'
-            WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-        """, (record.get('run_id'), record['movie_title']))
-        conn.commit()
-
          # Add to completed jobs
         await add_completed_job(
             movie_id=record["movie_id"],
@@ -265,14 +257,6 @@ async def approve_batch(data: BatchApproveInput):
             """, (record_id,))
             conn.commit()
 
-            # Update status in run_details for this movie (if exists)
-            conn.execute("""
-                UPDATE run_details
-                SET status = 'Approved'
-                WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-            """, (record.get('run_id'), record['movie_title']))
-            conn.commit()
-
              # Add to completed jobs
             await add_completed_job(
                 movie_id=record["movie_id"],
@@ -361,14 +345,6 @@ async def delete_pending(record_id: int):
         tmdb_rating=record.get("tmdb_rating"),
         run_id=record.get("run_id")
     )
-
-    # Update status in run_details for this movie (if exists)
-    conn.execute("""
-        UPDATE run_details
-        SET status = 'Rejected'
-        WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-    """, (record.get('run_id'), record['movie_title']))
-    conn.commit()
 
     conn.execute(
         "DELETE FROM pending_replacements WHERE id = ?",

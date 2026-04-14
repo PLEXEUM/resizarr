@@ -299,11 +299,6 @@
 
         html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
                  <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
-
-        // Only add Status column for Processed category
-        if (category === 'processed') {
-            html += `<th class="text-left py-3 px-2 font-medium">Status</th>`;
-        }
         
         if (category !== 'processed' && category !== 'no_releases') {
             html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
@@ -351,42 +346,15 @@
                 const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
                 const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
                 const ratingDisplay = rating !== 'N/A' ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span class="font-medium">${rating}</span></div>` : 'N/A';
-    
-                // Determine status color
-                let statusClass = '';
-                const status = movie.status || 'Processed';
-                switch (status) {
-                    case 'Approved':
-                        statusClass = 'text-purple-400';
-                        break;
-                    case 'Queued':
-                        statusClass = 'text-green-400';
-                        break;
-                    case 'Pending':
-                        statusClass = 'text-blue-400';
-                        break;
-                    case 'Quality Skipped':
-                        statusClass = 'text-yellow-400';
-                        break;
-                    case 'No Release':
-                        statusClass = 'text-orange-400';
-                        break;
-                    case 'Failed':
-                        statusClass = 'text-red-400';
-                        break;
-                    default:
-                        statusClass = 'text-gray-400';
-                }
-    
                 html += `<td class="py-3 px-3 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
                          <td class="py-3 px-3">${ratingDisplay}</td>`;
-
-                html += `
-                        <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                        <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                        <td class="py-3 px-3"><span class="${statusClass}">${status}</span></td>`;
             }
-            
+
+            html += `
+                    <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+            `;
+
             if (category !== 'processed' && category !== 'no_releases') {
                 html += `
                     <td class="py-3 px-2" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>

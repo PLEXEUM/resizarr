@@ -357,8 +357,7 @@ async def run_resizarr(
                 'current_size_gb': size_gb,
                 'current_quality': current_quality,
                 'date_added': movie.get('added'),
-                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating'),
-                'status': 'Processed' 
+                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
             })
 
             already_queued = await client.check_existing_replacement(movie_id)
@@ -669,14 +668,6 @@ async def run_resizarr(
                 ))
                 conn.commit()
 
-                # Update status in run_details to 'Pending'
-                conn.execute("""
-                    UPDATE run_details
-                    SET status = 'Pending'
-                    WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-                """, (run_id_from_db, movie_title))
-                conn.commit()
-
                 summary["pending_approval"] += 1
                 continue
 
@@ -713,14 +704,6 @@ async def run_resizarr(
                     
                     summary["replacements_queued"] += 1
 
-                    # Update status in run_details to 'Queued'
-                    conn.execute("""
-                        UPDATE run_details
-                        SET status = 'Queued'
-                        WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-                    """, (run_id_from_db, movie_title))
-                    conn.commit()
-
                     logger.info(f"[QUALITY MATCH MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
@@ -745,14 +728,6 @@ async def run_resizarr(
                 )
                 summary["replacements_queued"] += 1
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
-            
-                # Update status in run_details to 'Queued'
-                conn.execute("""
-                    UPDATE run_details
-                    SET status = 'Queued'
-                    WHERE run_id = ? AND movie_title = ? AND category = 'processed'
-                """, (run_id_from_db, movie_title))
-                conn.commit()
 
             # Save resume point
             conn.execute("""
@@ -852,8 +827,8 @@ async def run_resizarr(
         for movie in processed_movies[:500]:  # Limit to 500 to avoid huge inserts
             conn.execute("""
                 INSERT INTO run_details
-                (run_id, movie_title, movie_year, category, current_size_gb, current_quality, date_added, tmdb_rating, status)
-                VALUES (?, ?, ?, 'processed', ?, ?, ?, ?, ?)
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality, date_added, tmdb_rating)
+                VALUES (?, ?, ?, 'processed', ?, ?, ?, ?)
             """, (
                 run_id_from_db,
                 movie['title'],
@@ -861,8 +836,7 @@ async def run_resizarr(
                 movie['current_size_gb'],
                 movie['current_quality'],
                 movie.get('date_added'),
-                movie.get('tmdb_rating'),
-                movie.get('status', 'Processed')  # Default status
+                movie.get('tmdb_rating')
             ))
 
         logger.info(f"Saved {len(quality_skipped_movies)} quality_skipped, {len(no_releases_movies)} no_releases, {len(processed_movies[:500])} processed movies to run_details")
