@@ -93,7 +93,7 @@ async def import_backup(data: RestoreInput):
                 (id, current_operator, current_size, current_unit,
                  target_operator, target_size, target_unit,
                  min_size, min_size_unit, excluded_extensions,
-                 quality_rule, min_quality_profile_id, trigger_logic)
+                 quality_rule, min_quality_threshold, trigger_logic)
                 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.rules.get("current_operator"),
@@ -106,7 +106,7 @@ async def import_backup(data: RestoreInput):
                 data.rules.get("min_size_unit"),
                 data.rules.get("excluded_extensions"),
                 data.rules.get("quality_rule"),
-                data.rules.get("min_quality_profile_id"),
+                data.rules.get("min_quality_threshold"),
                 data.rules.get("trigger_logic")
             ))
 

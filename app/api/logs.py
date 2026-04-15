@@ -22,7 +22,7 @@ LOG_DIR = Path("/app/logs")
 def get_todays_log_path() -> Path:
     """Get today's dated log file path."""
     date_str = datetime.now().strftime("%Y-%m-%d")
-    return LOG_DIR / f"resizarr_{date_str}"  # ← No .log extension
+    return LOG_DIR / f"resizarr_{date_str}.log"
 
 def get_all_log_files() -> list:
     """Get all dated log files sorted by date (newest first)."""
