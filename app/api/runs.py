@@ -368,7 +368,7 @@ async def get_run_details(category: str, run_started: str = None):
                    rd.current_size_gb, rd.current_quality,
                    rd.found_size_gb, rd.found_quality,
                    rd.tmdb_rating,
-                   '❌ ' || rd.skip_reason as reason
+                   rd.skip_reason as reason
             FROM run_details rd
             WHERE rd.run_id = ? AND rd.category = 'quality_skipped'
         """, (run_id,)).fetchall()

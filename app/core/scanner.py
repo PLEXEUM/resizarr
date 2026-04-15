@@ -796,8 +796,8 @@ async def run_resizarr(
             conn.execute("""
                 INSERT INTO run_details
                 (run_id, movie_title, movie_year, category, current_size_gb, current_quality,
-                 found_size_gb, found_quality, skip_reason)
-                VALUES (?, ?, ?, 'quality_skipped', ?, ?, ?, ?, ?)
+                 found_size_gb, found_quality, skip_reason, tmdb_rating)
+                VALUES (?, ?, ?, 'quality_skipped', ?, ?, ?, ?, ?, ?)
             """, (
                 run_id_from_db,
                 movie['title'],
@@ -806,21 +806,23 @@ async def run_resizarr(
                 movie['current_quality'],
                 movie.get('found_size_gb'),
                 movie.get('found_quality'),
-                movie['skip_reason']
-             ))
+                movie['skip_reason'],
+                movie.get('tmdb_rating')  # ← ADD THIS
+            ))
 
         # Save no releases movies
         for movie in no_releases_movies:
             conn.execute("""
                 INSERT INTO run_details
-                (run_id, movie_title, movie_year, category, current_size_gb, current_quality)
-                VALUES (?, ?, ?, 'no_releases', ?, ?)
+                (run_id, movie_title, movie_year, category, current_size_gb, current_quality, tmdb_rating)
+                VALUES (?, ?, ?, 'no_releases', ?, ?, ?)
             """, (
                 run_id_from_db,
                 movie['title'],
                 movie.get('year'),
                 movie['current_size_gb'],
-                movie['current_quality']
+                movie['current_quality'],
+                movie.get('tmdb_rating')  # ← ADD THIS
             ))
 
         # Save processed movies (optional - can be large, maybe limit to 500)
