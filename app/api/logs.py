@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from datetime import datetime
 from app.db.database import get_connection
-from app.utils.logger import get_logger, setup_logger
+from app.utils.logger import get_logger, setup_logger, LOG_PATH
 
 router = APIRouter()
 logger = get_logger()
@@ -21,19 +21,17 @@ LOG_DIR = Path("/app/logs")
 
 def get_todays_log_path() -> Path:
     """Get today's dated log file path."""
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    return LOG_DIR / f"resizarr_{date_str}.log"
+    return LOG_PATH  # Just return the main log file
 
 def get_all_log_files() -> list:
-    """Get all dated log files sorted by date (newest first)."""
+    """Get all log files sorted by date (newest first)."""
     if not LOG_DIR.exists():
         return []
     
-    log_files = list(LOG_DIR.glob("resizarr_*"))
-    # Sort by date extracted from filename (newest first)
+    # Get main log and rotated logs
+    log_files = list(LOG_DIR.glob("resizarr.log*"))
     log_files.sort(reverse=True)
     return log_files
-
 
 @router.get("/logs")
 async def get_logs(lines: int = 100):

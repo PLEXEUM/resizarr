@@ -22,11 +22,6 @@ class RedactingFormatter(logging.Formatter):
         msg = super().format(record)
         return redact_api_keys(msg)
 
-def get_dated_log_path() -> Path:
-    """Generate a log file path with today's date."""
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    return Path(f"/app/logs/resizarr_{date_str}.log")
-
 def setup_logger(
     log_level: str = "INFO",
     log_max_size_mb: int = 10,
@@ -42,16 +37,15 @@ def setup_logger(
     logger.handlers.clear()
     
     # Use TimedRotatingFileHandler for date-based rotation
-    dated_log_path = get_dated_log_path()
     file_handler = TimedRotatingFileHandler(
-        str(dated_log_path).replace(".log", ""),  # base name without .log
+        str(LOG_PATH),  # Use /app/logs/resizarr.log as base
         when="midnight",  # rotate at midnight
         interval=1,       # every day
         backupCount=log_max_files,  # keep this many days
         encoding="utf-8"
     )
     # Set the suffix for rotated files
-    file_handler.suffix = "%Y-%m-%d.log"
+    file_handler.suffix = "%Y-%m-%d"
     
     file_handler.setFormatter(RedactingFormatter(
         fmt="%(asctime)s [%(levelname)s] %(message)s",
@@ -69,7 +63,7 @@ def setup_logger(
     logger.addHandler(console_handler)
     
     # Log the log file location
-    logger.info(f"Logging to dated file: {get_dated_log_path()}")
+    logger.info(f"Logging to {LOG_PATH} with {log_max_files} days retention")
     
     return logger
 
