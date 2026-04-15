@@ -1,6 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+/* Stat box hover effect - raise only */
+.stat-box {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+}
+
+.stat-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
+}
+
+/* Consistent table cell padding */
+.table-cell {
+    padding: 0.75rem 1rem;
+}
+
+/* Skip reason styling */
+.skip-reason {
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+</style>
+
 <div class="space-y-6">
 
     <!-- Top Row -->
@@ -82,7 +106,7 @@
         </div>
     </div>
 
-    <!-- Last Run Summary with Clickable Stats -->
+    <!-- Last Run Summary with Clickable Stats (4 columns) -->
     <div class="card rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-semibold uppercase tracking-wide"
@@ -110,9 +134,11 @@
             <h2 id="category-title" class="text-sm font-semibold uppercase tracking-wide"
                 style="color: var(--text-secondary)">Pending Approvals</h2>
             <div class="flex gap-2">
-                <a id="history-button" href="/completed" class="text-xs px-2 py-1 rounded border" style="border-color: var(--accent); color: var(--accent);">
-                    View History →
-                </a>
+                <button id="next-category-btn" 
+                    class="text-xs px-3 py-1.5 rounded border transition-colors hover:opacity-80"
+                    style="border-color: var(--accent); color: var(--accent);">
+                    Next →
+                </button>
             </div>
         </div>
         <div id="category-content" class="overflow-x-auto">
@@ -148,13 +174,13 @@
     let statusCheckInterval = null;
     let currentCategory = 'pending';  
     let lastRunData = null;            
+    let currentRunStartTime = null;
 
     window.addEventListener('DOMContentLoaded', () => {
         loadRuleSummary();
         loadStatus();
         startStatusChecking();
         loadTotalSpaceSaved();
-        // loadCategory('pending') will be called inside loadStatus after last run loads
     });
 
     // Cleanup on page leave
@@ -211,51 +237,37 @@
         }
     }
 
-    // NEW FUNCTION 1: Load category details (replaces loadPendingApprovals)
+    // Load category details (4 categories: processed, pending, approved, skipped)
     async function loadCategory(category) {
         currentCategory = category;
     
         // Update the card title
         const titles = {
-            'pending': 'Pending Approvals',
-            'queued': 'Queued Replacements',
-            'quality_skipped': 'Quality Skipped',
-            'no_releases': 'No Releases Found',
-            'failed': 'Failed Replacements',
             'processed': 'Processed Movies',
-            'approved': 'Approved Replacements'
+            'pending': 'Pending Approvals',
+            'approved': 'Approved Replacements',
+            'skipped': 'Skipped Items'
         };
     
         document.getElementById('category-title').textContent = titles[category] || 'Run Details';
     
-        // Update the dynamic history button - acts as "Next" navigation
-        const historyBtn = document.getElementById('history-button');
-        if (historyBtn) {
-            // Define the category order for next navigation
-            const categoryOrder = ['processed', 'queued', 'pending', 'approved', 'quality_skipped', 'no_releases', 'failed'];
+        // Update the next button
+        const nextBtn = document.getElementById('next-category-btn');
+        if (nextBtn) {
+            const categoryOrder = ['processed', 'pending', 'approved', 'skipped'];
             const currentIndex = categoryOrder.indexOf(category);
             const nextCategory = categoryOrder[(currentIndex + 1) % categoryOrder.length];
-    
-            // Set the button to navigate to the next category
-            historyBtn.href = '#';
-            historyBtn.onclick = () => {
+            const nextTitles = {
+                'processed': 'Pending →',
+                'pending': 'Approved →',
+                'approved': 'Skipped →',
+                'skipped': 'Processed →'
+            };
+            nextBtn.textContent = nextTitles[category] || 'Next →';
+            nextBtn.onclick = () => {
                 loadCategory(nextCategory);
                 return false;
             };
-    
-            // Set button text based on next category
-            const nextTitles = {
-                'processed': 'Queued →',
-                'queued': 'Pending →',
-                'pending': 'Approved →',
-                'approved': 'Quality Skipped →',
-                'quality_skipped': 'No Releases →',
-                'no_releases': 'Failed →',
-                'failed': 'Processed →'
-            };
-            historyBtn.textContent = nextTitles[category] || 'Next →';
-            historyBtn.style.opacity = '1';
-            historyBtn.style.cursor = 'pointer';
         }
     
         // Show loading state
@@ -263,13 +275,19 @@
         container.innerHTML = '<div class="text-center py-8" style="color: var(--text-secondary)">Loading...</div>';
     
         try {
-            const res = await fetch(`/api/run/details/${category}`);
+            const res = await fetch(`/api/run/details/${category}?run_started=${currentRunStartTime || ''}`);
             const data = await res.json();
         
             if (data.movies && data.movies.length > 0) {
                 renderCategoryTable(container, data.movies, category);
             } else {
-                container.innerHTML = `<div class="text-center py-8" style="color: var(--text-secondary)">No ${category.replace('_', ' ')} items found.</div>`;
+                const emptyMessages = {
+                    'processed': 'No processed movies found.',
+                    'pending': 'No pending approvals.',
+                    'approved': 'No approved replacements for this run.',
+                    'skipped': 'No skipped items found.'
+                };
+                container.innerHTML = `<div class="text-center py-8" style="color: var(--text-secondary)">${emptyMessages[category] || 'No items found.'}</div>`;
             }
         } catch (e) {
             console.error(`Failed to load ${category}:`, e);
@@ -277,114 +295,96 @@
         }
     }
     
-    // NEW FUNCTION 2: Render table based on category
+    // Render table based on category
     function renderCategoryTable(container, movies, category) {
         let html = `
             <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
                 <thead>
                     <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
-                        <th class="text-left py-3 px-3 font-medium">Movie</th>
-                        <th class="text-left py-3 px-3 font-medium">Year</th>
         `;
         
-        // Add category-specific columns
-        if (category === 'pending') {
-            html += `<th class="text-left py-3 px-2 font-medium">TMDB</th>`;
-        }
-        
+        // Define columns based on category (all use px-4 for consistency)
         if (category === 'processed') {
-            html += `<th class="text-left py-3 px-3 font-medium">Date Added</th>
-                     <th class="text-left py-3 px-3 font-medium">⭐ Rating</th>`;
+            html += `
+                        <th class="text-left py-3 px-4 font-medium">Movie</th>
+                        <th class="text-left py-3 px-4 font-medium">Year</th>
+                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Date Added</th>
+                        <th class="text-left py-3 px-4 font-medium">Status</th>
+            `;
+        } else if (category === 'pending') {
+            html += `
+                        <th class="text-left py-3 px-4 font-medium">Movie</th>
+                        <th class="text-left py-3 px-4 font-medium">Year</th>
+                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Indexer</th>
+                        <th class="text-left py-3 px-4 font-medium">Peers</th>
+                        <th class="text-left py-3 px-4 font-medium">Age</th>
+                        <th class="text-left py-3 px-4 font-medium">Actions</th>
+            `;
+        } else if (category === 'approved') {
+            html += `
+                        <th class="text-left py-3 px-4 font-medium">Movie</th>
+                        <th class="text-left py-3 px-4 font-medium">Year</th>
+                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Indexer</th>
+                        <th class="text-left py-3 px-4 font-medium">Peers</th>
+                        <th class="text-left py-3 px-4 font-medium">Status</th>
+            `;
+        } else if (category === 'skipped') {
+            html += `
+                        <th class="text-left py-3 px-4 font-medium">Movie</th>
+                        <th class="text-left py-3 px-4 font-medium">Year</th>
+                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
+                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
+                        <th class="text-left py-3 px-4 font-medium">Reason</th>
+            `;
         }
-
-        html += `<th class="text-left py-3 px-2 font-medium">Current Size</th>
-                 <th class="text-left py-3 px-2 font-medium">Current Quality</th>`;
         
-        if (category !== 'processed' && category !== 'no_releases') {
-            html += `<th class="text-left py-3 px-2 font-medium">Found Size</th>
-                     <th class="text-left py-3 px-2 font-medium">Found Quality</th>`;
-        }
-        
-        if (category === 'pending') {
-            html += `<th class="text-left py-3 px-2 font-medium">Indexer</th>
-                     <th class="text-left py-3 px-2 font-medium">Peers</th>
-                     <th class="text-left py-3 px-2 font-medium">Age</th>`;
-        }
-        
-        if (category === 'queued') {
-            html += `<th class="text-left py-3 px-2 font-medium">Status</th>`;
-        }
-        
-        if (category === 'quality_skipped') {
-            html += `<th class="text-left py-3 px-2 font-medium">Skip Reason</th>`;
-        }
-        
-        if (category === 'failed') {
-            html += `<th class="text-left py-3 px-2 font-medium">Error</th>`;
-        }
-        
-        if (category === 'pending') {
-            html += `<th class="text-left py-3 px-2 font-medium">Actions</th>`;
-        }
-        
-        html += `</tr></thead><tbody>`;
+        html += ` </tr></thead><tbody>`;
         
         movies.forEach(movie => {
-            html += `
-                <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td class="py-3 px-3 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
-            `;
+            html += `<tr style="border-bottom: 1px solid var(--border-color);">`;
             
-            if (category === 'pending') {
-                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
-                html += `<td class="py-3 px-2">${tmdbRating}</td>`;
-            }
-            
-            // ADD THIS BLOCK FOR PROCESSED CATEGORY CELLS FIRST
             if (category === 'processed') {
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
-                const rating = movie.tmdb_rating ? movie.tmdb_rating.toFixed(1) : 'N/A';
-                const ratingDisplay = rating !== 'N/A' ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span class="font-medium">${rating}</span></div>` : 'N/A';
-                html += `<td class="py-3 px-3 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
-                         <td class="py-3 px-3">${ratingDisplay}</td>`;
-            }
-
-            html += `
-                    <td class="py-3 px-3" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-3" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-            `;
-
-            if (category !== 'processed' && category !== 'no_releases') {
                 html += `
-                    <td class="py-3 px-2" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-2" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td class="py-3 px-4">${tmdbRating}</td>
+                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="py-3 px-4 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
+                    <td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${getStatusBadgeClass(movie.status)}">${movie.status || 'Processed'}</span></td>
                 `;
-            }
-            
-            if (category === 'pending') {
+            } else if (category === 'pending') {
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 html += `
-                    <td class="py-3 px-2 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
-                    <td class="py-3 px-2"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
-                    <td class="py-3 px-2 text-xs" style="color: var(--text-secondary)">${getAge(movie.created_at)}</td>
-                `;
-            }
-            
-            if (category === 'queued') {
-                html += `<td class="py-3 px-2"><span class="text-green-400">●</span> ${movie.status || 'Queued'}</td>`;
-            }
-            
-            if (category === 'quality_skipped') {
-                html += `<td class="py-3 px-2" style="color: var(--text-secondary)">${movie.skip_reason || 'Quality check failed'}</td>`;
-            }
-            
-            if (category === 'failed') {
-                html += `<td class="py-3 px-2 text-red-400">${movie.error_message || 'Unknown error'}</td>`;
-            }
-            
-            if (category === 'pending') {
-                html += `
-                    <td class="py-3 px-2">
+                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td class="py-3 px-4">${tmdbRating}</td>
+                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="py-3 px-4" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
+                    <td class="py-3 px-4"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
+                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${getAge(movie.created_at)}</td>
+                    <td class="py-3 px-4">
                         <div class="flex gap-2">
                             <button onclick="quickApprove(${movie.id})" 
                                 class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-80" 
@@ -399,6 +399,34 @@
                         </div>
                     </td>
                 `;
+            } else if (category === 'approved') {
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                html += `
+                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td class="py-3 px-4">${tmdbRating}</td>
+                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="py-3 px-4" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'N/A'}</td>
+                    <td class="py-3 px-4"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
+                    <td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${getStatusBadgeClass(movie.status)}">${movie.status || 'queued'}</span></td>
+                `;
+            } else if (category === 'skipped') {
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                const foundSize = movie.found_size_gb ? `${movie.found_size_gb.toFixed(2)} GB` : 'N/A';
+                const foundQuality = movie.found_quality || 'N/A';
+                html += `
+                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td class="py-3 px-4">${tmdbRating}</td>
+                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="py-3 px-4" style="color: var(--accent)">${foundSize}</td>
+                    <td class="py-3 px-4" style="color: var(--text-secondary)">${foundQuality}</td>
+                    <td class="py-3 px-4 skip-reason" style="color: #f97316;">${escapeHtml(movie.reason || 'Unknown')}</td>
+                `;
             }
             
             html += `</tr>`;
@@ -406,6 +434,16 @@
         
         html += `</tbody></table>`;
         container.innerHTML = html;
+    }
+    
+    function getStatusBadgeClass(status) {
+        const statusLower = (status || '').toLowerCase();
+        if (statusLower === 'pending') return 'bg-blue-800 text-blue-200';
+        if (statusLower === 'approved') return 'bg-purple-800 text-purple-200';
+        if (statusLower === 'queued') return 'bg-yellow-800 text-yellow-200';
+        if (statusLower === 'completed') return 'bg-green-800 text-green-200';
+        if (statusLower === 'skipped') return 'bg-orange-800 text-orange-200';
+        return 'bg-gray-800 text-gray-200';
     }
     
     function getAge(createdAt) {
@@ -436,7 +474,7 @@
             });
              if (res.ok) {
                 showToast('Approved!', 'success');
-                await loadCategory('pending');  // ← CHANGED
+                await loadCategory('pending');
                 await loadStatus();
             } else {
                 const data = await res.json();
@@ -452,7 +490,7 @@
             const res = await fetch(`/api/pending/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 showToast('Rejected', 'info');
-                await loadCategory('pending');  // ← CHANGED
+                await loadCategory('pending');
                 await loadStatus();
             } else {
                 showToast('Failed to reject', 'error');
@@ -513,12 +551,10 @@
                                     clearInterval(pollInterval);
                                     pollInterval = null;
                                 }
-                                // Show cancellation in UI
                                 document.getElementById('progress-label').textContent = 
                                     `⛔ Cancelled after ${progressData.current} movies`;
                                 document.getElementById('progress-bar').style.width = '100%';
     
-                                // Hide cancel button after delay
                                 setTimeout(() => {
                                     const cancelBtn = document.getElementById('cancel-run-btn');
                                     cancelBtn.classList.add('hidden');
@@ -534,14 +570,6 @@
                                 const cancelBtn = document.getElementById('cancel-run-btn');
                                 cancelBtn.classList.add('hidden');
                                 cancelBtn.disabled = false;
-                                cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                    <span>Cancel</span>
-                                </div>`;
-                                cancelBtn.classList.remove('text-green-600');
-                                cancelBtn.classList.add('text-gray-400');
                                 loadStatus();
                                 loadCategory('pending');
                                 loadTotalSpaceSaved();
@@ -559,14 +587,6 @@
                 const cancelBtn = document.getElementById('cancel-run-btn');
                 cancelBtn.classList.add('hidden');
                 cancelBtn.disabled = false;
-                cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    <span>Cancel</span>
-                </div>`;
-                cancelBtn.classList.remove('text-green-600');
-                cancelBtn.classList.add('text-gray-400');
                 document.getElementById('progress-bar').style.background = 'var(--accent)';
                 
                 if (pollInterval) {
@@ -575,54 +595,40 @@
                 }
             }
 
-            // Last run summary - MAKE STATS CLICKABLE
+            // Last run summary - 4 columns with clickable stats
             if (data.last_run) {
                 const r = data.last_run;
                 lastRunData = r;
+                currentRunStartTime = r.started_at;
+                
+                // Calculate skipped count (quality_skipped + no_releases_found + replacements_failed)
+                const skippedCount = (r.quality_skipped || 0) + (r.no_releases_found || 0) + (r.replacements_failed || 0);
                 
                 document.getElementById('last-run-summary').innerHTML = `
-                    <div class="grid grid-cols-2 md:grid-cols-7 gap-4">
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors" 
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
                              style="background: var(--bg-primary)" 
                              onclick="loadCategory('processed')">
                             <div class="text-2xl font-bold">${r.total_movies_processed || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Processed</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-green-900 transition-colors" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('queued')">
-                            <div class="text-2xl font-bold text-green-400">${r.replacements_queued || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Queued</div>
-                        </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-blue-900 transition-colors" 
+                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
                              style="background: var(--bg-primary)" 
                              onclick="loadCategory('pending')">
                             <div class="text-2xl font-bold text-blue-400">${r.live_pending || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Pending</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-purple-900 transition-colors" 
+                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
                             style="background: var(--bg-primary)" 
                             onclick="loadCategory('approved')">
                             <div class="text-2xl font-bold text-purple-400">${r.approved || 0}</div>
                             <div class="text-xs mt-1" style="color: var(--text-secondary)">Approved</div>
                         </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-yellow-900 transition-colors" 
+                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
                              style="background: var(--bg-primary)" 
-                             onclick="loadCategory('quality_skipped')">
-                            <div class="text-2xl font-bold text-yellow-400">${r.quality_skipped || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Quality Skipped</div>
-                        </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-orange-900 transition-colors" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('no_releases')">
-                            <div class="text-2xl font-bold text-orange-400">${r.no_releases_found || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">No Releases</div>
-                        </div>
-                        <div class="text-center p-3 rounded-lg cursor-pointer hover:bg-red-900 transition-colors" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('failed')">
-                            <div class="text-2xl font-bold text-red-400">${r.replacements_failed || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Failed</div>
+                             onclick="loadCategory('skipped')">
+                            <div class="text-2xl font-bold text-orange-400">${skippedCount}</div>
+                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Skipped</div>
                         </div>
                     </div>
                     <p class="text-xs mt-3" style="color: var(--text-secondary)">
@@ -632,7 +638,7 @@
                     </p>
                 `;
 
-                // Load default category (pending) on page load if not already loaded
+                // Load default category (pending) on page load
                 if (currentCategory === 'pending' && document.getElementById('category-content').innerHTML.includes('Loading')) {
                     await loadCategory('pending');
                 }
@@ -643,12 +649,10 @@
                     document.getElementById('csv-download').classList.add('hidden');
                 }
             } else {
-                // 👇 ADD THIS ELSE CLAUSE FOR EMPTY STATE
                 document.getElementById('last-run-summary').innerHTML = 
                     '<p class="text-sm" style="color: var(--text-secondary)">No runs yet. Click "Run Now" to start.</p>';
                 document.getElementById('csv-download').classList.add('hidden');
                 
-                // Also show empty state for the category content
                 const container = document.getElementById('category-content');
                 if (container && !container.innerHTML.includes('Loading')) {
                     container.innerHTML = '<div class="text-center py-8" style="color: var(--text-secondary)">No runs yet. Run a scan to see results.</div>';
@@ -739,12 +743,6 @@
                         currentRunId = data.run_id;
                         cancelBtn.classList.remove('hidden');
                         cancelBtn.disabled = false;
-                        cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                            <span>Cancel</span>
-                        </div>`;
                         cancelBtn.classList.remove('text-green-600');
                         cancelBtn.classList.add('text-gray-400');
                     }
@@ -801,7 +799,6 @@
     }
 
     function startCancelConfirmationPolling() {
-        // Kill ALL polling immediately to prevent races
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         if (statusCheckInterval) { clearInterval(statusCheckInterval); statusCheckInterval = null; }
         if (cancelPollInterval) { clearInterval(cancelPollInterval); cancelPollInterval = null; }
@@ -818,15 +815,7 @@
                     const cancelBtn = document.getElementById('cancel-run-btn');
                     cancelBtn.classList.add('hidden');
                     cancelBtn.disabled = false;
-                    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        <span>Cancel</span>
-                    </div>`;
-                    cancelBtn.classList.remove('text-green-600');
 
-                    // Force reset progress UI
                     document.getElementById('progress-bar').style.width = '0%';
                     document.getElementById('progress-pct').textContent = '0%';
                     document.getElementById('progress-label').textContent = data.cancelled 
@@ -853,15 +842,15 @@
             } catch (e) {
                 console.error('Cancel polling error:', e);
             }
-        }, 800);  // slightly faster poll during cancellation
+        }, 800);
     }
 
-        // Clear entire dashboard
+    // Clear entire dashboard
     async function clearDashboard() {
         if (!confirm('⚠️ CLEAR DASHBOARD\n\n' +
                       'This will reset the dashboard to a clean state:\n\n' +
                       '• Clear all run history\n' +
-                      '• Clear all category lists (queued, failed, skipped, etc.)\n' +
+                      '• Clear all category lists (processed, pending, approved, skipped)\n' +
                       '• Clear pending approvals\n' +
                       '• Reset the last run summary\n\n' +
                       'This does NOT affect your rules configuration or Radarr settings.\n\n' +

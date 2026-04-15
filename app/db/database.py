@@ -218,6 +218,10 @@ def init_db():
         cursor.execute("ALTER TABLE pending_replacements ADD COLUMN run_id INTEGER")
         print("Added 'run_id' column to pending_replacements table")
 
+    if 'error_message' not in pending_columns:
+        cursor.execute("ALTER TABLE pending_replacements ADD COLUMN error_message TEXT")
+        print("Added 'error_message' column to pending_replacements table")
+
     # Migration: Add run_details table for tracking movie details per run
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='run_details'")
     if not cursor.fetchone():

@@ -95,15 +95,14 @@ async def get_status():
         SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'
     """).fetchone()[0]
 
-    # Get approved count since last run
+    # Get approved count from current run only
     approved_count = 0
     if last_run:
-        started_at = last_run["started_at"]
+        run_id = last_run["id"]
         approved_count = conn.execute("""
             SELECT COUNT(*) FROM completed_jobs 
-            WHERE status IN ('queued', 'completed')
-            AND completed_at > ?
-        """, (started_at,)).fetchone()[0]
+            WHERE run_id = ? AND status IN ('queued', 'completed')
+        """, (run_id,)).fetchone()[0]
 
     # Get run history (last 10)
     history = conn.execute("""
@@ -133,10 +132,8 @@ async def get_progress():
     from app.core.scheduler import is_running
     from app.core.scanner import get_run_progress_data
     
-    # Get progress from scanner
     progress_data = get_run_progress_data()
     
-    # Store progress in a global variable - keep for backward compatibility
     if not hasattr(get_progress, "progress_data"):
         get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
     
@@ -146,7 +143,6 @@ async def get_progress():
     cancelled = progress_data.get("cancelled", False)
     completed = progress_data.get("completed", False)
     
-    # Only calculate percent if total > 0 and run is running
     if is_running() and total > 0:
         percent = int((current / total) * 100)
     else:
@@ -191,6 +187,7 @@ async def cancel_run_endpoint(run_id: str):
     logger.info(f"Run {run_id} cancellation requested")
     return {"success": True, "message": "Cancellation requested"}
 
+
 @router.get("/run/csv")
 async def download_csv():
     """Download the most recent dry run CSV."""
@@ -203,7 +200,6 @@ async def download_csv():
     
     conn = get_connection()
     
-    # Get the most recent dry run with CSV data
     cursor = conn.execute("""
         SELECT csv_data, started_at FROM run_history 
         WHERE dry_run = 1 AND csv_data IS NOT NULL
@@ -223,7 +219,6 @@ async def download_csv():
     csv_data = row[0]
     started_at = row[1]
     
-    # Create filename with timestamp from the run
     timestamp = started_at.replace(":", "-").replace(".", "-")[:19] if started_at else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"resizarr_dryrun_{timestamp}.csv"
     
@@ -233,13 +228,20 @@ async def download_csv():
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+
 @router.get("/run/details/{category}")
 async def get_run_details(category: str, run_started: str = None):
-    """Get detailed movie list for a specific category from the last run."""
+    """Get detailed movie list for a specific category from the last run.
+    
+    Categories:
+    - processed: All movies scanned in the run (with status: Pending/Approved/Skipped)
+    - pending: Awaiting user approval
+    - approved: Approved in this run (queued/completed)
+    - skipped: Quality Skipped + No Releases + Failed (unified)
+    """
     from app.db.database import get_connection
     
-    # Validate category
-    valid_categories = ['processed', 'queued', 'pending', 'quality_skipped', 'no_releases', 'failed', 'approved']
+    valid_categories = ['processed', 'pending', 'approved', 'skipped']
     if category not in valid_categories:
         raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {valid_categories}")
     
@@ -270,8 +272,67 @@ async def get_run_details(category: str, run_started: str = None):
     
     movies = []
     
-    # PENDING: Get from pending_replacements table (active approvals)
-    if category == 'pending':
+    # PROCESSED: Get from run_details with status determined by other tables
+    if category == 'processed':
+        rows = conn.execute("""
+            SELECT rd.movie_title as title, rd.movie_year as year,
+                   rd.current_size_gb, rd.current_quality,
+                   rd.date_added, rd.tmdb_rating
+            FROM run_details rd
+            WHERE rd.run_id = ? AND rd.category = 'processed'
+            ORDER BY rd.created_at DESC
+            LIMIT 500
+        """, (run_id,)).fetchall()
+        
+        # For each processed movie, determine its status
+        for row in rows:
+            movie = dict(row)
+            movie_title = movie['title']
+            
+            # Check if pending
+            pending = conn.execute("""
+                SELECT 1 FROM pending_replacements 
+                WHERE movie_title = ? AND status = 'pending' AND run_id = ?
+                LIMIT 1
+            """, (movie_title, run_id)).fetchone()
+            
+            if pending:
+                movie['status'] = 'Pending'
+            else:
+                # Check if approved (in completed_jobs for this run)
+                approved = conn.execute("""
+                    SELECT 1 FROM completed_jobs 
+                    WHERE movie_title = ? AND run_id = ? AND status IN ('queued', 'completed')
+                    LIMIT 1
+                """, (movie_title, run_id)).fetchone()
+                
+                if approved:
+                    movie['status'] = 'Approved'
+                else:
+                    # Check if skipped
+                    skipped = conn.execute("""
+                        SELECT 1 FROM run_details rd2
+                        WHERE rd2.run_id = ? AND rd2.movie_title = ? 
+                        AND rd2.category IN ('quality_skipped', 'no_releases')
+                        LIMIT 1
+                    """, (run_id, movie_title)).fetchone()
+                    
+                    if skipped:
+                        movie['status'] = 'Skipped'
+                    else:
+                        # Check failed
+                        failed = conn.execute("""
+                            SELECT 1 FROM pending_replacements 
+                            WHERE movie_title = ? AND status = 'failed' AND run_id = ?
+                            LIMIT 1
+                        """, (movie_title, run_id)).fetchone()
+                        
+                        movie['status'] = 'Skipped' if failed else 'Processed'
+            
+            movies.append(movie)
+    
+    # PENDING: Get from pending_replacements
+    elif category == 'pending':
         rows = conn.execute("""
             SELECT id, movie_title as title, movie_year as year,
                    current_size_gb, current_quality,
@@ -284,83 +345,7 @@ async def get_run_details(category: str, run_started: str = None):
         """).fetchall()
         movies = [dict(row) for row in rows]
     
-    # QUEUED: Get from pending_replacements with status 'queued'
-    elif category == 'queued':
-        rows = conn.execute("""
-            SELECT movie_title as title, movie_year as year,
-                   current_size_gb, current_quality,
-                   found_size_gb, found_quality,
-                   status, queued_at as created_at
-            FROM pending_replacements 
-            WHERE status = 'queued'
-            ORDER BY queued_at DESC
-            LIMIT 100
-        """).fetchall()
-        movies = [dict(row) for row in rows]
-    
-    # FAILED: Get from pending_replacements with status 'failed' for this run only
-    elif category == 'failed':
-        rows = conn.execute("""
-            SELECT pr.movie_title as title, pr.movie_year as year,
-                pr.current_size_gb, pr.current_quality,
-                pr.found_size_gb, pr.found_quality,
-               'Download/queue failed' as error_message
-            FROM pending_replacements pr
-            INNER JOIN run_history rh ON rh.id = pr.run_id
-            WHERE pr.status = 'failed' AND rh.id = ?
-            ORDER BY pr.completed_at DESC
-            LIMIT 100
-        """, (run_id,)).fetchall()
-        movies = [dict(row) for row in rows]
-    
-    # QUALITY_SKIPPED: First try run_details table, then fallback to CSV
-    elif category == 'quality_skipped':
-        # First try to get from run_details table (non-dry runs)
-        rows = conn.execute("""
-            SELECT movie_title as title, movie_year as year,
-                current_size_gb, current_quality,
-                found_size_gb, found_quality, skip_reason
-            FROM run_details 
-            WHERE run_id = ? AND category = 'quality_skipped'
-            ORDER BY created_at DESC
-            LIMIT 100
-        """, (run_id,)).fetchall()
-    
-        if rows:
-            movies = [dict(row) for row in rows]
-        else:
-            # Fallback to CSV for dry runs
-            csv_data = run_dict.get('csv_data')
-            if csv_data:
-                import csv
-                import io
-                reader = csv.DictReader(io.StringIO(csv_data))
-                for row in reader:
-                    if row.get('Would Trigger') == 'No':
-                        movies.append({
-                            'title': row.get('Movie', 'Unknown'),
-                            'year': None,
-                            'current_size_gb': float(row.get('Current Size (GB)', 0)),
-                            'current_quality': row.get('Current Quality', 'Unknown'),
-                            'found_size_gb': float(row.get('Found Size (GB)', 0)),
-                            'found_quality': row.get('Found Quality', 'Unknown'),
-                            'skip_reason': row.get('Quality Decision', 'Quality check failed')
-                        })
-            movies = movies[:100]
-
-    # NO_RELEASES: Get from run_details table
-    elif category == 'no_releases':
-        rows = conn.execute("""
-            SELECT movie_title as title, movie_year as year,
-                current_size_gb, current_quality
-            FROM run_details 
-            WHERE run_id = ? AND category = 'no_releases'
-            ORDER BY created_at DESC
-            LIMIT 100
-        """, (run_id,)).fetchall()
-        movies = [dict(row) for row in rows]
-
-    # APPROVED: Get from completed_jobs for the current run
+    # APPROVED: Get from completed_jobs for this run only
     elif category == 'approved':
         rows = conn.execute("""
             SELECT cj.movie_title as title, cj.movie_year as year,
@@ -369,89 +354,63 @@ async def get_run_details(category: str, run_started: str = None):
                    cj.status, cj.completed_at as created_at,
                    cj.indexer, cj.seeders, cj.tmdb_rating
             FROM completed_jobs cj
-            INNER JOIN run_history rh ON rh.id = cj.run_id
-            WHERE rh.id = ? AND cj.status IN ('queued', 'completed')
+            WHERE cj.run_id = ? AND cj.status IN ('queued', 'completed')
             ORDER BY cj.completed_at DESC
             LIMIT 100
         """, (run_id,)).fetchall()
         movies = [dict(row) for row in rows]
-
-    # PROCESSED: Get from run_details table (limit to 100)
-    elif category == 'processed':
-        rows = conn.execute("""
-            SELECT movie_title as title, movie_year as year,
-                    current_size_gb, current_quality,
-                    date_added, tmdb_rating
-            FROM run_details 
-            WHERE run_id = ? AND category = 'processed'
-            ORDER BY created_at DESC
-            LIMIT 100
-        """, (run_id,)).fetchall()
     
-        if rows:
-            movies = [dict(row) for row in rows]
-        else:
-            # Fallback to CSV for dry runs
-            csv_data = run_dict.get('csv_data')
-            if csv_data:
-                import csv
-                import io
-                reader = csv.DictReader(io.StringIO(csv_data))
-                for row in reader:
-                    movies.append({
-                        'title': row.get('Movie', 'Unknown'),
-                        'year': None,
-                        'current_size_gb': float(row.get('Current Size (GB)', 0)),
-                        'current_quality': row.get('Current Quality', 'Unknown'),
-                    })
-            movies = movies[:100]
+    # SKIPPED: Unified table (Quality Skipped + No Releases + Failed)
+    elif category == 'skipped':
+        # Quality Skipped
+        quality_skipped = conn.execute("""
+            SELECT rd.movie_title as title, rd.movie_year as year,
+                   rd.current_size_gb, rd.current_quality,
+                   rd.found_size_gb, rd.found_quality,
+                   rd.tmdb_rating,
+                   '❌ ' || rd.skip_reason as reason
+            FROM run_details rd
+            WHERE rd.run_id = ? AND rd.category = 'quality_skipped'
+        """, (run_id,)).fetchall()
+        
+        for row in quality_skipped:
+            movies.append(dict(row))
+        
+        # No Releases
+        no_releases = conn.execute("""
+            SELECT rd.movie_title as title, rd.movie_year as year,
+                   rd.current_size_gb, rd.current_quality,
+                   NULL as found_size_gb, NULL as found_quality,
+                   rd.tmdb_rating,
+                   '❌ no releases: none found' as reason
+            FROM run_details rd
+            WHERE rd.run_id = ? AND rd.category = 'no_releases'
+        """, (run_id,)).fetchall()
+        
+        for row in no_releases:
+            movies.append(dict(row))
+        
+        # Failed
+        failed = conn.execute("""
+            SELECT pr.movie_title as title, pr.movie_year as year,
+                   pr.current_size_gb, pr.current_quality,
+                   pr.found_size_gb, pr.found_quality,
+                   pr.tmdb_rating,
+                   '❌ failed: ' || COALESCE(pr.error_message, 'Unknown error') as reason
+            FROM pending_replacements pr
+            WHERE pr.run_id = ? AND pr.status = 'failed'
+        """, (run_id,)).fetchall()
+        
+        for row in failed:
+            movies.append(dict(row))
+        
+        # Sort by title for consistency
+        movies.sort(key=lambda x: x.get('title', ''))
     
     conn.close()
     
     return {"movies": movies, "category": category, "run_id": run_id, "started_at": started_at}
 
-@router.delete("/run/details/{category}/clear")
-async def clear_category(category: str):
-    """Clear all items in a specific category."""
-    valid_categories = ['queued', 'quality_skipped', 'no_releases', 'failed', 'processed']
-    if category not in valid_categories:
-        raise HTTPException(status_code=400, detail=f"Cannot clear {category} category")
-    
-    conn = get_connection()
-    
-    if category == 'queued':
-        # Reset queued to pending? Or just delete? Let's reset to pending
-        result = conn.execute("""
-            UPDATE pending_replacements 
-            SET status = 'pending', queued_at = NULL 
-            WHERE status = 'queued'
-        """)
-        count = result.rowcount
-        logger.info(f"Reset {count} queued items to pending")
-    
-    elif category == 'failed':
-        result = conn.execute("DELETE FROM pending_replacements WHERE status = 'failed'")
-        count = result.rowcount
-        logger.info(f"Deleted {count} failed items")
-    
-    elif category == 'quality_skipped':
-        # Quality skipped isn't stored persistently yet
-        count = 0
-        logger.info("Quality skipped clear requested but not yet implemented")
-    
-    elif category == 'no_releases':
-        count = 0
-        logger.info("No releases clear requested but not yet implemented")
-    
-    elif category == 'processed':
-        # Can't clear processed - it's derived from run history
-        count = 0
-        logger.info("Processed clear requested but not derived from stored data")
-    
-    conn.commit()
-    conn.close()
-    
-    return {"success": True, "count": count, "category": category}
 
 @router.get("/total-space-saved")
 async def get_total_space_saved():
@@ -472,24 +431,6 @@ async def get_total_space_saved():
     
     return {"total_saved_gb": round(total_saved, 2)}
 
-# ========== CLEAR RUN HISTORY ENDPOINT ==========
-@router.delete("/history/clear")
-async def clear_run_history():
-    """Clear all run history records."""
-    conn = get_connection()
-    
-    # Count before deleting
-    result = conn.execute("SELECT COUNT(*) FROM run_history")
-    count = result.fetchone()[0]
-    
-    # Delete all history
-    conn.execute("DELETE FROM run_history")
-    conn.commit()
-    conn.close()
-    
-    logger.info(f"Cleared {count} run history records")
-    return {"success": True, "count": count}
-# ========== END CLEAR RUN HISTORY ENDPOINT ==========
 
 # ========== CLEAR DASHBOARD ENDPOINT ==========
 @router.delete("/dashboard/clear")
@@ -497,21 +438,13 @@ async def clear_dashboard():
     """Clear all dashboard data: run history, run details, and pending approvals."""
     conn = get_connection()
     
-    # Count records before deleting
     history_count = conn.execute("SELECT COUNT(*) FROM run_history").fetchone()[0]
     details_count = conn.execute("SELECT COUNT(*) FROM run_details").fetchone()[0]
     pending_count = conn.execute("SELECT COUNT(*) FROM pending_replacements WHERE status = 'pending'").fetchone()[0]
     
-    # Clear all run history
     conn.execute("DELETE FROM run_history")
-    
-    # Clear all run details
     conn.execute("DELETE FROM run_details")
-    
-    # Clear pending approvals
     conn.execute("DELETE FROM pending_replacements")
-    
-    # Reset run state (so next run starts from beginning)
     conn.execute("DELETE FROM run_state")
     
     conn.commit()
@@ -527,4 +460,9 @@ async def clear_dashboard():
             "pending_approvals": pending_count
         }
     }
-# ========== END CLEAR DASHBOARD ENDPOINT ==========
+
+
+# ========== REMOVED: Per-category clear endpoints ==========
+# The following endpoints have been removed as they are no longer needed:
+# - DELETE /run/details/{category}/clear
+# - DELETE /history/clear
