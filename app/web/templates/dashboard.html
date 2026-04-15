@@ -690,6 +690,7 @@
         try {
             const res = await fetch(`/api/run?dry_run=${isDryRun}`, { method: 'POST' });
             if (res.ok) {
+                currentRunStartTime = null;  // ← ADD THIS - force reload on next status
                 showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
                 sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
                 setTimeout(() => {
@@ -862,6 +863,7 @@
             const res = await fetch('/api/dashboard/clear', { method: 'DELETE' });
             if (res.ok) {
                 showToast('Dashboard cleared successfully', 'success');
+                currentRunStartTime = null;  // ← ADD THIS LINE
                 await loadStatus();
                 await loadCategory('pending');
                 await loadTotalSpaceSaved(); 
