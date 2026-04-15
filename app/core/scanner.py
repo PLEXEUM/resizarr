@@ -407,7 +407,8 @@ async def run_resizarr(
                     'title': movie_title,
                     'year': movie.get('year'),
                     'current_size_gb': size_gb,
-                    'current_quality': current_quality
+                    'current_quality': current_quality,
+                    'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
                 })
                 logger.info(f"No valid releases found for: {movie_title}")
             else:
@@ -490,7 +491,8 @@ async def run_resizarr(
                         'current_quality': current_quality,
                         'found_size_gb': smallest_release_size,
                         'found_quality': smallest_release_quality,
-                        'skip_reason': skip_reason
+                        'skip_reason': skip_reason,
+                        'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
                     })
                     logger.info(f"No suitable releases found for: {movie_title} - {skip_reason}")
                 else:
@@ -527,7 +529,8 @@ async def run_resizarr(
                             'current_quality': current_quality,
                             'found_size_gb': found_size_gb,
                             'found_quality': found_quality,
-                            'skip_reason': combined_reason
+                            'skip_reason': combined_reason,
+                            'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
                         })
                         continue  # Skip this movie entirely
                     
@@ -548,7 +551,8 @@ async def run_resizarr(
                                 'current_quality': current_quality,
                                 'found_size_gb': found_size_gb,
                                 'found_quality': found_quality,
-                                'skip_reason': reason
+                                'skip_reason': reason,
+                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
                             })
                     elif rules["trigger_logic"] == "quality_match":
                         # Quality match mode: queue only if quality rule passes
@@ -563,7 +567,8 @@ async def run_resizarr(
                                 'current_quality': current_quality,
                                 'found_size_gb': found_size_gb,
                                 'found_quality': found_quality,
-                                'skip_reason': reason
+                                'skip_reason': reason,
+                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
                             })
                     else:  # Manual mode
                         should_proceed = is_allowed
@@ -576,7 +581,8 @@ async def run_resizarr(
                                 'current_quality': current_quality,
                                 'found_size_gb': found_size_gb,
                                 'found_quality': found_quality,
-                                'skip_reason': reason
+                                'skip_reason': reason,
+                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
                             })
 
             # ========== DRY RUN CSV LOGGING ==========
