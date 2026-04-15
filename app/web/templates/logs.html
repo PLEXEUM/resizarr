@@ -11,13 +11,11 @@
             </p>
         </div>
         <div class="flex gap-2">
-            <a href="/api/logs/download"
-                class="px-4 py-2 rounded-lg text-sm border"
+            <a href="/api/logs/download" class="btn-raise px-4 py-2 rounded-lg text-sm border"
                 style="border-color: var(--border-color); color: var(--text-secondary);">
                 ⬇ Download
             </a>
-            <button onclick="confirmClearLogs()"
-                class="px-4 py-2 rounded-lg text-sm border"
+            <button onclick="confirmClearLogs()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
                 style="border-color: #ef4444; color: #ef4444;">
                 🗑 Clear Logs
             </button>
@@ -57,8 +55,7 @@
             <input type="checkbox" id="auto-refresh-logs" checked class="accent-indigo-500" />
             <span class="text-sm">Auto-refresh (5s)</span>
         </label>
-        <button onclick="loadLogs()"
-            class="px-3 py-1 rounded-lg text-sm border"
+        <button onclick="loadLogs()" class="btn-raise px-3 py-1 rounded-lg text-sm border"
             style="border-color: var(--border-color); color: var(--text-secondary);">
             ↻ Refresh
         </button>
@@ -86,11 +83,10 @@
             This will permanently delete all log entries. Are you sure?
         </p>
         <div class="flex gap-3">
-            <button onclick="clearLogs()"
-                class="flex-1 py-2 rounded-lg text-sm font-medium"
+            <button onclick="clearLogs()" class="btn-raise flex-1 py-2 rounded-lg text-sm font-medium"
                 style="background: #ef4444; color: white;">Clear</button>
             <button onclick="document.getElementById('clear-dialog').classList.add('hidden')"
-                class="flex-1 py-2 rounded-lg text-sm border"
+                class="btn-raise flex-1 py-2 rounded-lg text-sm border"
                 style="border-color: var(--border-color);">Cancel</button>
         </div>
     </div>
@@ -122,13 +118,13 @@
             const data = await res.json();
             console.log('Data received:', data);
             allLines = data.lines || [];
+            filterLogs();
 
             // Show which log file is being displayed
             const logFileInfo = data.log_file ? ` (from: ${data.log_file})` : '';
             document.getElementById('log-meta').textContent =
                 `Showing ${data.showing} of ${data.total_lines} total lines${logFileInfo}`;
 
-            filterLogs();
             console.log('Logs refreshed successfully');
         } catch (e) {
             console.error('Failed to load logs:', e);
@@ -176,32 +172,52 @@
     // ========== END AUTO-REFRESH ==========
 
     function filterLogs() {
-        const filter = document.getElementById('log-filter').value;
-        const filtered = filter === 'ALL'
-            ? allLines
-            : allLines.filter(line => line.includes(`[${filter}]`));
-
-        const content = document.getElementById('log-content');
-        if (filtered.length === 0) {
-            content.innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
-            return;
-        }
-
-        content.innerHTML = filtered.map(line => {
-            let color = 'var(--text-primary)';
-            if (line.includes('[ERROR]')) color = '#f87171';
-            else if (line.includes('[WARNING]')) color = '#fbbf24';
-            else if (line.includes('[DEBUG]')) color = '#94a3b8';
-            else if (line.includes('[INFO]')) color = '#86efac';
-
-            return `<div style="color: ${color}; padding: 1px 0;">${escapeHtml(line)}</div>`;
-        }).join('');
-
-        if (document.getElementById('auto-scroll').checked) {
-            const viewer = document.getElementById('log-viewer');
-            viewer.scrollTop = viewer.scrollHeight;
-        }
+    console.log('filterLogs() called, allLines length:', allLines ? allLines.length : 0);
+    
+    const filter = document.getElementById('log-filter').value;
+    console.log('Filter value:', filter);
+    
+    // Ensure allLines exists and is an array
+    if (!allLines || allLines.length === 0) {
+        document.getElementById('log-content').innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
+        return;
     }
+    
+    const filtered = filter === 'ALL'
+        ? allLines
+        : allLines.filter(line => line.includes(`[${filter}]`));
+    
+    console.log('Filtered count:', filtered.length);
+    
+    const content = document.getElementById('log-content');
+    if (filtered.length === 0) {
+        content.innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
+        return;
+    }
+
+    content.innerHTML = filtered.map(line => {
+        let color = 'var(--text-primary)';
+        if (line.includes('[ERROR]')) color = '#f87171';
+        else if (line.includes('[WARNING]')) color = '#fbbf24';
+        else if (line.includes('[DEBUG]')) color = '#94a3b8';
+        else if (line.includes('[INFO]')) color = '#86efac';
+
+        // Use a simple escape instead of function call if needed
+        const safeLine = line.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+        
+        return `<div style="color: ${color}; padding: 1px 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${safeLine}</div>`;
+    }).join('');
+
+    if (document.getElementById('auto-scroll') && document.getElementById('auto-scroll').checked) {
+        const viewer = document.getElementById('log-viewer');
+        if (viewer) viewer.scrollTop = viewer.scrollHeight;
+    }
+}
 
     function escapeHtml(text) {
         return text
