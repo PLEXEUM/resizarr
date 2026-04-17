@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- ========== ADD THIS CSS HERE ========== -->
 <style>
 /* Radio button card styling */
 input[type="radio"].hidden {
@@ -24,8 +23,7 @@ label.border:hover {
     transform: translateY(-1px);
 }
 
-/* ========== ADD DARK THEME FIXES RIGHT HERE ========== */
-/* Dashboard-consistent dark theme fixes */
+/* Dark theme fixes for inputs */
 input, select, textarea {
     background: var(--bg-primary) !important;
     color: var(--text-primary) !important;
@@ -59,27 +57,26 @@ input[type="range"]::-webkit-slider-thumb {
     background: var(--bg-secondary);
     border-color: var(--border-color);
 }
-/* ========== END DARK THEME FIXES ========== */
-
 </style>
-<!-- ========== END CSS ========== -->
-<div class="max-w-3xl mx-auto">
-    <!-- Progress indicator -->
-    <div class="card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-bold mb-1">Replacement Rules</h1>
-                <p class="text-sm" style="color: var(--text-secondary)">
-                    Define when and how movies should be replaced
-                </p>
-            </div>
-            <button onclick="resetToDefaults()" class="text-xs px-3 py-1 rounded-lg border hover:bg-gray-50 transition" 
-                    style="border-color: var(--border-color);">
-                Reset to Defaults
-            </button>
-        </div>
 
-        <!-- Sections for better organization -->
+<div class="max-w-3xl mx-auto">
+    <!-- Header OUTSIDE card (matching Logs page style) -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Replacement Rules</h1>
+            <p class="text-sm mt-1" style="color: var(--text-secondary)">
+                Define when and how movies should be replaced
+            </p>
+        </div>
+        <button onclick="resetToDefaults()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
+            style="border-color: var(--border-color); color: var(--text-secondary);">
+            Reset to Defaults
+        </button>
+    </div>
+
+    <!-- Card starts here (only for content) -->
+    <div class="card rounded-xl p-6">
+        
         <div class="space-y-8">
             
             <!-- FILE SIZE RULES -->
@@ -357,7 +354,6 @@ function showToast(message, type = 'info') {
         `;
         document.body.appendChild(toast);
         
-        // Add animation style
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
@@ -414,7 +410,6 @@ async function loadQualityTypes() {
         const data = await res.json();
         qualityTypesCache = data.quality_types;
         populateQualityDropdown(select, qualityTypesCache);
-        // Restore saved value from data attribute
         const savedValue = select.getAttribute('data-saved-value');
         if (savedValue && savedValue !== "") {
             select.value = savedValue;
@@ -443,7 +438,6 @@ async function loadRules() {
         const data = await res.json();
         if (!data.configured) return;
 
-        // Basic fields
         const fields = ['current-operator', 'current-size', 'current-unit', 
                        'target-operator', 'target-size', 'target-unit',
                        'min-size', 'min-size-unit', 'folder-pattern', 'language'];
@@ -455,11 +449,9 @@ async function loadRules() {
             }
         });
         
-        // Excluded extensions
         const extEl = document.getElementById('excluded-extensions');
         if (extEl) extEl.value = (data.excluded_extensions || []).join(', ');
         
-        // Range sliders
         const minPeers = document.getElementById('min-peers');
         const minPeersValue = document.getElementById('min-peers-value');
         if (minPeers && minPeersValue) {
@@ -474,7 +466,6 @@ async function loadRules() {
             opDelayValue.textContent = `${data.operation_delay_seconds || 3}s`;
         }
         
-        // Quality threshold
         const thresholdSelect = document.getElementById('min-quality-threshold');
         const savedThreshold = data.min_quality_threshold || '';
         thresholdSelect.setAttribute('data-saved-value', savedThreshold);
@@ -495,7 +486,6 @@ async function loadRules() {
             thresholdSelect.value = savedThreshold;
         }
         
-        // Radio buttons
         const qualityRadio = document.querySelector(`input[name="quality-rule"][value="${data.quality_rule}"]`);
         if (qualityRadio) qualityRadio.checked = true;
         
@@ -580,14 +570,12 @@ function resetToDefaults() {
             if (el) el.value = value;
         });
         
-        // Update range displays
         const minPeersValue = document.getElementById('min-peers-value');
         if (minPeersValue) minPeersValue.textContent = '2';
         
         const opDelayValue = document.getElementById('operation-delay-value');
         if (opDelayValue) opDelayValue.textContent = '3s';
         
-        // Reset radios
         const qualityRadio = document.querySelector('input[name="quality-rule"][value="equal_or_better"]');
         if (qualityRadio) qualityRadio.checked = true;
         
@@ -619,7 +607,6 @@ function setupRangeSliders() {
 
 // ========== INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
-    // Set initial section states
     const sections = ['size-section', 'quality-section', 'trigger-section', 'advanced-section'];
     sections.forEach(section => {
         const el = document.getElementById(section);
@@ -632,13 +619,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
  
-    // Setup range sliders
     setupRangeSliders();
-    
-    // Load rules FIRST (displays saved values immediately)
     loadRules();
-    
-    // Load quality types in background (doesn't block)
     loadQualityTypes();
 });
 </script>
