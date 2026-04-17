@@ -1,129 +1,132 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="max-w-3xl mx-auto">   <!-- ← ADD THIS LINE -->
+    <div class="space-y-6">
 
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold">Logs</h1>
-            <p class="text-sm mt-1" style="color: var(--text-secondary)">
-                View and manage application logs.
-            </p>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Logs</h1>
+                <p class="text-sm mt-1" style="color: var(--text-secondary)">
+                    View and manage application logs.
+                </p>
+            </div>
+            <div class="flex gap-2">
+                <a href="/api/logs/download" class="btn-raise px-4 py-2 rounded-lg text-sm border"
+                    style="border-color: var(--border-color); color: var(--text-secondary);">
+                    ⬇ Download
+                </a>
+                <button onclick="confirmClearLogs()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
+                    style="border-color: #ef4444; color: #ef4444;">
+                    🗑 Clear Logs
+                </button>
+            </div>
         </div>
-        <div class="flex gap-2">
-            <a href="/api/logs/download" class="btn-raise px-4 py-2 rounded-lg text-sm border"
-                style="border-color: var(--border-color); color: var(--text-secondary);">
-                ⬇ Download
-            </a>
-            <button onclick="confirmClearLogs()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
-                style="border-color: #ef4444; color: #ef4444;">
-                🗑 Clear Logs
-            </button>
-        </div>
-    </div>
 
-    <!-- Filter Controls -->
-    <div class="card rounded-xl p-4 flex items-center gap-4 flex-wrap">
-        <div class="flex items-center gap-2">
-            <label class="text-sm">Filter:</label>
-            <select id="log-filter" onchange="filterLogs()"
-                class="px-3 py-1 rounded-lg text-sm border"
-                style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                <option value="ALL">All</option>
-                <option value="INFO">Info</option>
-                <option value="WARNING">Warning</option>
-                <option value="ERROR">Error</option>
-                <option value="DEBUG">Debug</option>
-            </select>
-        </div>
-        <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="auto-scroll" checked class="accent-indigo-500" />
-            <span class="text-sm">Auto-scroll</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="auto-refresh-logs" checked class="accent-indigo-500" />
-            <span class="text-sm">Auto-refresh (5s)</span>
-        </label>
-        <button onclick="loadLogs()" class="btn-raise px-3 py-1 rounded-lg text-sm border"
-            style="border-color: var(--border-color); color: var(--text-secondary);">
-            ↻ Refresh
-        </button>
-    </div>
-
-    <!-- Log Viewer -->
-    <div class="card rounded-xl overflow-hidden">
-        <div id="log-viewer"
-            class="p-4 font-mono text-xs overflow-y-auto"
-            style="height: 500px; background: var(--bg-primary);">
-            <div id="log-content">Loading...</div>
-        </div>
-    </div>
-
-    <!-- Log Settings (Collapsible) -->
-    <div class="card rounded-xl overflow-hidden" style="border-color: var(--border-color);">
-        <button onclick="toggleLogSettings()" class="w-full flex items-center justify-between p-4 text-left">
-            <div class="flex items-center gap-3">
-                <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        <!-- Log Settings (Collapsible) - MOVED TO TOP -->
+        <div class="card rounded-xl overflow-hidden" style="border-color: var(--border-color);">
+            <button onclick="toggleLogSettings()" class="w-full flex items-center justify-between p-4 text-left">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <div>
+                        <h2 class="font-semibold">Log Settings</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Configure log level and rotation</p>
+                    </div>
+                </div>
+                <svg id="log-settings-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
-                <div>
-                    <h2 class="font-semibold">Log Settings</h2>
-                    <p class="text-xs" style="color: var(--text-secondary);">Configure log level and rotation</p>
+            </button>
+            <div id="log-settings-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                            Log Level
+                        </label>
+                        <select id="log-level" class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="DEBUG">DEBUG - Everything</option>
+                            <option value="INFO">INFO - Normal operations</option>
+                            <option value="WARNING">WARNING - Issues only</option>
+                            <option value="ERROR">ERROR - Critical only</option>
+                        </select>
+                        <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                            Controls what gets written to the log file
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                            Max File Size (MB)
+                        </label>
+                        <input id="log-max-size" type="number" min="1" max="100" value="10"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                        <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                            Rotates when file exceeds this size
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                            Max Files to Keep
+                        </label>
+                        <input id="log-max-files" type="number" min="1" max="20" value="5"
+                            class="w-full px-3 py-2 rounded-lg text-sm border"
+                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                        <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                            Oldest files are deleted first
+                        </p>
+                    </div>
                 </div>
+                <button onclick="saveLogSettings()" class="w-full py-2 rounded-lg text-sm font-medium text-white transition hover:opacity-90"
+                    style="background: var(--accent);">
+                    Apply Settings
+                </button>
             </div>
-            <svg id="log-settings-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-        <div id="log-settings-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
-                        Log Level
-                    </label>
-                    <select id="log-level" class="w-full px-3 py-2 rounded-lg text-sm border">
-                        <option value="DEBUG">DEBUG - Everything</option>
-                        <option value="INFO">INFO - Normal operations</option>
-                        <option value="WARNING">WARNING - Issues only</option>
-                        <option value="ERROR">ERROR - Critical only</option>
-                    </select>
-                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
-                        Controls what gets written to the log file
-                    </p>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
-                        Max File Size (MB)
-                    </label>
-                    <input id="log-max-size" type="number" min="1" max="100" value="10"
-                        class="w-full px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
-                        Rotates when file exceeds this size
-                    </p>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
-                        Max Files to Keep
-                    </label>
-                    <input id="log-max-files" type="number" min="1" max="20" value="5"
-                        class="w-full px-3 py-2 rounded-lg text-sm border"
-                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
-                        Oldest files are deleted first
-                    </p>
-                </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="card rounded-xl p-4 flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+                <label class="text-sm">Filter:</label>
+                <select id="log-filter" onchange="filterLogs()"
+                    class="px-3 py-1 rounded-lg text-sm border"
+                    style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                    <option value="ALL">All</option>
+                    <option value="INFO">Info</option>
+                    <option value="WARNING">Warning</option>
+                    <option value="ERROR">Error</option>
+                    <option value="DEBUG">Debug</option>
+                </select>
             </div>
-            <button onclick="saveLogSettings()" class="w-full py-2 rounded-lg text-sm font-medium text-white transition hover:opacity-90"
-                style="background: var(--accent);">
-                Apply Settings
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="auto-scroll" checked class="accent-indigo-500" />
+                <span class="text-sm">Auto-scroll</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="auto-refresh-logs" checked class="accent-indigo-500" />
+                <span class="text-sm">Auto-refresh (5s)</span>
+            </label>
+            <button onclick="loadLogs()" class="btn-raise px-3 py-1 rounded-lg text-sm border"
+                style="border-color: var(--border-color); color: var(--text-secondary);">
+                ↻ Refresh
             </button>
         </div>
+
+        <!-- Log Viewer -->
+        <div class="card rounded-xl overflow-hidden">
+            <div id="log-viewer"
+                class="p-4 font-mono text-xs overflow-y-auto"
+                style="height: 500px; background: var(--bg-primary);">
+                <div id="log-content">Loading...</div>
+            </div>
+        </div>
+
+        <p id="log-meta" class="text-xs" style="color: var(--text-secondary)"></p>
+
     </div>
-
-    <p id="log-meta" class="text-xs" style="color: var(--text-secondary)"></p>
-
-</div>
+</div>   <!-- ← CLOSE THE max-w-3xl DIV -->
 
 <!-- Clear Logs Dialog -->
 <div id="clear-dialog" class="hidden fixed inset-0 flex items-center justify-center z-50"
@@ -293,7 +296,7 @@
         const section = document.getElementById('log-settings-section');
         const icon = document.getElementById('log-settings-icon');
         
-        if (section.style.display === 'none') {
+        if (section.style.display === 'none' || section.style.display === '') {
             section.style.display = 'block';
             icon.style.transform = 'rotate(180deg)';
         } else {
