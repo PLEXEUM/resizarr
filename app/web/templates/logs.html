@@ -36,17 +36,6 @@
                 <option value="DEBUG">Debug</option>
             </select>
         </div>
-        <div class="flex items-center gap-2">
-            <label class="text-sm">Lines:</label>
-            <select id="log-lines" onchange="loadLogs()"
-                class="px-3 py-1 rounded-lg text-sm border"
-                style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                <option value="100">100</option>
-                <option value="250">250</option>
-                <option value="500">500</option>
-                <option value="1000">1000</option>
-            </select>
-        </div>
         <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="auto-scroll" checked class="accent-indigo-500" />
             <span class="text-sm">Auto-scroll</span>
@@ -65,8 +54,70 @@
     <div class="card rounded-xl overflow-hidden">
         <div id="log-viewer"
             class="p-4 font-mono text-xs overflow-y-auto"
-            style="height: 600px; background: var(--bg-primary);">
+            style="height: 500px; background: var(--bg-primary);">
             <div id="log-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Log Settings (Collapsible) -->
+    <div class="card rounded-xl overflow-hidden" style="border-color: var(--border-color);">
+        <button onclick="toggleLogSettings()" class="w-full flex items-center justify-between p-4 text-left">
+            <div class="flex items-center gap-3">
+                <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <div>
+                    <h2 class="font-semibold">Log Settings</h2>
+                    <p class="text-xs" style="color: var(--text-secondary);">Configure log level and rotation</p>
+                </div>
+            </div>
+            <svg id="log-settings-icon" class="w-5 h-5 transition-transform transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+        <div id="log-settings-section" class="border-t p-4 space-y-4" style="border-color: var(--border-color); display: none;">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                        Log Level
+                    </label>
+                    <select id="log-level" class="w-full px-3 py-2 rounded-lg text-sm border">
+                        <option value="DEBUG">DEBUG - Everything</option>
+                        <option value="INFO">INFO - Normal operations</option>
+                        <option value="WARNING">WARNING - Issues only</option>
+                        <option value="ERROR">ERROR - Critical only</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                        Controls what gets written to the log file
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                        Max File Size (MB)
+                    </label>
+                    <input id="log-max-size" type="number" min="1" max="100" value="10"
+                        class="w-full px-3 py-2 rounded-lg text-sm border"
+                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                        Rotates when file exceeds this size
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                        Max Files to Keep
+                    </label>
+                    <input id="log-max-files" type="number" min="1" max="20" value="5"
+                        class="w-full px-3 py-2 rounded-lg text-sm border"
+                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
+                    <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                        Oldest files are deleted first
+                    </p>
+                </div>
+            </div>
+            <button onclick="saveLogSettings()" class="w-full py-2 rounded-lg text-sm font-medium text-white transition hover:opacity-90"
+                style="background: var(--accent);">
+                Apply Settings
+            </button>
         </div>
     </div>
 
@@ -100,6 +151,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
         loadLogs();
+        loadLogSettings();
         setupAutoRefresh();
         setupAutoRefreshListener();
     });
@@ -109,36 +161,62 @@
     });
 
     async function loadLogs() {
-        console.log('loadLogs() called - manual refresh');
-        const lines = document.getElementById('log-lines').value;
-        console.log('Loading logs with lines:', lines);
         try {
-            const res = await fetch(`/api/logs?lines=${lines}`);
-            console.log('Fetch response status:', res.status);
+            const res = await fetch(`/api/logs`);
             const data = await res.json();
-            console.log('Data received:', data);
             allLines = data.lines || [];
             filterLogs();
 
-            // Show which log file is being displayed
             const logFileInfo = data.log_file ? ` (from: ${data.log_file})` : '';
             document.getElementById('log-meta').textContent =
                 `Showing ${data.showing} of ${data.total_lines} total lines${logFileInfo}`;
-
-            console.log('Logs refreshed successfully');
         } catch (e) {
-            console.error('Failed to load logs:', e);
             document.getElementById('log-content').textContent = 'Failed to load logs.';
         }
     }
 
-    // ========== AUTO-REFRESH FUNCTIONS ==========
+    async function loadLogSettings() {
+        try {
+            const res = await fetch('/api/logs/settings');
+            const data = await res.json();
+            document.getElementById('log-level').value = data.log_level || 'INFO';
+            document.getElementById('log-max-size').value = data.log_max_size_mb || 10;
+            document.getElementById('log-max-files').value = data.log_max_files || 5;
+        } catch (e) {
+            console.error('Failed to load log settings:', e);
+        }
+    }
+
+    async function saveLogSettings() {
+        const payload = {
+            log_level: document.getElementById('log-level').value,
+            log_max_size_mb: parseInt(document.getElementById('log-max-size').value),
+            log_max_files: parseInt(document.getElementById('log-max-files').value)
+        };
+
+        try {
+            const res = await fetch('/api/logs/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast('Log settings saved', 'success');
+            } else {
+                const data = await res.json();
+                showToast(data.detail || 'Failed to save', 'error');
+            }
+        } catch (e) {
+            showToast('Request failed: ' + e.message, 'error');
+        }
+    }
+
     function startAutoRefresh() {
         if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         autoRefreshInterval = setInterval(() => {
-            console.log('Auto-refreshing logs...');
             loadLogs();
-        }, 5000); // Refresh every 5 seconds
+        }, 5000);
     }
 
     function stopAutoRefresh() {
@@ -169,61 +247,59 @@
             });
         }
     }
-    // ========== END AUTO-REFRESH ==========
 
     function filterLogs() {
-    console.log('filterLogs() called, allLines length:', allLines ? allLines.length : 0);
-    
-    const filter = document.getElementById('log-filter').value;
-    console.log('Filter value:', filter);
-    
-    // Ensure allLines exists and is an array
-    if (!allLines || allLines.length === 0) {
-        document.getElementById('log-content').innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
-        return;
-    }
-    
-    const filtered = filter === 'ALL'
-        ? allLines
-        : allLines.filter(line => line.includes(`[${filter}]`));
-    
-    console.log('Filtered count:', filtered.length);
-    
-    const content = document.getElementById('log-content');
-    if (filtered.length === 0) {
-        content.innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
-        return;
-    }
-
-    content.innerHTML = filtered.map(line => {
-        let color = 'var(--text-primary)';
-        if (line.includes('[ERROR]')) color = '#f87171';
-        else if (line.includes('[WARNING]')) color = '#fbbf24';
-        else if (line.includes('[DEBUG]')) color = '#94a3b8';
-        else if (line.includes('[INFO]')) color = '#86efac';
-
-        // Use a simple escape instead of function call if needed
-        const safeLine = line.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
+        const filter = document.getElementById('log-filter').value;
         
-        return `<div style="color: ${color}; padding: 1px 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${safeLine}</div>`;
-    }).join('');
+        if (!allLines || allLines.length === 0) {
+            document.getElementById('log-content').innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
+            return;
+        }
+        
+        const filtered = filter === 'ALL'
+            ? allLines
+            : allLines.filter(line => line.includes(`[${filter}]`));
+        
+        const content = document.getElementById('log-content');
+        if (filtered.length === 0) {
+            content.innerHTML = '<span style="color: var(--text-secondary)">No log entries found.</span>';
+            return;
+        }
 
-    if (document.getElementById('auto-scroll') && document.getElementById('auto-scroll').checked) {
-        const viewer = document.getElementById('log-viewer');
-        if (viewer) viewer.scrollTop = viewer.scrollHeight;
+        content.innerHTML = filtered.map(line => {
+            let color = 'var(--text-primary)';
+            if (line.includes('[ERROR]')) color = '#f87171';
+            else if (line.includes('[WARNING]')) color = '#fbbf24';
+            else if (line.includes('[DEBUG]')) color = '#94a3b8';
+            else if (line.includes('[INFO]')) color = '#86efac';
+
+            const safeLine = line.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+            
+            return `<div style="color: ${color}; padding: 1px 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${safeLine}</div>`;
+        }).join('');
+
+        if (document.getElementById('auto-scroll') && document.getElementById('auto-scroll').checked) {
+            const viewer = document.getElementById('log-viewer');
+            if (viewer) viewer.scrollTop = viewer.scrollHeight;
+        }
     }
-}
 
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+    function toggleLogSettings() {
+        const section = document.getElementById('log-settings-section');
+        const icon = document.getElementById('log-settings-icon');
+        
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            section.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
     }
 
     function confirmClearLogs() {
@@ -239,7 +315,7 @@
                 allLines = [];
                 document.getElementById('log-content').innerHTML =
                     '<span style="color: var(--text-secondary)">Log file cleared.</span>';
-                loadLogs(); // Reload to refresh the view
+                loadLogs();
             } else {
                 showToast('Failed to clear logs', 'error');
             }
