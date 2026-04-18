@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
     <style>
+        /* Theme Variables */
         [data-theme="dark"] {
             --bg-primary: #0f172a;
             --bg-secondary: #1e293b;
@@ -16,7 +17,21 @@
             --text-secondary: #94a3b8;
             --border-color: #334155;
             --accent: #6366f1;
+            --accent-rgb: 99, 102, 241;
+            /* Semantic colors - dark mode */
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.15);
+            --info: #3b82f6;
+            --info-bg: rgba(59, 130, 246, 0.15);
+            --purple: #a78bfa;
+            --purple-bg: rgba(139, 92, 246, 0.15);
+            --star: #f5c518;
         }
+        
         [data-theme="light"] {
             --bg-primary: #f8fafc;
             --bg-secondary: #ffffff;
@@ -25,22 +40,40 @@
             --text-secondary: #64748b;
             --border-color: #e2e8f0;
             --accent: #6366f1;
+            --accent-rgb: 99, 102, 241;
+            /* Semantic colors - light mode */
+            --success: #059669;
+            --success-bg: rgba(5, 150, 105, 0.1);
+            --danger: #dc2626;
+            --danger-bg: rgba(220, 38, 38, 0.1);
+            --warning: #d97706;
+            --warning-bg: rgba(217, 119, 6, 0.1);
+            --info: #2563eb;
+            --info-bg: rgba(37, 99, 235, 0.1);
+            --purple: #7c3aed;
+            --purple-bg: rgba(124, 58, 237, 0.1);
+            --star: #eab308;
         }
+        
         body {
             background-color: var(--bg-primary);
             color: var(--text-primary);
         }
+        
         .card {
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
         }
+        
         .nav-link {
             color: var(--text-secondary);
             transition: color 0.2s;
         }
+        
         .nav-link:hover, .nav-link.active {
             color: var(--text-primary);
         }
+        
         .toast {
             position: fixed;
             bottom: 1.5rem;
@@ -48,10 +81,12 @@
             z-index: 9999;
             animation: slideIn 0.3s ease;
         }
+        
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+        
         .spinner {
             border: 2px solid var(--border-color);
             border-top: 2px solid var(--accent);
@@ -61,47 +96,168 @@
             animation: spin 0.8s linear infinite;
             display: inline-block;
         }
+        
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         
-        /* ========== ADDED CSS FOR BETTER TABLE SPACING ========== */
-        /* Better table styling */
+        /* Table styling - consistent across all pages */
         table {
             border-collapse: separate;
             border-spacing: 0;
+            width: 100%;
+        }
+        
+        thead tr {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
         }
         
         th {
             font-weight: 600;
-            letter-spacing: 0.025em;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0.75rem 1rem;
+            text-align: left;
         }
         
         td {
+            padding: 0.75rem 1rem;
             vertical-align: middle;
+            border-bottom: 1px solid var(--border-color);
         }
         
-        /* Hover effect for table rows */
         tbody tr:hover {
             background: rgba(128, 128, 128, 0.05);
         }
         
-        /* Star rating color */
-        .tmdb-star {
-            color: #f5c518;
-        }
-        /* ========== END ADDED CSS ========== */
-
+        /* Button styles */
         .btn-raise {
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             cursor: pointer;
         }
-
+        
         .btn-raise:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.3);
         }
-
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .btn-sm:hover {
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-outline {
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+        
+        .btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        
+        .btn-danger {
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            background: transparent;
+        }
+        
+        .btn-danger:hover {
+            background: var(--danger-bg);
+        }
+        
+        /* Badge styles */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .badge-pending { background: var(--info-bg); color: var(--info); }
+        .badge-approved { background: var(--purple-bg); color: var(--purple); }
+        .badge-queued { background: var(--warning-bg); color: var(--warning); }
+        .badge-completed { background: var(--success-bg); color: var(--success); }
+        .badge-skipped { background: var(--danger-bg); color: var(--danger); }
+        .badge-auto { background: var(--success-bg); color: var(--success); }
+        .badge-manual { background: var(--info-bg); color: var(--info); }
+        .badge-quality_match { background: var(--purple-bg); color: var(--purple); }
+        .badge-dry_run { background: var(--bg-secondary); color: var(--text-secondary); }
+        
+        /* Stat box styling */
+        .stat-box {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+        }
+        
+        .stat-box:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Card header styling - consistent with Rules/Settings */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .card-header-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--accent);
+        }
+        
+        .card-header-title {
+            font-weight: 600;
+        }
+        
+        .card-header-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Star rating color */
+        .star {
+            color: var(--star);
+        }
+        
+        /* Peer count color */
+        .peer-count {
+            color: var(--success);
+        }
+        
+        /* Size savings colors */
+        .size-from {
+            color: var(--danger);
+        }
+        
+        .size-to {
+            color: var(--success);
+        }
     </style>
 </head>
 <body class="min-h-screen">

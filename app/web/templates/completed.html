@@ -3,53 +3,53 @@
 {% block content %}
 <div class="space-y-6">
 
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold">Completed Jobs</h1>
-            <p class="text-sm mt-1" style="color: var(--text-secondary)">
-                History of movies that were replaced, queued, or rejected.
-            </p>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="updateMissingDetails()"
-                class="text-xs px-2 py-1 rounded border border-blue-500 text-blue-500 hover:bg-blue-50 transition-colors">
-                Update Missing Details
-            </button>
-            <button onclick="clearCompletedJobs()"
-                class="text-xs px-2 py-1 rounded border border-red-500 text-red-500 hover:bg-red-50 transition-colors">
-                Clear History
-            </button>
-        </div>
-    </div> 
-
-    <!-- Completed Jobs Table -->
     <div class="card rounded-xl overflow-hidden">
+        <div class="card-header">
+            <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+            <div>
+                <h2 class="card-header-title">Completed Jobs</h2>
+                <p class="card-header-subtitle">History of movies that were replaced, queued, or rejected</p>
+            </div>
+            <div class="ml-auto flex gap-2">
+                <button onclick="updateMissingDetails()"
+                    class="btn-sm btn-outline">
+                    Update Missing Details
+                </button>
+                <button onclick="clearCompletedJobs()"
+                    class="btn-sm btn-danger">
+                    Clear History
+                </button>
+            </div>
+        </div>
+
+        <!-- Completed Jobs Table -->
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead style="background: var(--bg-primary)">
-                    <tr style="color: var(--text-secondary)">
-                        <th class="text-left px-4 py-3 font-medium">Date</th>
-                        <th class="text-left px-4 py-3 font-medium">Movie</th>
-                        <th class="text-left px-4 py-3 font-medium">From → To</th>
-                        <th class="text-left px-4 py-3 font-medium">Indexer</th>
-                        <th class="text-left px-4 py-3 font-medium">Peers</th>
-                        <th class="text-left px-4 py-3 font-medium">TMDB</th>
-                        <th class="text-left px-4 py-3 font-medium">Mode</th>
-                        <th class="text-left px-4 py-3 font-medium">Status</th>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Movie</th>
+                        <th>From → To</th>
+                        <th>Indexer</th>
+                        <th>Peers</th>
+                        <th>TMDB</th>
+                        <th>Mode</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="completed-table">
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center"
-                            style="color: var(--text-secondary)">Loading...</td>
+                        <td colspan="8" class="text-center py-8" style="color: var(--text-secondary)">Loading...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <!-- Pagination -->
-    <div id="pagination" class="flex items-center justify-between text-sm"></div>
+        <!-- Pagination -->
+        <div id="pagination" class="px-4 py-3 border-t flex items-center justify-between text-sm" style="border-color: var(--border-color);"></div>
+    </div>
 
 </div>
 {% endblock %}
@@ -72,8 +72,7 @@
             if (!data.records || data.records.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center"
-                            style="color: var(--text-secondary)">
+                        <td colspan="8" class="text-center py-8" style="color: var(--text-secondary)">
                             No completed jobs yet.
                         </td>
                     </tr>`;
@@ -82,36 +81,36 @@
             }
 
             tbody.innerHTML = data.records.map(r => `
-                <tr style="border-top: 1px solid var(--border-color)">
-                    <td class="px-4 py-3 whitespace-nowrap">${new Date(r.completed_at).toLocaleDateString()}</td>
-                    <td class="px-4 py-3">
+                <tr>
+                    <td class="whitespace-nowrap">${new Date(r.completed_at).toLocaleDateString()}</td>
+                    <td>
                         <div class="font-medium">${escapeHtml(r.movie_title)}</div>
                         <div class="text-xs" style="color: var(--text-secondary)">${r.movie_year || 'Year N/A'}</div>
                     </td>
-                    <td class="px-4 py-3">
-                        <div class="text-red-400">${r.current_size_gb?.toFixed(2) || 'N/A'} GB (${r.current_quality || 'N/A'})</div>
-                        <div class="text-green-400">→ ${r.found_size_gb?.toFixed(2) || 'N/A'} GB (${r.found_quality || 'N/A'})</div>
+                    <td>
+                        <div class="size-from">${r.current_size_gb?.toFixed(2) || 'N/A'} GB (${r.current_quality || 'N/A'})</div>
+                        <div class="size-to">→ ${r.found_size_gb?.toFixed(2) || 'N/A'} GB (${r.found_quality || 'N/A'})</div>
                         <div class="text-xs" style="color: var(--text-secondary)">
                             ${((r.current_size_gb - r.found_size_gb) || 0).toFixed(2)} GB saved
                         </div>
                     </td>
-                    <td class="px-4 py-3">
+                    <td>
                         <div class="text-xs">${r.indexer || 'N/A'}</div>
                     </td>
-                    <td class="px-4 py-3">
+                    <td>
                         <div class="flex items-center gap-1">
-                            <span style="color: #10b981;">▼</span>
+                            <span class="peer-count">▼</span>
                             <span>${r.seeders || 0}</span>
                         </div>
                     </td>
-                    <td class="px-4 py-3">
-                        ${r.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${r.tmdb_rating.toFixed(1)}</span></div>` : 'N/A'}
+                    <td>
+                        ${r.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${r.tmdb_rating.toFixed(1)}</span></div>` : 'N/A'}
                     </td>
-                    <td class="px-4 py-3">
-                        <span class="text-xs px-2 py-1 rounded ${getModeClass(r.mode)}">${r.mode}</span>
+                    <td>
+                        <span class="badge ${getModeClass(r.mode)}">${r.mode}</span>
                     </td>
-                    <td class="px-4 py-3">
-                        <span class="text-xs px-2 py-1 rounded ${getStatusClass(r.status)}">${r.status}</span>
+                    <td>
+                        <span class="badge ${getStatusClass(r.status)}">${r.status}</span>
                     </td>
                 </tr>
             `).join('');
@@ -125,13 +124,11 @@
                 <div class="flex gap-2">
                     ${data.page > 1
                         ? `<button onclick="loadCompleted(${data.page - 1})"
-                            class="px-3 py-1 rounded text-xs border"
-                            style="border-color: var(--border-color);">← Prev</button>`
+                            class="btn-sm btn-outline">← Prev</button>`
                         : ''}
                     ${data.page < data.pages
                         ? `<button onclick="loadCompleted(${data.page + 1})"
-                            class="px-3 py-1 rounded text-xs border"
-                            style="border-color: var(--border-color);">Next →</button>`
+                            class="btn-sm btn-outline">Next →</button>`
                         : ''}
                 </div>
             `;
@@ -153,22 +150,22 @@
 
     function getModeClass(mode) {
         switch(mode) {
-            case 'auto': return 'bg-green-800 text-green-200';
-            case 'manual': return 'bg-blue-800 text-blue-200';
-            case 'quality_match': return 'bg-purple-800 text-purple-200';
-            case 'dry_run': return 'bg-gray-800 text-gray-200';
-            case 'rejected': return 'bg-red-800 text-red-200';
-            default: return 'bg-gray-800 text-gray-200';
+            case 'auto': return 'badge-auto';
+            case 'manual': return 'badge-manual';
+            case 'quality_match': return 'badge-quality_match';
+            case 'dry_run': return 'badge-dry_run';
+            case 'rejected': return 'badge-skipped';
+            default: return 'badge-dry_run';
         }
     }
 
     function getStatusClass(status) {
         switch(status) {
-            case 'completed': return 'bg-green-800 text-green-200';
-            case 'queued': return 'bg-yellow-800 text-yellow-200';
-            case 'rejected': return 'bg-red-800 text-red-200';
-            case 'failed': return 'bg-red-800 text-red-200';
-            default: return 'bg-gray-800 text-gray-200';
+            case 'completed': return 'badge-completed';
+            case 'queued': return 'badge-queued';
+            case 'rejected': return 'badge-skipped';
+            case 'failed': return 'badge-skipped';
+            default: return 'badge-dry_run';
         }
     }
 

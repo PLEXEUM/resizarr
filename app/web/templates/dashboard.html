@@ -2,22 +2,6 @@
 
 {% block content %}
 <style>
-/* Stat box hover effect - raise only */
-.stat-box {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    cursor: default;
-}
-
-.stat-box:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
-}
-
-/* Consistent table cell padding */
-.table-cell {
-    padding: 0.75rem 1rem;
-}
-
 /* Skip reason styling */
 .skip-reason {
     font-family: monospace;
@@ -31,112 +15,152 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <!-- Current Rule Summary -->
-        <div class="card rounded-xl p-6">
-            <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                style="color: var(--text-secondary)">Active Rule</h2>
-            <div id="rule-summary" class="text-sm" style="color: var(--text-secondary)">
-                Loading...
+        <div class="card rounded-xl overflow-hidden">
+            <div class="card-header">
+                <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <div>
+                    <h2 class="card-header-title">Active Rule</h2>
+                    <p class="card-header-subtitle">Current replacement conditions</p>
+                </div>
             </div>
-            <div id="space-saved" class="mt-4 pt-3 border-t text-sm" style="border-color: var(--border-color);">
-                <span class="font-semibold">💾 Total Space Saved:</span>
-                <span id="total-saved-value">Calculating...</span>
+            <div class="p-6">
+                <div id="rule-summary" class="text-sm" style="color: var(--text-secondary)">
+                    Loading...
+                </div>
+                <div id="space-saved" class="mt-4 pt-3 border-t text-sm" style="border-color: var(--border-color);">
+                    <span class="font-semibold">💾 Total Space Saved:</span>
+                    <span id="total-saved-value">Calculating...</span>
+                </div>
             </div>
         </div>
 
         <!-- Run Controls -->
-        <div class="card rounded-xl p-6">
-            <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-                style="color: var(--text-secondary)">Run Controls</h2>
-            <div class="space-y-4">
-                <div class="flex items-center gap-3">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="dry-run-toggle" class="accent-indigo-500" />
-                        <span class="text-sm">Dry Run (no changes, CSV report only)</span>
-                    </label>
+        <div class="card rounded-xl overflow-hidden">
+            <div class="card-header">
+                <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <div>
+                    <h2 class="card-header-title">Run Controls</h2>
+                    <p class="card-header-subtitle">Manual and scheduled scans</p>
                 </div>
-                <div class="flex gap-3">
-                    <button onclick="confirmRun()"
-                        id="run-btn"
-                        class="flex-1 py-2 rounded-lg text-sm font-medium text-white"
-                        style="background: var(--accent);">
-                        ▶ Run Now
-                    </button>
-                    <button onclick="loadStatus()"
-                        class="px-4 py-2 rounded-lg text-sm border"
-                        style="border-color: var(--border-color); color: var(--text-secondary);">
-                        ↻
-                    </button>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="dry-run-toggle" class="accent-indigo-500" />
+                            <span class="text-sm">Dry Run (no changes, CSV report only)</span>
+                        </label>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="confirmRun()"
+                            id="run-btn"
+                            class="flex-1 py-2 rounded-lg text-sm font-medium text-white btn-raise"
+                            style="background: var(--accent);">
+                            ▶ Run Now
+                        </button>
+                        <button onclick="loadStatus()"
+                            class="px-4 py-2 rounded-lg text-sm border btn-raise"
+                            style="border-color: var(--border-color); color: var(--text-secondary);">
+                            ↻
+                        </button>
+                    </div>
+                    <p class="text-xs" style="color: var(--text-secondary)">
+                        Next scheduled: <span id="next-run">Loading...</span>
+                    </p>
                 </div>
-                <p class="text-xs" style="color: var(--text-secondary)">
-                    Next scheduled: <span id="next-run">Loading...</span>
-                </p>
             </div>
         </div>
     </div>
 
     <!-- Progress Bar (shown during run) -->
-    <div id="progress-section" class="hidden card rounded-xl p-6">
-        <h2 class="text-sm font-semibold uppercase tracking-wide mb-4"
-            style="color: var(--text-secondary)">Run Progress</h2>
-        <div class="space-y-2">
-            <div class="flex justify-between text-xs" style="color: var(--text-secondary)">
-                <span id="progress-label">Starting...</span>
-                <span id="progress-pct">0%</span>
+    <div id="progress-section" class="hidden card rounded-xl overflow-hidden">
+        <div class="card-header">
+            <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <div>
+                <h2 class="card-header-title">Run Progress</h2>
+                <p class="card-header-subtitle">Current scan status</p>
             </div>
-        
-            <!-- Progress bar with inline cancel button -->
-            <div class="flex items-center gap-3">
-                <div class="flex-1">
-                    <div class="w-full rounded-full h-2" style="background: var(--border-color)">
-                        <div id="progress-bar"
-                            class="h-2 rounded-full transition-all duration-300"
-                            style="width: 0%; background: var(--accent)"></div>
-                    </div>
+        </div>
+        <div class="p-6">
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs" style="color: var(--text-secondary)">
+                    <span id="progress-label">Starting...</span>
+                    <span id="progress-pct">0%</span>
                 </div>
-                <button id="cancel-run-btn" 
-                    onclick="cancelCurrentRun()"
-                    class="hidden items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-500 hover:text-red-600 hover:bg-gray-100 transition-colors"
-                    title="Cancel Scan">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    <span>Cancel</span>
-                </button>
+            
+                <!-- Progress bar with inline cancel button -->
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <div class="w-full rounded-full h-2" style="background: var(--border-color)">
+                            <div id="progress-bar"
+                                class="h-2 rounded-full transition-all duration-300"
+                                style="width: 0%; background: var(--accent)"></div>
+                        </div>
+                    </div>
+                    <button id="cancel-run-btn" 
+                        onclick="cancelCurrentRun()"
+                        class="hidden items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors btn-raise"
+                        style="color: var(--text-secondary);"
+                        title="Cancel Scan">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Cancel</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Last Run Summary with Clickable Stats (4 columns) -->
-    <div class="card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold uppercase tracking-wide"
-                style="color: var(--text-secondary)">Last Run Summary</h2>
-            <button onclick="clearDashboard()" 
-                class="text-xs px-3 py-1.5 rounded border text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-colors">
-                🗑️ Clear Dashboard
-            </button>
+    <!-- Last Run Summary with Clickable Stats -->
+    <div class="card rounded-xl overflow-hidden">
+        <div class="card-header">
+            <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <div>
+                <h2 class="card-header-title">Last Run Summary</h2>
+                <p class="card-header-subtitle">Results from the most recent scan</p>
+            </div>
+            <div class="ml-auto">
+                <button onclick="clearDashboard()" 
+                    class="btn-sm btn-danger">
+                    🗑️ Clear Dashboard
+                </button>
+            </div>
         </div>
-        <div id="last-run-summary">
-            <p class="text-sm" style="color: var(--text-secondary)">No runs yet.</p>
-        </div>
-        <div id="csv-download" class="hidden mt-4">
-            <a href="/api/run/csv"
-                class="text-sm px-4 py-2 rounded-lg border inline-block"
-                style="border-color: var(--accent); color: var(--accent);">
-                ⬇ Download Dry Run CSV
-            </a>
+        <div class="p-6">
+            <div id="last-run-summary">
+                <p class="text-sm" style="color: var(--text-secondary)">No runs yet.</p>
+            </div>
+            <div id="csv-download" class="hidden mt-4">
+                <a href="/api/run/csv"
+                    class="btn-sm btn-outline inline-block">
+                    ⬇ Download Dry Run CSV
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Dynamic Category Details Card -->
-    <div class="card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 id="category-title" class="text-sm font-semibold uppercase tracking-wide"
-                style="color: var(--text-secondary)">Pending Approvals</h2>
-            <div class="flex gap-2">
+    <div class="card rounded-xl overflow-hidden">
+        <div class="card-header">
+            <svg class="card-header-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+            </svg>
+            <div>
+                <h2 id="category-title" class="card-header-title">Pending Approvals</h2>
+                <p id="category-subtitle" class="card-header-subtitle">Movies awaiting your decision</p>
+            </div>
+            <div class="ml-auto">
                 <button id="next-category-btn" 
-                    class="text-xs px-3 py-1.5 rounded border transition-colors hover:opacity-80"
-                    style="border-color: var(--accent); color: var(--accent);">
+                    class="btn-sm btn-outline">
                     Next →
                 </button>
             </div>
@@ -156,10 +180,10 @@
         <p id="confirm-text" class="text-sm mb-6" style="color: var(--text-secondary)"></p>
         <div class="flex gap-3">
             <button onclick="startRun()"
-                class="flex-1 py-2 rounded-lg text-sm font-medium text-white"
+                class="flex-1 py-2 rounded-lg text-sm font-medium text-white btn-raise"
                 style="background: var(--accent);">Confirm</button>
             <button onclick="closeDialog()"
-                class="flex-1 py-2 rounded-lg text-sm border"
+                class="flex-1 py-2 rounded-lg text-sm border btn-raise"
                 style="border-color: var(--border-color);">Cancel</button>
         </div>
     </div>
@@ -241,15 +265,16 @@
     async function loadCategory(category) {
         currentCategory = category;
     
-        // Update the card title
+        // Update the card title and subtitle
         const titles = {
-            'processed': 'Processed Movies',
-            'pending': 'Pending Approvals',
-            'approved': 'Approved Replacements',
-            'skipped': 'Skipped Items'
+            'processed': { title: 'Processed Movies', subtitle: 'All movies scanned in the last run' },
+            'pending': { title: 'Pending Approvals', subtitle: 'Movies awaiting your decision' },
+            'approved': { title: 'Approved Replacements', subtitle: 'Movies queued or completed' },
+            'skipped': { title: 'Skipped Items', subtitle: 'Movies that did not meet criteria' }
         };
     
-        document.getElementById('category-title').textContent = titles[category] || 'Run Details';
+        document.getElementById('category-title').textContent = titles[category].title;
+        document.getElementById('category-subtitle').textContent = titles[category].subtitle;
     
         // Update the next button
         const nextBtn = document.getElementById('next-category-btn');
@@ -291,141 +316,135 @@
             }
         } catch (e) {
             console.error(`Failed to load ${category}:`, e);
-            container.innerHTML = `<div class="text-center py-8 text-red-500">Failed to load: ${e.message}</div>`;
+            container.innerHTML = `<div class="text-center py-8" style="color: var(--danger)">Failed to load: ${e.message}</div>`;
         }
     }
     
     // Render table based on category
     function renderCategoryTable(container, movies, category) {
-        let html = `
-            <table class="w-full text-sm" style="border-collapse: separate; border-spacing: 0;">
-                <thead>
-                    <tr style="color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
-        `;
+        let html = `<table><thead><tr>`;
         
-        // Define columns based on category (all use px-4 for consistency)
+        // Define columns based on category
         if (category === 'processed') {
             html += `
-                        <th class="text-left py-3 px-4 font-medium">Movie</th>
-                        <th class="text-left py-3 px-4 font-medium">Year</th>
-                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Date Added</th>
-                        <th class="text-left py-3 px-4 font-medium">Status</th>
+                        <th>Movie</th>
+                        <th>Year</th>
+                        <th>⭐ TMDB</th>
+                        <th>Current Size</th>
+                        <th>Current Quality</th>
+                        <th>Date Added</th>
+                        <th>Status</th>
             `;
         } else if (category === 'pending') {
             html += `
-                        <th class="text-left py-3 px-4 font-medium">Movie</th>
-                        <th class="text-left py-3 px-4 font-medium">Year</th>
-                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Indexer</th>
-                        <th class="text-left py-3 px-4 font-medium">Peers</th>
-                        <th class="text-left py-3 px-4 font-medium">Age</th>
-                        <th class="text-left py-3 px-4 font-medium">Actions</th>
+                        <th>Movie</th>
+                        <th>Year</th>
+                        <th>⭐ TMDB</th>
+                        <th>Current Size</th>
+                        <th>Current Quality</th>
+                        <th>Found Size</th>
+                        <th>Found Quality</th>
+                        <th>Indexer</th>
+                        <th>Peers</th>
+                        <th>Age</th>
+                        <th>Actions</th>
             `;
         } else if (category === 'approved') {
             html += `
-                        <th class="text-left py-3 px-4 font-medium">Movie</th>
-                        <th class="text-left py-3 px-4 font-medium">Year</th>
-                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Indexer</th>
-                        <th class="text-left py-3 px-4 font-medium">Peers</th>
-                        <th class="text-left py-3 px-4 font-medium">Status</th>
+                        <th>Movie</th>
+                        <th>Year</th>
+                        <th>⭐ TMDB</th>
+                        <th>Current Size</th>
+                        <th>Current Quality</th>
+                        <th>Found Size</th>
+                        <th>Found Quality</th>
+                        <th>Indexer</th>
+                        <th>Peers</th>
+                        <th>Status</th>
             `;
         } else if (category === 'skipped') {
             html += `
-                        <th class="text-left py-3 px-4 font-medium">Movie</th>
-                        <th class="text-left py-3 px-4 font-medium">Year</th>
-                        <th class="text-left py-3 px-4 font-medium">⭐ TMDB</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Current Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Size</th>
-                        <th class="text-left py-3 px-4 font-medium">Found Quality</th>
-                        <th class="text-left py-3 px-4 font-medium">Reason</th>
+                        <th>Movie</th>
+                        <th>Year</th>
+                        <th>⭐ TMDB</th>
+                        <th>Current Size</th>
+                        <th>Current Quality</th>
+                        <th>Found Size</th>
+                        <th>Found Quality</th>
+                        <th>Reason</th>
             `;
         }
         
         html += ` </tr></thead><tbody>`;
         
         movies.forEach(movie => {
-            html += `<tr style="border-bottom: 1px solid var(--border-color);">`;
+            html += `<tr>`;
             
             if (category === 'processed') {
-                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 const dateAdded = movie.date_added ? new Date(movie.date_added).toLocaleDateString() : 'N/A';
                 html += `
-                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
-                    <td class="py-3 px-4">${tmdbRating}</td>
-                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td class="py-3 px-4 text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
-                    <td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${getStatusBadgeClass(movie.status)}">${movie.status || 'Processed'}</span></td>
+                    <td class="font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td>${tmdbRating}</td>
+                    <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td class="text-sm" style="color: var(--text-secondary)">${escapeHtml(dateAdded)}</td>
+                    <td><span class="badge ${getStatusBadgeClass(movie.status)}">${movie.status || 'Processed'}</span></td>
                 `;
             } else if (category === 'pending') {
-                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 html += `
-                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
-                    <td class="py-3 px-4">${tmdbRating}</td>
-                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td class="py-3 px-4" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
-                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
-                    <td class="py-3 px-4"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
-                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${getAge(movie.created_at)}</td>
-                    <td class="py-3 px-4">
+                    <td class="font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td>${tmdbRating}</td>
+                    <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                    <td class="text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
+                    <td><span class="peer-count">▼</span> ${movie.seeders || 0}</td>
+                    <td class="text-xs" style="color: var(--text-secondary)">${getAge(movie.created_at)}</td>
+                    <td>
                         <div class="flex gap-2">
                             <button onclick="quickApprove(${movie.id})" 
-                                class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors hover:opacity-80" 
-                                style="background: var(--accent);">
+                                class="btn-sm btn-primary">
                                 Approve
                             </button>
                             <button onclick="quickReject(${movie.id})" 
-                                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-red-50" 
-                                style="border-color: #ef4444; color: #ef4444;">
+                                class="btn-sm btn-danger">
                                 Reject
                             </button>
                         </div>
                     </td>
                 `;
             } else if (category === 'approved') {
-                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 html += `
-                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
-                    <td class="py-3 px-4">${tmdbRating}</td>
-                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td class="py-3 px-4" style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
-                    <td class="py-3 px-4 text-xs" style="color: var(--text-secondary)">${movie.indexer || 'N/A'}</td>
-                    <td class="py-3 px-4"><span style="color: #10b981;">▼</span> ${movie.seeders || 0}</td>
-                    <td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${getStatusBadgeClass(movie.status)}">${movie.status || 'queued'}</span></td>
+                    <td class="font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td>${tmdbRating}</td>
+                    <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
+                    <td class="text-xs" style="color: var(--text-secondary)">${movie.indexer || 'N/A'}</td>
+                    <td><span class="peer-count">▼</span> ${movie.seeders || 0}</td>
+                    <td><span class="badge ${getStatusBadgeClass(movie.status)}">${movie.status || 'queued'}</span></td>
                 `;
             } else if (category === 'skipped') {
-                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span style="color: #f5c518;">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
+                const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
                 const foundSize = movie.found_size_gb ? `${movie.found_size_gb.toFixed(2)} GB` : 'N/A';
                 const foundQuality = movie.found_quality || 'N/A';
                 html += `
-                    <td class="py-3 px-4 font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
-                    <td class="py-3 px-4">${tmdbRating}</td>
-                    <td class="py-3 px-4" style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td class="py-3 px-4" style="color: var(--accent)">${foundSize}</td>
-                    <td class="py-3 px-4" style="color: var(--text-secondary)">${foundQuality}</td>
-                    <td class="py-3 px-4 skip-reason">${escapeHtml(movie.reason || 'Unknown')}</td>
+                    <td class="font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
+                    <td style="color: var(--text-secondary)">${movie.year || 'N/A'}</td>
+                    <td>${tmdbRating}</td>
+                    <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
+                    <td style="color: var(--accent)">${foundSize}</td>
+                    <td style="color: var(--text-secondary)">${foundQuality}</td>
+                    <td class="skip-reason">${escapeHtml(movie.reason || 'Unknown')}</td>
                 `;
             }
             
@@ -438,12 +457,12 @@
     
     function getStatusBadgeClass(status) {
         const statusLower = (status || '').toLowerCase();
-        if (statusLower === 'pending') return 'bg-blue-800 text-blue-200';
-        if (statusLower === 'approved') return 'bg-purple-800 text-purple-200';
-        if (statusLower === 'queued') return 'bg-yellow-800 text-yellow-200';
-        if (statusLower === 'completed') return 'bg-green-800 text-green-200';
-        if (statusLower === 'skipped') return 'bg-orange-800 text-orange-200';
-        return 'bg-gray-800 text-gray-200';
+        if (statusLower === 'pending') return 'badge-pending';
+        if (statusLower === 'approved') return 'badge-approved';
+        if (statusLower === 'queued') return 'badge-queued';
+        if (statusLower === 'completed') return 'badge-completed';
+        if (statusLower === 'skipped') return 'badge-skipped';
+        return '';
     }
     
     function getAge(createdAt) {
@@ -517,14 +536,6 @@
                     const cancelBtn = document.getElementById('cancel-run-btn');
                     cancelBtn.classList.remove('hidden');
                     cancelBtn.disabled = false;
-                    cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        <span>Cancel</span>
-                    </div>`;
-                    cancelBtn.classList.remove('text-green-600');
-                    cancelBtn.classList.add('text-gray-400');
                 }
             
                 if (!pollInterval) {
@@ -595,7 +606,7 @@
                 }
             }
 
-            // Last run summary - 4 columns with clickable stats
+            // Last run summary - stat boxes
             if (data.last_run) {
                 const r = data.last_run;
                 lastRunData = r;
@@ -606,29 +617,21 @@
                 
                 document.getElementById('last-run-summary').innerHTML = `
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('processed')">
-                            <div class="text-2xl font-bold">${r.total_movies_processed || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Processed</div>
+                        <div class="stat-box p-4 text-center" onclick="loadCategory('processed')">
+                            <div class="text-2xl font-bold" style="color: var(--info)">${r.total_movies_processed || 0}</div>
+                            <div class="text-xs uppercase tracking-wide mt-1" style="color: var(--text-secondary)">Processed</div>
                         </div>
-                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('pending')">
-                            <div class="text-2xl font-bold text-blue-400">${r.live_pending || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Pending</div>
+                        <div class="stat-box p-4 text-center" onclick="loadCategory('pending')">
+                            <div class="text-2xl font-bold" style="color: var(--warning)">${r.live_pending || 0}</div>
+                            <div class="text-xs uppercase tracking-wide mt-1" style="color: var(--text-secondary)">Pending</div>
                         </div>
-                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
-                            style="background: var(--bg-primary)" 
-                            onclick="loadCategory('approved')">
-                            <div class="text-2xl font-bold text-purple-400">${r.approved || 0}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Approved</div>
+                        <div class="stat-box p-4 text-center" onclick="loadCategory('approved')">
+                            <div class="text-2xl font-bold" style="color: var(--purple)">${r.approved || 0}</div>
+                            <div class="text-xs uppercase tracking-wide mt-1" style="color: var(--text-secondary)">Approved</div>
                         </div>
-                        <div class="stat-box text-center p-3 rounded-lg cursor-pointer" 
-                             style="background: var(--bg-primary)" 
-                             onclick="loadCategory('skipped')">
-                            <div class="text-2xl font-bold text-orange-400">${skippedCount}</div>
-                            <div class="text-xs mt-1" style="color: var(--text-secondary)">Skipped</div>
+                        <div class="stat-box p-4 text-center" onclick="loadCategory('skipped')">
+                            <div class="text-2xl font-bold" style="color: var(--danger)">${skippedCount}</div>
+                            <div class="text-xs uppercase tracking-wide mt-1" style="color: var(--text-secondary)">Skipped</div>
                         </div>
                     </div>
                     <p class="text-xs mt-3" style="color: var(--text-secondary)">
@@ -690,7 +693,7 @@
         try {
             const res = await fetch(`/api/run?dry_run=${isDryRun}`, { method: 'POST' });
             if (res.ok) {
-                currentRunStartTime = null;  // ← ADD THIS - force reload on next status
+                currentRunStartTime = null;
                 showToast(isDryRun ? 'Dry run started!' : 'Run started!', 'success');
                 sendNotification('Resizarr', isDryRun ? 'Dry run started' : 'Run started');
                 setTimeout(() => {
@@ -744,8 +747,6 @@
                         currentRunId = data.run_id;
                         cancelBtn.classList.remove('hidden');
                         cancelBtn.disabled = false;
-                        cancelBtn.classList.remove('text-green-600');
-                        cancelBtn.classList.add('text-gray-400');
                     }
                 } else {
                     if (currentRunId !== null) {
@@ -767,8 +768,6 @@
         
         const cancelBtn = document.getElementById('cancel-run-btn');
         cancelBtn.disabled = true;
-        cancelBtn.classList.add('text-gray-400');
-        cancelBtn.classList.remove('hover:text-red-600', 'hover:bg-gray-100');
         
         try {
             const res = await fetch(`/api/run/${currentRunId}/cancel`, { method: 'POST' });
@@ -781,21 +780,15 @@
                     </svg>
                     <span>Cancelling...</span>
                 </div>`;
-                cancelBtn.classList.add('text-green-600');
-                cancelBtn.classList.remove('text-gray-400');
                 startCancelConfirmationPolling();
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to cancel', 'error');
                 cancelBtn.disabled = false;
-                cancelBtn.classList.remove('text-gray-400');
-                cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
             }
         } catch (e) {
             showToast('Error cancelling: ' + e.message, 'error');
             cancelBtn.disabled = false;
-            cancelBtn.classList.remove('text-gray-400');
-            cancelBtn.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-gray-100');
         }
     }
 
@@ -863,7 +856,7 @@
             const res = await fetch('/api/dashboard/clear', { method: 'DELETE' });
             if (res.ok) {
                 showToast('Dashboard cleared successfully', 'success');
-                currentRunStartTime = null;  // ← ADD THIS LINE
+                currentRunStartTime = null;
                 await loadStatus();
                 await loadCategory('pending');
                 await loadTotalSpaceSaved(); 
