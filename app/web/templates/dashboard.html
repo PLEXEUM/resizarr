@@ -105,13 +105,9 @@
                     </div>
                     <button id="cancel-run-btn" 
                         onclick="cancelCurrentRun()"
-                        class="hidden items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors btn-raise"
-                        style="color: var(--text-secondary);"
+                        class="hidden btn-sm btn-danger"
                         title="Cancel Scan">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        <span>Cancel</span>
+                        Cancel
                     </button>
                 </div>
             </div>
@@ -761,36 +757,33 @@
     }
 
     async function cancelCurrentRun() {
-        if (!currentRunId) {
-            showToast('No active run to cancel', 'warning');
-            return;
-        }
-        
-        const cancelBtn = document.getElementById('cancel-run-btn');
-        cancelBtn.disabled = true;
-        
-        try {
-            const res = await fetch(`/api/run/${currentRunId}/cancel`, { method: 'POST' });
-            
-            if (res.ok) {
-                showToast('Cancelling scan... will stop after current movie', 'info');
-                cancelBtn.innerHTML = `<div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span>Cancelling...</span>
-                </div>`;
-                startCancelConfirmationPolling();
-            } else {
-                const data = await res.json();
-                showToast(data.detail || 'Failed to cancel', 'error');
-                cancelBtn.disabled = false;
-            }
-        } catch (e) {
-            showToast('Error cancelling: ' + e.message, 'error');
-            cancelBtn.disabled = false;
-        }
+    if (!currentRunId) {
+        showToast('No active run to cancel', 'warning');
+        return;
     }
+    
+    const cancelBtn = document.getElementById('cancel-run-btn');
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'Cancelling...';
+    
+    try {
+        const res = await fetch(`/api/run/${currentRunId}/cancel`, { method: 'POST' });
+        
+        if (res.ok) {
+            showToast('Cancelling scan... will stop after current movie', 'info');
+            startCancelConfirmationPolling();
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'Failed to cancel', 'error');
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = 'Cancel';
+        }
+    } catch (e) {
+        showToast('Error cancelling: ' + e.message, 'error');
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = 'Cancel';
+    }
+}
 
     function startCancelConfirmationPolling() {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
