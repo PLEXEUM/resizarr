@@ -23,105 +23,344 @@ input:focus, select:focus, textarea:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 99, 102, 241), 0.2);
 }
+
+/* Connection status styles */
+.connection-status {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.connection-status.success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.connection-status.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.connection-status.info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
 </style>
 
-<div class="max-w-2xl mx-auto">
-    <div class="card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-6">
+<div class="max-w-3xl mx-auto">
+    <!-- Header OUTSIDE card (matching Logs/Rules page style) -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold">Settings</h1>
+        <p class="text-sm mt-1" style="color: var(--text-secondary)">
+            Configure application settings
+        </p>
+    </div>
+
+    <!-- RADARR CONNECTION BLOCK -->
+    <div class="card rounded-xl overflow-hidden mb-6" style="border-color: var(--border-color);">
+        <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+            <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4-3-9s1.34-9 3-9m-9 9a9 9 0 019-9"></path>
+            </svg>
             <div>
-                <h1 class="text-2xl font-bold mb-1">Settings</h1>
-                <p class="text-sm" style="color: var(--text-secondary)">
-                    Configure scheduling and polling.
+                <h2 class="font-semibold">Radarr Connection</h2>
+                <p class="text-xs" style="color: var(--text-secondary);">Connect to your Radarr instance</p>
+            </div>
+        </div>
+        <div class="p-4">
+            <div id="radarr-display-view">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-1" style="color: var(--text-secondary);">
+                            Radarr URL
+                        </label>
+                        <div class="text-sm font-mono" id="display-radarr-url" style="color: var(--text-primary);">-</div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-1" style="color: var(--text-secondary);">
+                            API Key
+                        </label>
+                        <div class="text-sm font-mono" id="display-radarr-api-key" style="color: var(--text-primary);">-</div>
+                    </div>
+                    <div id="connection-status-display" class="connection-status info">
+                        ⚠ Loading connection status...
+                    </div>
+                    <button onclick="showEditConnection()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
+                        style="border-color: var(--accent); color: var(--accent);">
+                        Change Connection
+                    </button>
+                </div>
+            </div>
+
+            <div id="radarr-edit-view" style="display: none;">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-1" style="color: var(--text-secondary);">
+                            Radarr URL
+                        </label>
+                        <input id="edit-radarr-url" type="url" placeholder="http://localhost:7878"
+                            class="w-full px-3 py-2 rounded-lg text-sm border" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wide mb-1" style="color: var(--text-secondary);">
+                            API Key
+                        </label>
+                        <input id="edit-radarr-api-key" type="password" placeholder="Your Radarr API key"
+                            class="w-full px-3 py-2 rounded-lg text-sm border" />
+                    </div>
+                    <div id="connection-status-edit" class="connection-status info">
+                        ℹ Enter your Radarr URL and API key, then test connection.
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="testAndSaveConnection()" class="btn-raise px-4 py-2 rounded-lg text-sm font-medium text-white"
+                            style="background: var(--accent);">
+                            Test & Save
+                        </button>
+                        <button onclick="cancelEditConnection()" class="btn-raise px-4 py-2 rounded-lg text-sm border"
+                            style="border-color: var(--border-color); color: var(--text-secondary);">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHEDULE BLOCK -->
+    <div class="card rounded-xl overflow-hidden" style="border-color: var(--border-color);">
+        <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
+            <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <h2 class="font-semibold">Schedule</h2>
+                <p class="text-xs" style="color: var(--text-secondary);">Configure when and how scans run</p>
+            </div>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <label class="block text-xs font-semibold uppercase tracking-wide" style="color: var(--text-secondary);">
+                        Batch Size
+                    </label>
+                    <button onclick="resetScheduleToDefaults()" class="text-xs px-3 py-1 rounded-lg border"
+                        style="border-color: var(--border-color); color: var(--text-secondary);">
+                        Reset to Defaults
+                    </button>
+                </div>
+                <select id="batch-size" class="w-full mt-2 px-3 py-2 rounded-lg text-sm border">
+                    <option value="0">0 — No limit (process all)</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select>
+                <p id="batch-warning" class="hidden text-xs mt-1 text-yellow-400">
+                    ⚠ Processing all movies may take a long time.
                 </p>
             </div>
-            <button onclick="resetSettings()" class="text-xs px-3 py-1 rounded-lg border hover:bg-gray-50 transition" 
-                    style="border-color: var(--border-color);">
-                Reset to Defaults
-            </button>
-        </div>
 
-        <div class="space-y-8">
-
-            <!-- Schedule -->
-            <div class="border rounded-lg overflow-hidden" style="border-color: var(--border-color);">
-                <div class="w-full flex items-center gap-3 p-4 border-b" style="border-color: var(--border-color);">
-                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div>
-                        <h2 class="font-semibold">Schedule</h2>
-                        <p class="text-xs" style="color: var(--text-secondary);">Configure when and how scans run</p>
-                    </div>
-                </div>
-                <div class="p-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Batch Size</label>
-                        <select id="batch-size"
-                            class="w-full px-3 py-2 rounded-lg text-sm border"
-                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                            <option value="0">0 — No limit (process all)</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="10" selected>10</option>
-                            <option value="15">15</option>
-                            <option value="20">20</option>
-                        </select>
-                        <p id="batch-warning" class="hidden text-xs mt-1 text-yellow-400">
-                            ⚠ Processing all movies may take a long time.
-                        </p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Cron Schedule</label>
-                        <input id="cron-schedule" type="text" value="0 2 * * *"
-                            oninput="updateCronPreview()"
-                            class="w-full px-3 py-2 rounded-lg text-sm border"
-                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                        <p id="cron-preview" class="text-xs mt-1"
-                            style="color: var(--text-secondary)">Runs at 2:00 AM every day</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium mb-2">
-                            Poller Interval (minutes)
-                        </label>
-                        <input id="poller-interval" type="number" min="1" max="60" value="5"
-                            class="w-full px-3 py-2 rounded-lg text-sm border"
-                            style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);" />
-                        <p class="text-xs mt-1" style="color: var(--text-secondary)">
-                            How often to check if pending replacements have completed.
-                        </p>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                    Cron Schedule
+                </label>
+                <input id="cron-schedule" type="text" value="0 2 * * *"
+                    oninput="updateCronPreview()"
+                    class="w-full px-3 py-2 rounded-lg text-sm border" />
+                <p id="cron-preview" class="text-xs mt-1" style="color: var(--text-secondary);">Runs at 2:00 AM every day</p>
             </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="mt-6 pt-4 border-t" style="border-color: var(--border-color);">
-            <button onclick="saveSettings()" class="w-full py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90" 
-                    style="background: var(--accent);">
-                <span id="save-label">Save Settings</span>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
+                    Poller Interval (minutes)
+                </label>
+                <input id="poller-interval" type="number" min="1" max="60" value="5"
+                    class="w-full px-3 py-2 rounded-lg text-sm border" />
+                <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                    How often to check if pending replacements have completed.
+                </p>
+            </div>
+
+            <button onclick="saveScheduleSettings()" class="w-full py-2 rounded-lg text-sm font-medium text-white transition hover:opacity-90 mt-4"
+                style="background: var(--accent);">
+                <span id="save-label">Save Schedule</span>
                 <span id="save-spinner" class="hidden ml-2">⏳</span>
             </button>
         </div>
-
-    </div>  <!-- Close the card div -->
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    window.addEventListener('DOMContentLoaded', loadSettings);
+    let isConfigured = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        loadRadarrConfig();
+        loadScheduleSettings();
+    });
 
     document.getElementById('batch-size').addEventListener('change', function() {
         const warning = document.getElementById('batch-warning');
         warning.classList.toggle('hidden', this.value !== '0');
     });
 
-    async function loadSettings() {
+    // ========== RADARR CONNECTION FUNCTIONS ==========
+    async function loadRadarrConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            isConfigured = data.configured;
+
+            if (isConfigured) {
+                document.getElementById('display-radarr-url').textContent = data.radarr_url || '-';
+                document.getElementById('display-radarr-api-key').textContent = data.radarr_api_key || '-';
+                await testConnectionStatus();
+            } else {
+                document.getElementById('display-radarr-url').textContent = 'Not configured';
+                document.getElementById('display-radarr-api-key').textContent = 'Not configured';
+                const statusDiv = document.getElementById('connection-status-display');
+                statusDiv.className = 'connection-status info';
+                statusDiv.innerHTML = '⚠ Radarr not configured. Click "Change Connection" to set up.';
+                // Auto-show edit view for first-time users
+                showEditConnection();
+            }
+        } catch (e) {
+            console.error('Failed to load Radarr config:', e);
+        }
+    }
+
+    async function testConnectionStatus() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            if (!data.configured || !data.radarr_url) {
+                const statusDiv = document.getElementById('connection-status-display');
+                statusDiv.className = 'connection-status info';
+                statusDiv.innerHTML = '⚠ Radarr not configured';
+                return;
+            }
+
+            // Test the connection
+            const testRes = await fetch('/api/config/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    radarr_url: data.radarr_url,
+                    radarr_api_key: '[REDACTED]'  // This will be replaced on backend
+                })
+            });
+
+            const statusDiv = document.getElementById('connection-status-display');
+            if (testRes.ok) {
+                statusDiv.className = 'connection-status success';
+                statusDiv.innerHTML = '✓ Connected to Radarr';
+            } else {
+                statusDiv.className = 'connection-status error';
+                statusDiv.innerHTML = '✗ Connection failed - check your settings';
+            }
+        } catch (e) {
+            const statusDiv = document.getElementById('connection-status-display');
+            statusDiv.className = 'connection-status error';
+            statusDiv.innerHTML = '✗ Unable to connect to Radarr';
+        }
+    }
+
+    function showEditConnection() {
+        document.getElementById('radarr-display-view').style.display = 'none';
+        document.getElementById('radarr-edit-view').style.display = 'block';
+        
+        // Pre-fill existing values if available
+        const urlEl = document.getElementById('edit-radarr-url');
+        const apiKeyEl = document.getElementById('edit-radarr-api-key');
+        
+        fetch('/api/config').then(res => res.json()).then(data => {
+            if (data.configured && data.radarr_url) {
+                urlEl.value = data.radarr_url;
+            }
+        }).catch(e => console.error('Failed to load current config:', e));
+    }
+
+    function cancelEditConnection() {
+        document.getElementById('radarr-display-view').style.display = 'block';
+        document.getElementById('radarr-edit-view').style.display = 'none';
+        loadRadarrConfig(); // Reload to refresh display
+    }
+
+    async function testAndSaveConnection() {
+        const url = document.getElementById('edit-radarr-url').value.trim();
+        const apiKey = document.getElementById('edit-radarr-api-key').value.trim();
+        
+        if (!url || !apiKey) {
+            const statusDiv = document.getElementById('connection-status-edit');
+            statusDiv.className = 'connection-status error';
+            statusDiv.innerHTML = '✗ Please enter both URL and API key';
+            return;
+        }
+
+        const statusDiv = document.getElementById('connection-status-edit');
+        statusDiv.className = 'connection-status info';
+        statusDiv.innerHTML = '⏳ Testing connection...';
+
+        try {
+            // Test connection first
+            const testRes = await fetch('/api/config/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ radarr_url: url, radarr_api_key: apiKey })
+            });
+
+            const testData = await testRes.json();
+
+            if (!testRes.ok) {
+                statusDiv.className = 'connection-status error';
+                statusDiv.innerHTML = '✗ ' + (testData.detail || 'Connection failed');
+                return;
+            }
+
+            statusDiv.className = 'connection-status info';
+            statusDiv.innerHTML = '✓ Connection successful! Saving configuration...';
+
+            // Save configuration
+            const saveRes = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    radarr_url: url,
+                    radarr_api_key: apiKey,
+                    quality_profile_id: null,
+                    quality_profile_name: null
+                })
+            });
+
+            if (saveRes.ok) {
+                statusDiv.className = 'connection-status success';
+                statusDiv.innerHTML = '✓ Configuration saved successfully!';
+                setTimeout(() => {
+                    cancelEditConnection();
+                    showToast('Radarr configuration saved', 'success');
+                }, 1500);
+            } else {
+                const saveData = await saveRes.json();
+                statusDiv.className = 'connection-status error';
+                statusDiv.innerHTML = '✗ Failed to save: ' + (saveData.detail || 'Unknown error');
+            }
+        } catch (e) {
+            statusDiv.className = 'connection-status error';
+            statusDiv.innerHTML = '✗ Request failed: ' + e.message;
+        }
+    }
+
+    // ========== SCHEDULE SETTINGS FUNCTIONS ==========
+    async function loadScheduleSettings() {
         try {
             const res = await fetch('/api/settings');
             const data = await res.json();
@@ -130,6 +369,10 @@ input:focus, select:focus, textarea:focus {
             document.getElementById('cron-schedule').value = data.cron_schedule;
             document.getElementById('poller-interval').value = data.poller_interval;
             updateCronPreview();
+            
+            // Trigger warning if batch size is 0
+            const warning = document.getElementById('batch-warning');
+            if (warning) warning.classList.toggle('hidden', data.batch_size !== 0);
         } catch (e) {
             showToast('Failed to load settings', 'error');
         }
@@ -160,7 +403,7 @@ input:focus, select:focus, textarea:focus {
         }
     }
 
-    async function saveSettings() {
+    async function saveScheduleSettings() {
         document.getElementById('save-label').textContent = 'Saving...';
         document.getElementById('save-spinner').classList.remove('hidden');
 
@@ -178,7 +421,7 @@ input:focus, select:focus, textarea:focus {
             });
 
             if (res.ok) {
-                showToast('Settings saved!', 'success');
+                showToast('Schedule settings saved!', 'success');
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to save', 'error');
@@ -186,18 +429,22 @@ input:focus, select:focus, textarea:focus {
         } catch (e) {
             showToast('Request failed: ' + e.message, 'error');
         } finally {
-            document.getElementById('save-label').textContent = 'Save Settings';
+            document.getElementById('save-label').textContent = 'Save Schedule';
             document.getElementById('save-spinner').classList.add('hidden');
         }
     }
 
-    function resetSettings() {
-        if (confirm('Reset all settings to default values?')) {
+    function resetScheduleToDefaults() {
+        if (confirm('Reset schedule settings to default values?\n\nBatch Size: 10\nCron Schedule: 0 2 * * *\nPoller Interval: 5 minutes')) {
             document.getElementById('batch-size').value = '10';
             document.getElementById('cron-schedule').value = '0 2 * * *';
             document.getElementById('poller-interval').value = '5';
             updateCronPreview();
-            showToast('Settings reset to defaults', 'success');
+            
+            const warning = document.getElementById('batch-warning');
+            if (warning) warning.classList.add('hidden');
+            
+            showToast('Schedule settings reset to defaults (click Save to apply)', 'success');
         }
     }
 </script>

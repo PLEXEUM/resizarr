@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 
 from app.db.database import init_db, get_connection
 from app.core.scheduler import start_scheduler, stop_scheduler
@@ -90,9 +91,9 @@ async def health():
     return {"status": "ok"}
 
 # --- Import and register API routers ---
-from app.api import config, rules, settings, runs, pending, logs, backup
+# NOTE: config.py has been removed - its endpoints are now in settings.py
+from app.api import rules, settings, runs, pending, logs, backup
 
-app.include_router(config.router,   prefix="/api")
 app.include_router(rules.router,    prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(runs.router,     prefix="/api")
@@ -102,7 +103,6 @@ app.include_router(backup.router,   prefix="/api")
 
 # --- Frontend Routes ---
 from fastapi import Request
-from fastapi.responses import RedirectResponse
 
 @app.get("/")
 async def root(request: Request):
@@ -118,7 +118,8 @@ async def root(request: Request):
 
 @app.get("/setup")
 async def setup_page(request: Request):
-    return templates.TemplateResponse("setup.html", {"request": request})
+    """Redirect to settings page (setup is now integrated into settings)."""
+    return RedirectResponse(url="/settings", status_code=302)
 
 @app.get("/rules")
 async def rules_page(request: Request):
