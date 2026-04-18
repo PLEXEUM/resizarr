@@ -4,8 +4,11 @@
 <style>
 /* Skip reason styling */
 .skip-reason {
-    font-family: monospace;
-    font-size: 0.75rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    word-break: break-word;
+    max-width: 400px;
+    white-space: normal;
 }
 </style>
 
@@ -440,7 +443,7 @@
                     <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
                     <td style="color: var(--accent)">${foundSize}</td>
                     <td style="color: var(--text-secondary)">${foundQuality}</td>
-                    <td class="skip-reason">${escapeHtml(movie.reason || 'Unknown')}</td>
+                    <td class="skip-reason">${capitalizeFirstLetter(escapeHtml(movie.reason || 'Unknown'))}</td>
                 `;
             }
             
@@ -478,6 +481,11 @@
             if (m === '>') return '&gt;';
             return m;
         });
+    }
+
+    function capitalizeFirstLetter(str) {
+        if (!str) return '';
+        return str.replace(/^([❌⚠️ℹ️✅]?\s*)(.)/, (match, prefix, letter) => prefix + letter.toUpperCase());
     }
     
     async function quickApprove(id) {
