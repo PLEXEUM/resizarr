@@ -61,13 +61,18 @@ async def trigger_run(dry_run: bool = False):
     # Run the scanner in background
     async def run_and_reset():
         try:
-            await run_resizarr(dry_run=dry_run, progress_callback=progress_callback, run_id=run_id)
+            conn = get_connection()
+            settings = conn.execute("SELECT batch_size FROM settings WHERE id = 1").fetchone()
+            batch_limit = settings["batch_size"] if settings else 10
+            conn.close()
+        
+            await run_resizarr(dry_run=dry_run, batch_limit=batch_limit, progress_callback=progress_callback, run_id=run_id)
         finally:
             set_running(False)
             from app.api.runs import get_progress
             if hasattr(get_progress, "progress_data"):
                 get_progress.progress_data = {"current": 0, "total": 0, "movie": ""}
-    
+   
     asyncio.create_task(run_and_reset())
     
     return {
