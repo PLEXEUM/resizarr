@@ -60,51 +60,57 @@ docker-compose up -d
 
 # 3. Open the dashboard
 # → http://localhost:7227
+```
+
+### First-time Setup
+
+1. Go to the **Config** section in the dashboard
+2. Enter your Radarr URL and API key
+3. Set your size rules (target threshold, operator, excluded extensions, etc.)
+4. All settings are saved automatically in SQLite
+
+The app will be available at `http://localhost:7227` (or whatever port you set in docker-compose.yml).
 
 ---
 
-First-time setup:
+## Usage
 
-Go to the Config section in the dashboard
-Enter your Radarr URL and API key
-Set your size rules (target threshold, operator, excluded extensions, etc.)
-All settings are saved automatically in SQLite
-
-The app will be available at http://localhost:7227 (or whatever port you set in docker-compose.yml).
+- **Dashboard** — Overview, run history, quick scan button
+- **Pending Approvals** — Review and approve replacements
+- **Logs** — Real-time logging with auto-refresh
+- **Run a scan** — Click the big Scan button (dry-run mode available)
 
 ---
 
-Usage
+## Screenshots
 
-Dashboard — Overview, run history, quick scan button
-Pending Approvals — Review and approve replacements
-Logs — Real-time logging with auto-refresh
-Run a scan — Click the big Scan button (dry-run mode available)
-
----
-
-Screenshots
 (Coming soon)
 
 ---
 
-Roadmap / Wishlist
+## Roadmap / Wishlist
+
 Current status: Fully functional and production-ready
+
 Planned next features:
 
-Auto-approve rules (seeders, release age, % size savings, IMDb score)
-Discord / Telegram notifications
-Replacement statistics dashboard (GB saved, average reduction, etc.)
-Dry-run CSV export + scheduled reports
-Advanced scanner filters (exclude tags, minimum savings threshold)
-Scheduled scans via APScheduler
+- Auto-approve rules (seeders, release age, % size savings, IMDb score)
+- Discord / Telegram notifications
+- Replacement statistics dashboard (GB saved, average reduction, etc.)
+- Dry-run CSV export + scheduled reports
+- Advanced scanner filters (exclude tags, minimum savings threshold)
+- Scheduled scans via APScheduler
 
 ---
 
-Contributing
+## Contributing
+
 Pull requests are welcome! Feel free to open an issue for feature requests or bugs.
 
-License
+---
+
+## License
+
 MIT License — see LICENSE for details.
 
 ---
