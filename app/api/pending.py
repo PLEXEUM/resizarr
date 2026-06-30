@@ -99,18 +99,19 @@ async def approve_pending(record_id: int, data: ApproveInput):
             # Continue anyway - Radarr might still accept the new download
         
         # Download the specific release
-        # Download the specific release
         release_guid = record["release_guid"]
+        download_url = record.get("download_url")
+
         if release_guid:
-            logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
             await client.download_release_by_guid(
                 movie_id=record["movie_id"],
                 guid=release_guid,  # Use the URL directly
                 indexerId=1,
+                download_url=download_url,
                 title=f"{record['movie_title']} 2025",
                 publish_date=datetime.utcnow().isoformat()
             )
-        else:
+        else:       
             await client.trigger_movie_search([record["movie_id"]])
 
         # Update status
