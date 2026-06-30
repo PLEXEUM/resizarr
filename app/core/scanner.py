@@ -712,6 +712,23 @@ async def run_resizarr(
                     
                     summary["replacements_queued"] += 1
 
+                    # Add to completed jobs
+                    await add_completed_job(
+                        movie_id=movie_id,
+                        movie_title=movie_title,
+                        movie_year=movie.get("year", 0),
+                        current_size_gb=size_gb,
+                        current_quality=current_quality,
+                        found_size_gb=found_size_gb,
+                        found_quality=found_quality,
+                        mode="quality_match",
+                        status="queued",
+                        indexer=release.get("indexer"),
+                        seeders=best_candidate.get("peers", 0),
+                        tmdb_rating=movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
+                        run_id=run_id_from_db
+                    )
+
                     logger.info(f"[QUALITY MATCH MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
                 except Exception as e:
                     logger.error(f"Failed to queue release for {movie_title}: {e}")
@@ -737,6 +754,24 @@ async def run_resizarr(
                     publish_date=datetime.utcnow().isoformat()
                 )
                 summary["replacements_queued"] += 1
+                
+                # Add to completed jobs
+                await add_completed_job(
+                    movie_id=movie_id,
+                    movie_title=movie_title,
+                    movie_year=movie.get("year", 0),
+                    current_size_gb=size_gb,
+                    current_quality=current_quality,
+                    found_size_gb=found_size_gb,
+                    found_quality=found_quality,
+                    mode="auto",
+                    status="queued",
+                    indexer=release.get("indexer"),
+                    seeders=best_candidate.get("peers", 0),
+                    tmdb_rating=movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
+                    run_id=run_id_from_db
+                )
+                
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
 
             # Save resume point
