@@ -683,7 +683,9 @@ async def run_resizarr(
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     download_url = best_candidate.get("download_url", "")
                     original_guid = best_candidate.get("release", {}).get("guid", "")
-                    
+                    release = best_candidate.get("release", {})
+                    release_title = release.get("title", f"{movie_title} 2025")  # ← NEW LINE
+        
                     if original_guid.startswith("http"):
                         torrent_id = None
                         match = re.search(r'torrentid=(\d+)', original_guid)
@@ -695,16 +697,16 @@ async def run_resizarr(
                             if match:
                                 torrent_id = match.group(1)
                                 proper_guid = f"Prowlarr:{torrent_id}"
-                    
+        
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                     await client.delete_movie_file_only(movie_id)
-                    
+        
                     await client.download_release_by_guid(
                         movie_id=movie_id,
                         guid=proper_guid,
                         indexerId=1,
                         download_url=download_url,
-                        title=f"{movie_title} 2025",
+                        title=release_title,  # ← REPLACE WITH THIS
                         publish_date=datetime.utcnow().isoformat()
                     )
                     
@@ -720,6 +722,8 @@ async def run_resizarr(
             if rules["trigger_logic"] == "auto":
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                 download_url = best_candidate.get("download_url", "")
+                release = best_candidate.get("release", {})
+                release_title = release.get("title", f"{movie_title} 2025")  # ← NEW LINE
 
                 logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                 await client.delete_movie_file_only(movie_id)
@@ -729,7 +733,7 @@ async def run_resizarr(
                     guid=proper_guid,
                     indexerId=1,
                     download_url=download_url,
-                    title=f"{movie_title} 2025",
+                    title=release_title,  # ← REPLACE WITH THIS
                     publish_date=datetime.utcnow().isoformat()
                 )
                 summary["replacements_queued"] += 1
