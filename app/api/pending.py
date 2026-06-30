@@ -90,13 +90,15 @@ async def approve_pending(record_id: int, data: ApproveInput):
 
         # Always delete existing file first
         logger.info(f"Deleting existing file for '{record['movie_title']}' before replacement")
-        delete_result = await client.delete_movie_file_only(record["movie_id"])
-        if delete_result["success"]:
-            logger.info(f"Successfully deleted existing file")
-            await asyncio.sleep(2)
-        else:
-            logger.warning(f"Could not delete file: {delete_result['message']}")
-            # Continue anyway - Radarr might still accept the new download
+        try:
+            delete_result = await client.delete_movie_file_only(record["movie_id"])
+            if delete_result["success"]:
+                logger.info(f"Successfully deleted existing file")
+                await asyncio.sleep(2)
+            else:
+                logger.warning(f"Could not delete file: {delete_result['message']}")
+        except Exception as e:
+            logger.warning(f"Error deleting file: {e}")
         
         # Download the specific release
         release_guid = record["release_guid"]
@@ -210,11 +212,7 @@ async def approve_batch(data: BatchApproveInput):
         try:
             # Exact same safe workflow as single approve
             logger.info(f"Batch deleting existing file for '{record['movie_title']}'")
-            delete_result = await client.delete_movie_file_only(record["movie_id"])
-            if delete_result["success"]:
-                logger.info(f"Successfully deleted existing file for '{record['movie_title']}'")
-            else:
-                logger.warning(f"Could not delete file for '{record['movie_title']}': {delete_result['message']}")
+            await client.delete_movie_file_only(record["movie_id"])
             await asyncio.sleep(2)
 
             release_guid = record["release_guid"]
@@ -478,3 +476,5 @@ async def update_missing_completed_details():
         "status_updated": result3.rowcount,
         "message": f"Updated {result1.rowcount} details, {result2.rowcount} years, {result3.rowcount} statuses to completed"
     }
+
+# ========== END COMPLETED JOBS ENDPOINTS ==========
