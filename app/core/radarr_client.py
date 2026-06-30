@@ -92,6 +92,31 @@ class RadarrClient:
         """Fetch a single movie by ID."""
         return await self._request("GET", f"movie/{movie_id}")
 
+    async def delete_movie_file_only(self, movie_id: int) -> dict:
+        """Delete only the movie file, keep the movie entry in Radarr."""
+        try:
+            movie = await self.get_movie(movie_id)
+            movie_file = movie.get("movieFile")
+
+            if not movie_file:
+                logger.info(f"No movie file found for movie {movie_id}")
+                return {"success": False, "message": "No file to delete"}
+
+            file_id = movie_file.get("id")
+            
+            # Use _request for consistency and retry logic
+            await self._request("DELETE", f"moviefile/{file_id}", timeout=120)
+            logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
+            return {"success": True, "message": f"Deleted file ID: {file_id}"}
+        
+        except Exception as e:
+            logger.error(f"Failed to delete movie file: {e}")
+            return {"success": False, "message": str(e)}
+
+    # ─────────────────────────────────────────────────────────────
+    # PRIMARY DOWNLOAD METHOD - used by both single and batch approve
+    # ─────────────────────────────────────────────────────────────
+    
     async def download_release_by_guid(
         self,
         movie_id: int,
@@ -145,51 +170,6 @@ class RadarrClient:
             "movieIds": movie_ids
         })
 
-    # ─────────────────────────────────────────────────────────────
-    # PRIMARY DOWNLOAD METHOD - used by both single and batch approve
-    # ─────────────────────────────────────────────────────────────
-    async def download_release_by_guid(
-        self,
-        movie_id: int,
-        guid: str,
-        indexerId: int = 1,
-        download_url: str = None,
-        title: str = None,
-        publish_date: str = None
-    ) -> dict:
-        """Download a specific release by GUID using /release/push with all required fields."""
-        payload = {
-            "guid": guid,
-            "indexerId": indexerId,
-            "movieId": movie_id,
-            "title": title or f"Release {guid}",
-            "protocol": "torrent",
-            "publishDate": publish_date or datetime.utcnow().isoformat(),
-            "allowUpgrade": True
-        }
-
-        if download_url:
-            payload["downloadUrl"] = download_url
-
-        logger.info(f"Pushing release to Radarr: {payload}")
-        
-        url = f"{self.base_url}/api/v3/release/push"
-        
-        try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.post(url, headers=self.headers, json=payload)
-                
-                # Radarr returns 200 OK on success (may have empty body)
-                if response.status_code in (200, 201, 204):
-                    logger.info(f"Successfully pushed release for movie {movie_id}")
-                    return {"success": True, "message": "Release pushed successfully"}
-                else:
-                    error_msg = response.text or f"HTTP {response.status_code}"
-                    logger.error(f"Failed to push release: {error_msg}")
-                    return {"success": False, "message": error_msg}
-        except Exception as e:
-            logger.error(f"Failed to push release: {e}")
-            return {"success": False, "message": str(e)}
 
     async def download_release_by_url(self, movie_id: int, download_url: str, title: str = None) -> dict:
         """Download a specific release by its download URL (fallback)."""
