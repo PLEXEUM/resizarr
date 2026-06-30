@@ -107,7 +107,6 @@ async def approve_pending(record_id: int, data: ApproveInput):
                 movie_id=record["movie_id"],
                 guid=release_guid,  # Use the URL directly
                 indexerId=1,
-                download_url=record.get("download_url"),
                 title=f"{record['movie_title']} 2025",
                 publish_date=datetime.utcnow().isoformat()
             )
@@ -197,7 +196,6 @@ async def approve_batch(data: BatchApproveInput):
                     movie_id=record["movie_id"],
                     guid=release_guid,  # Use the URL directly
                     indexerId=1,
-                    download_url=download_url,
                     title=f"{record['movie_title']} 2025",
                     publish_date=datetime.utcnow().isoformat()
                 )
