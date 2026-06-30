@@ -473,4 +473,8 @@ async def update_missing_completed_details():
 
     return {
         "success": True,
-        "details_u
+        "details_updated": result1.rowcount,
+        "years_updated": result2.rowcount,
+        "status_updated": result3.rowcount,
+        "message": f"Updated {result1.rowcount} details, {result2.rowcount} years, {result3.rowcount} statuses to completed"
+    }
