@@ -103,15 +103,32 @@ class RadarrClient:
                 return {"success": False, "message": "No file to delete"}
 
             file_id = movie_file.get("id")
-        
-            # Use _request for consistency and retry logic
-            await self._request("DELETE", f"moviefile/{file_id}", timeout=120)
-            logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
-            return {"success": True, "message": f"Deleted file ID: {file_id}"}
-        
+            
+            # Use httpx directly to handle empty response properly
+            url = f"{self.base_url}/api/v3/moviefile/{file_id}"
+            
+            async with httpx.AsyncClient(timeout=120) as client:
+                response = await client.request("DELETE", url, headers=self.headers)
+                
+                # Radarr returns 200 OK with empty body on success
+                if response.status_code in (200, 204):
+                    logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
+                    return {"success": True, "message": f"Deleted file ID: {file_id}"}
+                else:
+                    # Try to parse error response if any
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get('message', str(response.text))
+                    except:
+                        error_msg = response.text or f"HTTP {response.status_code}"
+                    
+                    logger.error(f"Failed to delete movie file: {error_msg}")
+                    return {"success": False, "message": error_msg}
+            
         except Exception as e:
             logger.error(f"Failed to delete movie file: {e}")
             return {"success": False, "message": str(e)}
+        
 
     async def get_quality_profiles(self, force_refresh: bool = False) -> list:
         """Fetch quality profiles with 1-hour cache."""
