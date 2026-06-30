@@ -99,21 +99,27 @@ async def approve_pending(record_id: int, data: ApproveInput):
             # Continue anyway - Radarr might still accept the new download
         
         # Download the specific release
+        # Download the specific release - use the ORIGINAL data from the scan
         release_guid = record["release_guid"]
         if release_guid:
             logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
-            
-            # Fix: Replace localhost with actual IP for Prowlarr URL
+    
+            # Fix localhost in download URL
             stored_download_url = record.get("download_url")
             if stored_download_url:
                 stored_download_url = stored_download_url.replace("localhost", "192.168.0.77")
-            
+    
+            # Use the original release title from the scan, fallback to generated title
+            release_title = record.get("release_title")
+            if not release_title:
+                release_title = f"{record['movie_title']} 2025"
+    
             await client.download_release_by_guid(
                 movie_id=record["movie_id"],
-                guid=release_guid,
+                guid=release_guid,  # Original GUID from the scan (no conversion)
                 indexerId=1,
-                download_url=stored_download_url,
-                title=f"{record['movie_title']} 2025",
+                download_url=stored_download_url,  # Original download URL (with IP fix)
+                title=release_title,  # Original release title from the scan
                 publish_date=datetime.utcnow().isoformat()
             )
         else:
@@ -201,13 +207,18 @@ async def approve_batch(data: BatchApproveInput):
             if download_url:
                 download_url = download_url.replace("localhost", "192.168.0.77")
 
+            # Use the original release title from the scan, fallback to generated title
+            release_title = record.get("release_title")
+            if not release_title:
+                release_title = f"{record['movie_title']} 2025"
+
             if release_guid:
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
-                    guid=release_guid,
+                    guid=release_guid,  # Original GUID from the scan (no conversion)
                     indexerId=1,
-                    download_url=download_url,
-                    title=f"{record['movie_title']} 2025",
+                    download_url=download_url,  # Original download URL (with IP fix)
+                    title=release_title,  # Original release title from the scan
                     publish_date=datetime.utcnow().isoformat()
                 )
             else:
