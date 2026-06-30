@@ -100,18 +100,46 @@ async def approve_pending(record_id: int, data: ApproveInput):
         
         # Download the specific release
         release_guid = record["release_guid"]
-        download_url = record.get("download_url")
-
         if release_guid:
-            await client.download_release_by_guid(
-                movie_id=record["movie_id"],
-                guid=release_guid,  # Use the URL directly
-                indexerId=1,
-                download_url=download_url,
-                title=f"{record['movie_title']} 2025",
-                publish_date=datetime.utcnow().isoformat()
-            )
-        else:       
+            logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
+
+            if release_guid.startswith("http"):
+                # Universal torrent ID extraction (same as before)
+                torrent_id = None
+                proper_guid = None
+                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
+                for pattern in patterns:
+                    match = re.search(pattern, release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                        break
+
+                if proper_guid:
+                    stored_download_url = record.get("download_url")
+                    await client.download_release_by_guid(
+                        movie_id=record["movie_id"],
+                        guid=proper_guid,
+                        indexerId=1,
+                        download_url=stored_download_url,
+                        title=f"{record['movie_title']} 2025",
+                        publish_date=datetime.utcnow().isoformat()
+                    )
+                else:
+                    logger.info(f"Could not extract ID, falling back to generic search")
+                    await client.trigger_movie_search([record["movie_id"]])
+            else:
+                # Already a proper GUID
+                stored_download_url = record.get("download_url")
+                await client.download_release_by_guid(
+                    movie_id=record["movie_id"],
+                    guid=release_guid,
+                    indexerId=1,
+                    download_url=stored_download_url,
+                    title=f"{record['movie_title']} 2025",
+                    publish_date=datetime.utcnow().isoformat()
+                )
+        else:
             await client.trigger_movie_search([record["movie_id"]])
 
         # Update status
@@ -192,16 +220,37 @@ async def approve_batch(data: BatchApproveInput):
             release_guid = record["release_guid"]
             download_url = record.get("download_url")
 
-            if release_guid:
+            if release_guid and release_guid.startswith("http"):
+                torrent_id = None
+                proper_guid = None
+                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
+                for pattern in patterns:
+                    match = re.search(pattern, release_guid)
+                    if match:
+                        torrent_id = match.group(1)
+                        proper_guid = f"Prowlarr:{torrent_id}"
+                        break
+
+                if proper_guid:
+                    await client.download_release_by_guid(
+                        movie_id=record["movie_id"],
+                        guid=proper_guid,
+                        indexerId=1,
+                        download_url=download_url,
+                        title=f"{record['movie_title']} 2025",
+                        publish_date=datetime.utcnow().isoformat()
+                    )
+                else:
+                    await client.trigger_movie_search([record["movie_id"]])
+            else:
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
-                    guid=release_guid,  # Use the URL directly
+                    guid=release_guid,
                     indexerId=1,
+                    download_url=download_url,
                     title=f"{record['movie_title']} 2025",
                     publish_date=datetime.utcnow().isoformat()
                 )
-            else:
-                await client.trigger_movie_search([record["movie_id"]])
 
             conn.execute("""
                 UPDATE pending_replacements
