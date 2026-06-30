@@ -29,9 +29,12 @@ class RadarrClient:
 
         for attempt in range(1, 4):
             try:
-                async with httpx.AsyncClient(timeout=timeout) as client:  # Use custom timeout
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.request(method, url, headers=self.headers, **kwargs)
                     response.raise_for_status()
+                    # Handle empty response body (204 No Content or empty 200)
+                    if response.status_code == 204 or not response.text:
+                        return {}
                     return response.json()
             except httpx.HTTPStatusError as e:
                 last_error = e
@@ -103,7 +106,7 @@ class RadarrClient:
                 return {"success": False, "message": "No file to delete"}
 
             file_id = movie_file.get("id")
-        
+            
             # Use _request for consistency and retry logic
             await self._request("DELETE", f"moviefile/{file_id}", timeout=120)
             logger.info(f"Deleted movie file (ID: {file_id}) for movie {movie_id}")
@@ -139,9 +142,6 @@ class RadarrClient:
             "movieIds": movie_ids
         })
 
-    # ─────────────────────────────────────────────────────────────
-    # PRIMARY DOWNLOAD METHOD - used by both single and batch approve
-    # ─────────────────────────────────────────────────────────────
     async def download_release_by_guid(
         self,
         movie_id: int,
@@ -219,7 +219,6 @@ class RadarrClient:
 
     def get_release_quality_name(self, release: dict) -> str:
         """Extract quality name from a release."""
-        # The quality data is nested: release['quality']['quality']['name']
         quality_wrapper = release.get("quality", {})
         if isinstance(quality_wrapper, dict):
             quality_obj = quality_wrapper.get("quality", {})
@@ -228,14 +227,12 @@ class RadarrClient:
                 if quality_name:
                     return quality_name
     
-        # Fallback: try direct quality object
         quality = release.get("quality", {})
         if isinstance(quality, dict):
             quality_name = quality.get("name")
             if quality_name:
                 return quality_name
     
-        # Fallback: try to infer from title
         title = release.get("title", "")
         if "1080p" in title.lower():
             return "1080p"
@@ -259,7 +256,6 @@ class RadarrClient:
                         logger.debug(f"Movie {movie_id} is actively in download queue (status: {status})")
                         return True
 
-            # Check recent history
             history = await self._request(
                 "GET", "history/movie",
                 params={"movieId": movie_id, "eventType": 1}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-import asyncio  # ADD THIS
+import asyncio
 import re
 from urllib.parse import urlparse
 
@@ -90,57 +90,32 @@ async def approve_pending(record_id: int, data: ApproveInput):
 
         # Always delete existing file first
         logger.info(f"Deleting existing file for '{record['movie_title']}' before replacement")
-        try:
-            delete_result = await client.delete_movie_file_only(record["movie_id"])
-            if delete_result["success"]:
-                logger.info(f"Successfully deleted existing file")
-                await asyncio.sleep(2)
-            else:
-                logger.warning(f"Could not delete file: {delete_result['message']}")
-        except Exception as e:
-            logger.warning(f"Error deleting file: {e}")
+        delete_result = await client.delete_movie_file_only(record["movie_id"])
+        if delete_result["success"]:
+            logger.info(f"Successfully deleted existing file")
+            await asyncio.sleep(2)
+        else:
+            logger.warning(f"Could not delete file: {delete_result['message']}")
+            # Continue anyway - Radarr might still accept the new download
         
         # Download the specific release
         release_guid = record["release_guid"]
         if release_guid:
             logger.info(f"Downloading specific release for '{record['movie_title']}': {release_guid}")
-
-            if release_guid.startswith("http"):
-                # Universal torrent ID extraction (same as before)
-                torrent_id = None
-                proper_guid = None
-                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
-                for pattern in patterns:
-                    match = re.search(pattern, release_guid)
-                    if match:
-                        torrent_id = match.group(1)
-                        proper_guid = f"Prowlarr:{torrent_id}"
-                        break
-
-                if proper_guid:
-                    stored_download_url = record.get("download_url")
-                    await client.download_release_by_guid(
-                        movie_id=record["movie_id"],
-                        guid=proper_guid,
-                        indexerId=1,
-                        download_url=stored_download_url,
-                        title=f"{record['movie_title']} 2025",
-                        publish_date=datetime.utcnow().isoformat()
-                    )
-                else:
-                    logger.info(f"Could not extract ID, falling back to generic search")
-                    await client.trigger_movie_search([record["movie_id"]])
-            else:
-                # Already a proper GUID
-                stored_download_url = record.get("download_url")
-                await client.download_release_by_guid(
-                    movie_id=record["movie_id"],
-                    guid=release_guid,
-                    indexerId=1,
-                    download_url=stored_download_url,
-                    title=f"{record['movie_title']} 2025",
-                    publish_date=datetime.utcnow().isoformat()
-                )
+            
+            # Fix: Replace localhost with actual IP for Prowlarr URL
+            stored_download_url = record.get("download_url")
+            if stored_download_url:
+                stored_download_url = stored_download_url.replace("localhost", "192.168.0.77")
+            
+            await client.download_release_by_guid(
+                movie_id=record["movie_id"],
+                guid=release_guid,
+                indexerId=1,
+                download_url=stored_download_url,
+                title=f"{record['movie_title']} 2025",
+                publish_date=datetime.utcnow().isoformat()
+            )
         else:
             await client.trigger_movie_search([record["movie_id"]])
 
@@ -152,7 +127,7 @@ async def approve_pending(record_id: int, data: ApproveInput):
         """, (record_id,))
         conn.commit()
 
-         # Add to completed jobs
+        # Add to completed jobs
         await add_completed_job(
             movie_id=record["movie_id"],
             movie_title=record["movie_title"],
@@ -212,35 +187,21 @@ async def approve_batch(data: BatchApproveInput):
         try:
             # Exact same safe workflow as single approve
             logger.info(f"Batch deleting existing file for '{record['movie_title']}'")
-            await client.delete_movie_file_only(record["movie_id"])
+            delete_result = await client.delete_movie_file_only(record["movie_id"])
+            if delete_result["success"]:
+                logger.info(f"Successfully deleted existing file for '{record['movie_title']}'")
+            else:
+                logger.warning(f"Could not delete file for '{record['movie_title']}': {delete_result['message']}")
             await asyncio.sleep(2)
 
             release_guid = record["release_guid"]
+            
+            # Fix: Replace localhost with actual IP for Prowlarr URL
             download_url = record.get("download_url")
+            if download_url:
+                download_url = download_url.replace("localhost", "192.168.0.77")
 
-            if release_guid and release_guid.startswith("http"):
-                torrent_id = None
-                proper_guid = None
-                patterns = [r'torrentid=(\d+)', r'\.(\d+)$', r'/(\d+)(?:/|$)', r'id=(\d+)']
-                for pattern in patterns:
-                    match = re.search(pattern, release_guid)
-                    if match:
-                        torrent_id = match.group(1)
-                        proper_guid = f"Prowlarr:{torrent_id}"
-                        break
-
-                if proper_guid:
-                    await client.download_release_by_guid(
-                        movie_id=record["movie_id"],
-                        guid=proper_guid,
-                        indexerId=1,
-                        download_url=download_url,
-                        title=f"{record['movie_title']} 2025",
-                        publish_date=datetime.utcnow().isoformat()
-                    )
-                else:
-                    await client.trigger_movie_search([record["movie_id"]])
-            else:
+            if release_guid:
                 await client.download_release_by_guid(
                     movie_id=record["movie_id"],
                     guid=release_guid,
@@ -249,6 +210,8 @@ async def approve_batch(data: BatchApproveInput):
                     title=f"{record['movie_title']} 2025",
                     publish_date=datetime.utcnow().isoformat()
                 )
+            else:
+                await client.trigger_movie_search([record["movie_id"]])
 
             conn.execute("""
                 UPDATE pending_replacements
@@ -257,7 +220,7 @@ async def approve_batch(data: BatchApproveInput):
             """, (record_id,))
             conn.commit()
 
-             # Add to completed jobs
+            # Add to completed jobs
             await add_completed_job(
                 movie_id=record["movie_id"],
                 movie_title=record["movie_title"],
@@ -339,7 +302,7 @@ async def delete_pending(record_id: int):
         found_size_gb=record["found_size_gb"],
         found_quality=record["found_quality"],
         mode="manual",
-        status="queued",
+        status="rejected",
         indexer=record.get("indexer"),
         seeders=record.get("seeders", 0),
         tmdb_rating=record.get("tmdb_rating"),
@@ -355,6 +318,7 @@ async def delete_pending(record_id: int):
 
     logger.info(f"Deleted pending replacement: '{record['movie_title']}'")
     return {"success": True, "message": f"Deleted: {record['movie_title']}"}
+
 
 # ========== COMPLETED JOBS ENDPOINTS ==========
 @router.get("/completed")
@@ -382,6 +346,7 @@ async def get_completed(page: int = 1, per_page: int = 20):
         "records": [dict(r) for r in records]
     }
 
+
 @router.delete("/completed/clear")
 async def clear_completed():
     """Clear all completed jobs."""
@@ -393,6 +358,7 @@ async def clear_completed():
     conn.close()
     logger.info(f"Cleared {count} completed job records")
     return {"success": True, "count": count}
+
 
 async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             current_size_gb: float, current_quality: str,
