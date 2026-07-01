@@ -296,7 +296,7 @@ async def run_resizarr(
 
         if batch_limit > 0 and candidates:
             # Get the current starting index from run_state
-            if run_state and run_state.get("last_processed_index"):
+            if run_state and run_state["last_processed_index"]:
                 start_index = run_state["last_processed_index"]
             else:
                 start_index = 0
