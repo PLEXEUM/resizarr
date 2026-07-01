@@ -300,21 +300,24 @@ async def run_resizarr(
                 start_index = run_state["last_processed_index"]
             else:
                 start_index = 0
-    
+
+            # Store total count for calculating next start
+            total_candidates = len(candidates)
+
             # Calculate end index
             end_index = start_index + batch_limit
-    
+
             # If we've reached the end, start over
-            if start_index >= len(candidates):
+            if start_index >= total_candidates:
                 start_index = 0
                 end_index = batch_limit
                 logger.info(f"Batch rotation: Reached end of candidates, starting over from beginning")
-    
+
             # Slice the candidates
             candidates = candidates[start_index:end_index]
-    
-            # Store the next start index for the next run
-            next_start = end_index if end_index < len(candidates) else 0
+
+            # Store the next start index for the next run (use total_candidates, not sliced)
+            next_start = end_index if end_index < total_candidates else 0
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_index, last_run_date)
                 VALUES (1, ?, datetime('now'))
