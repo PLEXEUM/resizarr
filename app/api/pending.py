@@ -375,8 +375,16 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             current_size_gb: float, current_quality: str,
                             found_size_gb: float, found_quality: str,
                             mode: str, status: str, indexer: str = None,
-                            seeders: int = 0, tmdb_rating: float = None, run_id: int = None):
-    conn = get_connection()
+                            seeders: int = 0, tmdb_rating: float = None, run_id: int = None,
+                            conn=None):
+
+     """Add a completed job record. If conn is provided, use it; otherwise open a new connection."""
+    if conn is None:
+        conn = get_connection()
+        should_close = True
+    else:
+        should_close = False
+
     conn.execute("""
         INSERT INTO completed_jobs
         (movie_id, movie_title, movie_year, current_size_gb, current_quality,
@@ -385,7 +393,8 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
     """, (movie_id, movie_title, movie_year, current_size_gb, current_quality,
           found_size_gb, found_quality, mode, status, indexer, seeders, tmdb_rating, run_id))
     conn.commit()
-    conn.close()
+    if should_close:
+        conn.close()
 
 
 @router.post("/completed/update-missing-details")

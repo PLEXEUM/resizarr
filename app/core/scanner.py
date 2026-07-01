@@ -727,7 +727,8 @@ async def run_resizarr(
                         indexer=release.get("indexer"),
                         seeders=best_candidate.get("peers", 0),
                         tmdb_rating=movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
-                        run_id=run_id_from_db
+                        run_id=run_id_from_db,
+                        conn=conn
                     )
 
                     logger.info(f"[QUALITY MATCH MODE] Queued release for {movie_title}: {found_size_gb:.2f}GB, Quality: {found_quality}")
@@ -770,7 +771,8 @@ async def run_resizarr(
                     indexer=release.get("indexer"),
                     seeders=best_candidate.get("peers", 0),
                     tmdb_rating=movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
-                    run_id=run_id_from_db
+                    run_id=run_id_from_db,
+                    conn=conn
                 )
                 
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
