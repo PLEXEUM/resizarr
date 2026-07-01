@@ -10,6 +10,7 @@ from app.utils.logger import get_logger
 from app.core.radarr_client import RadarrClient
 from app.core.quality_checker import check_quality
 from app.db.database import get_connection
+from app.api.pending import add_completed_job
 
 logger = get_logger()
 
