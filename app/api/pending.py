@@ -378,7 +378,7 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
                             seeders: int = 0, tmdb_rating: float = None, run_id: int = None,
                             conn=None):
 
-     """Add a completed job record. If conn is provided, use it; otherwise open a new connection."""
+    """Add a completed job record. If conn is provided, use it; otherwise open a new connection."""
     if conn is None:
         conn = get_connection()
         should_close = True
