@@ -224,6 +224,7 @@ async def run_resizarr(
         profiles_cache = [dict(p) for p in conn.execute("SELECT * FROM quality_profiles_cache").fetchall()]
         run_state = conn.execute("SELECT * FROM run_state WHERE id = 1").fetchone()
         last_processed_id = run_state["last_processed_movie_id"] if run_state else None
+        last_processed_index = run_state["last_processed_index"] if run_state else 0
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
         movies = await client.get_movies()
@@ -293,8 +294,33 @@ async def run_resizarr(
         # Largest-first sorting (biggest space savings first)
         candidates.sort(key=lambda x: x["size_gb"], reverse=True)
 
-        if batch_limit > 0:
-            candidates = candidates[:batch_limit]
+        if batch_limit > 0 and candidates:
+            # Get the current starting index from run_state
+            if run_state and run_state.get("last_processed_index"):
+                start_index = run_state["last_processed_index"]
+            else:
+                start_index = 0
+    
+            # Calculate end index
+            end_index = start_index + batch_limit
+    
+            # If we've reached the end, start over
+            if start_index >= len(candidates):
+                start_index = 0
+                end_index = batch_limit
+                logger.info(f"Batch rotation: Reached end of candidates, starting over from beginning")
+    
+            # Slice the candidates
+            candidates = candidates[start_index:end_index]
+    
+            # Store the next start index for the next run
+            next_start = end_index if end_index < len(candidates) else 0
+            conn.execute("""
+                INSERT OR REPLACE INTO run_state (id, last_processed_index, last_run_date)
+                VALUES (1, ?, datetime('now'))
+            """, (next_start,))
+            conn.commit()
+            logger.info(f"Batch processing: {len(candidates)} candidates from index {start_index} to {end_index-1} (next start: {next_start})")
 
         csv_rows = []
 

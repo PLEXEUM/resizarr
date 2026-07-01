@@ -452,6 +452,12 @@ async def clear_dashboard():
     conn.execute("DELETE FROM pending_replacements")
     conn.execute("DELETE FROM run_state")
     
+    # Re-insert default run_state with reset index
+    conn.execute("""
+        INSERT INTO run_state (id, last_processed_index, last_run_date)
+        VALUES (1, 0, datetime('now'))
+    """)
+    
     conn.commit()
     conn.close()
     

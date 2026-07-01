@@ -111,7 +111,8 @@ def init_db():
             id INTEGER PRIMARY KEY,
             last_processed_movie_id INTEGER,
             last_run_date DATETIME,
-            remaining_candidates INTEGER
+            remaining_candidates INTEGER,
+            last_processed_index INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS quality_profiles_cache (
@@ -281,6 +282,13 @@ def init_db():
     if 'run_id' not in completed_columns:
         cursor.execute("ALTER TABLE completed_jobs ADD COLUMN run_id INTEGER")
         print("Added 'run_id' column to completed_jobs table")
+
+    # Migration: Add last_processed_index to run_state
+    cursor.execute("PRAGMA table_info(run_state)")
+    run_state_columns = [row[1] for row in cursor.fetchall()]
+    if 'last_processed_index' not in run_state_columns:
+        cursor.execute("ALTER TABLE run_state ADD COLUMN last_processed_index INTEGER DEFAULT 0")
+        print("Added 'last_processed_index' column to run_state table")
 
     conn.commit()
     conn.close()
