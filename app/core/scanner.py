@@ -708,14 +708,15 @@ async def run_resizarr(
                 continue
 
             # Quality match mode - auto queue if quality matches
+            # Quality match mode - auto queue if quality matches
             if rules["trigger_logic"] == "quality_match" and should_proceed:
                 try:
                     proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                     download_url = best_candidate.get("download_url", "")
                     original_guid = best_candidate.get("release", {}).get("guid", "")
                     release = best_candidate.get("release", {})
-                    release_title = release.get("title", f"{movie_title} 2025")  # ← NEW LINE
-        
+                    release_title = release.get("title", f"{movie_title} 2025")
+
                     if original_guid.startswith("http"):
                         torrent_id = None
                         match = re.search(r'torrentid=(\d+)', original_guid)
@@ -727,20 +728,37 @@ async def run_resizarr(
                             if match:
                                 torrent_id = match.group(1)
                                 proper_guid = f"Prowlarr:{torrent_id}"
-        
+
                     logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                     await client.delete_movie_file_only(movie_id)
-        
+
                     await client.download_release_by_guid(
                         movie_id=movie_id,
                         guid=proper_guid,
                         indexerId=1,
                         download_url=download_url,
-                        title=release_title,  # ← REPLACE WITH THIS
+                        title=release_title,
                         publish_date=datetime.utcnow().isoformat()
                     )
-                    
+        
                     summary["replacements_queued"] += 1
+
+                    # Insert into pending_replacements for poller tracking
+                    conn.execute("""
+                        INSERT INTO pending_replacements
+                        (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+                         found_size_gb, found_quality, quality_downgrade, status,
+                         release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating, run_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, 'quality_match', ?, ?, ?, ?, ?)
+                    """, (
+                        movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
+                        found_size_gb, str(found_quality), 1 if is_downgrade else 0,
+                        proper_guid, download_url,
+                        release.get("indexer"), best_candidate.get("peers", 0), release_title,
+                        movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
+                        run_id_from_db
+                    ))
+                    conn.commit()
 
                     # Add to completed jobs
                     await add_completed_job(
@@ -771,7 +789,7 @@ async def run_resizarr(
                 proper_guid = extract_proper_guid(best_candidate.get("release", {}))
                 download_url = best_candidate.get("download_url", "")
                 release = best_candidate.get("release", {})
-                release_title = release.get("title", f"{movie_title} 2025")  # ← NEW LINE
+                release_title = release.get("title", f"{movie_title} 2025")
 
                 logger.info(f"Deleting existing file for '{movie_title}' before replacement")
                 await client.delete_movie_file_only(movie_id)
@@ -781,11 +799,28 @@ async def run_resizarr(
                     guid=proper_guid,
                     indexerId=1,
                     download_url=download_url,
-                    title=release_title,  # ← REPLACE WITH THIS
+                    title=release_title,
                     publish_date=datetime.utcnow().isoformat()
                 )
                 summary["replacements_queued"] += 1
-                
+    
+                # Insert into pending_replacements for poller tracking
+                conn.execute("""
+                    INSERT INTO pending_replacements
+                    (movie_id, movie_title, movie_year, current_size_gb, current_quality,
+                    found_size_gb, found_quality, quality_downgrade, status,
+                    release_guid, download_url, mode, indexer, seeders, release_title, tmdb_rating, run_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, 'auto', ?, ?, ?, ?, ?)
+                """, (
+                    movie_id, movie_title, movie.get("year"), size_gb, str(current_quality),
+                    found_size_gb, str(found_quality), 1 if is_downgrade else 0,
+                    proper_guid, download_url,
+                    release.get("indexer"), best_candidate.get("peers", 0), release_title,
+                    movie.get("ratings", {}).get("tmdb", {}).get("value") or movie.get("tmdbRating"),
+                    run_id_from_db
+                ))
+                conn.commit()
+    
                 # Add to completed jobs
                 await add_completed_job(
                     movie_id=movie_id,
@@ -803,7 +838,7 @@ async def run_resizarr(
                     run_id=run_id_from_db,
                     conn=conn
                 )
-                
+    
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
 
             # Save resume point
