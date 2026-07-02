@@ -23,18 +23,8 @@ async def trigger_run(dry_run: bool = False):
             detail="A run is already in progress"
         )
     
-    # Clear ALL run history before starting new run
-    conn = get_connection()
-    cursor = conn.execute("SELECT COUNT(*) FROM run_history")
-    count = cursor.fetchone()[0]
-    if count > 0:
-        conn.execute("DELETE FROM run_history")
-        conn.commit()
-        logger.info(f"Cleared {count} previous run history records before new run")
-    else:
-        logger.info("No previous run history to clear")
-    conn.close()
-    
+    # NOTE: run_history is now preserved so each run gets a unique run_id
+    # The dashboard uses run_id to filter completed_jobs for the current run only
     logger.info(f"Manual run triggered (dry_run={dry_run})")
     
     # Generate unique run ID for cancellation
@@ -450,6 +440,7 @@ async def clear_dashboard():
     conn.execute("DELETE FROM run_history")
     conn.execute("DELETE FROM run_details")
     conn.execute("DELETE FROM pending_replacements")
+    conn.execute("DELETE FROM completed_jobs")
     conn.execute("DELETE FROM run_state")
     
     # Re-insert default run_state with reset index
