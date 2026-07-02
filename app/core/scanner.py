@@ -393,6 +393,18 @@ async def run_resizarr(
             already_queued = await client.check_existing_replacement(movie_id)
             if already_queued and rules["trigger_logic"] == "auto":
                 logger.info(f"Skipping {movie_title} - replacement actively in Radarr queue")
+                summary["quality_skipped"] += 1  # Count it as skipped
+                # Track it
+                quality_skipped_movies.append({
+                    'title': movie_title,
+                    'year': movie.get('year'),
+                    'current_size_gb': size_gb,
+                    'current_quality': current_quality,
+                    'found_size_gb': None,
+                    'found_quality': None,
+                    'skip_reason': '⏳ Already in Radarr queue (waiting for completion or 24h cooldown)',
+                    'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
+                })
                 continue
 
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
