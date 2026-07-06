@@ -96,6 +96,10 @@ def check_quality_threshold(found_quality: str, threshold: str) -> tuple:
     if not threshold or threshold == "":
         return True, "No threshold set"
     
+    # Unknown quality always fails threshold check
+    if found_quality == "Unknown":
+        return False, "Unknown quality - cannot verify threshold"
+
     found_value = extract_quality_value(found_quality)
     threshold_value = extract_quality_value(threshold)
     
@@ -380,6 +384,22 @@ async def run_resizarr(
                             current_quality = profile.get("profile_name", "Unknown")
                             break
             
+            # If still Unknown, skip this movie
+            if current_quality == "Unknown":
+                logger.info(f"Skipping {movie_title} - Unknown current quality, cannot compare")
+                summary["quality_skipped"] += 1
+                quality_skipped_movies.append({
+                    'title': movie_title,
+                    'year': movie.get('year'),
+                    'current_size_gb': size_gb,
+                    'current_quality': 'Unknown',
+                    'found_size_gb': None,
+                    'found_quality': None,
+                    'skip_reason': '⚠️ Unknown current quality - skipped',
+                    'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
+                })
+                continue
+
             # Track processed movie for all runs
             processed_movies.append({
                 'title': movie_title,
@@ -471,6 +491,8 @@ async def run_resizarr(
                             continue
 
                         release_quality = client.get_release_quality_name(release)
+                        if release_quality == "Unknown":
+                            continue  # Skip releases with unknown quality
                         candidate_releases.append({
                             "release": release,
                             "size_gb": release_size_gb,
