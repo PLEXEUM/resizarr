@@ -480,6 +480,12 @@ async def run_resizarr(
                     # Skip releases smaller than minimum file size
                     if release_size_gb < min_size_gb:
                         continue
+
+                    # Skip releases with low custom score (ignored by Radarr)
+                    custom_score = release.get("customScore", 0)
+                    if custom_score < 0:
+                        logger.debug(f"Skipping release with negative custom score: {custom_score} - {release.get('title', 'Unknown')}")
+                        continue
     
                     peers = (release.get("seeders", 0) + release.get("leechers", 0) or
                         release.get("peers", 0) or release.get("peerCount", 0))
@@ -511,7 +517,7 @@ async def run_resizarr(
                     summary["quality_skipped"] += 1
     
                     # Only consider releases with KNOWN quality (ignore Unknown)
-                    known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown"]
+                    known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown" and r.get("customScore", 0) >= 0]
     
                     if known_quality_releases:
                         smallest_release = min(known_quality_releases, key=lambda r: r.get('size', 0))
