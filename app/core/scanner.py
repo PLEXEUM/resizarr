@@ -483,9 +483,9 @@ async def run_resizarr(
                         logger.debug(f"Skipping release with negative custom score: {custom_score} - {release.get('title', 'Unknown')}")
                         continue
 
-                    # Skip releases with "Extras" in the title
+                    # Skip releases with "Extras." pattern (common for extras releases)
                     title = release.get("title", "")
-                    if "Extras" in title or "extras" in title.lower():
+                    if "Extras." in title or "extras." in title:
                         logger.debug(f"Skipping Extras release: {title}")
                         continue
     
