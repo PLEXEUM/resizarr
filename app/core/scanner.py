@@ -509,25 +509,33 @@ async def run_resizarr(
 
                 if not candidate_releases:
                     summary["quality_skipped"] += 1
-                    # Find the smallest release from valid_releases
-                    smallest_release = min(valid_releases, key=lambda r: r.get('size', 0)) if valid_releases else None
-                    smallest_release_size = (smallest_release.get("size", 0) / (1024 ** 3)) if smallest_release else None
-                    smallest_release_quality = client.get_release_quality_name(smallest_release) if smallest_release else None
-
-                    # Get closest release details
-                    closest_peers = None
-                    closest_language = None
-                    if smallest_release:
+    
+                    # Only consider releases with KNOWN quality (ignore Unknown)
+                    known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown"]
+    
+                    if known_quality_releases:
+                        smallest_release = min(known_quality_releases, key=lambda r: r.get('size', 0))
+                        smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
+                        smallest_release_quality = client.get_release_quality_name(smallest_release)
+        
+                        # Get closest release details
                         closest_peers = (smallest_release.get("seeders", 0) + smallest_release.get("leechers", 0) or 
                                         smallest_release.get("peers", 0))
                         languages = smallest_release.get("languages", [])
                         closest_language = (languages[0].get("name", "Unknown") if languages and isinstance(languages[0], dict) else "Unknown")
+                    else:
+                        # No releases with known quality at all
+                        smallest_release = None
+                        smallest_release_size = None
+                        smallest_release_quality = None
+                        closest_peers = None
+                        closest_language = None
 
                     # Build filter status - ONLY show failures with emoji prefix
                     failed_filters = []
-    
-                    # Size check on closest release
-                    if smallest_release_size:
+
+                    # Size check on closest release (only if there was a known-quality release)
+                    if smallest_release_size is not None:
                         size_passes = matches_condition(smallest_release_size, rules["target_operator"], target_threshold_gb)
                         if not size_passes:
                             size_needs = f"{rules['target_operator']}{rules['target_size']}{rules['target_unit']}"
@@ -545,11 +553,20 @@ async def run_resizarr(
                         if not lang_passes:
                             failed_filters.append(f"language: needs '{preferred_language}', found '{closest_language}'")
     
+                    # Quality threshold check on closest release
+                    if smallest_release_quality and smallest_release_quality != "Unknown":
+                        min_quality_threshold = rules.get("min_quality_threshold")
+                        if min_quality_threshold and min_quality_threshold != "":
+                            threshold_passed, threshold_reason = check_quality_threshold(smallest_release_quality, min_quality_threshold)
+                            if not threshold_passed:
+                                failed_filters.append(f"quality: {threshold_reason}")
+    
                     # Build the skip reason with emoji prefix
                     if failed_filters:
                         skip_reason = "❌ " + " | ❌ ".join(failed_filters)
+                    elif smallest_release is None:
+                        skip_reason = "❌ no releases found with known quality"
                     else:
-                        # All filters passed on the closest release? This shouldn't happen, but fallback
                         skip_reason = f"❌ no matching release (closest: {smallest_release_size:.1f}GB)" if smallest_release_size else "❌ no releases found"
 
                     quality_skipped_movies.append({
@@ -563,6 +580,7 @@ async def run_resizarr(
                         'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
                     })
                     logger.info(f"No suitable releases found for: {movie_title} - {skip_reason}")
+                
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
                     candidate_releases.sort(key=lambda x: x["size_gb"])
