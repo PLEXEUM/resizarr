@@ -277,8 +277,7 @@ async def run_resizarr(
                 continue
 
             size_gb = movie_file.get("size", 0) / (1024 ** 3)
-            if size_gb < min_size_gb:
-                continue
+            # No minimum size check for current files - process all that match the condition
 
             path = movie_file.get("relativePath", "")
             ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
@@ -477,6 +476,11 @@ async def run_resizarr(
                 # Build candidate releases
                 for release in valid_releases:
                     release_size_gb = release.get("size", 0) / (1024 ** 3)
+    
+                    # Skip releases smaller than minimum file size
+                    if release_size_gb < min_size_gb:
+                        continue
+    
                     peers = (release.get("seeders", 0) + release.get("leechers", 0) or
                         release.get("peers", 0) or release.get("peerCount", 0))
 
