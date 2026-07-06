@@ -488,6 +488,11 @@ async def run_resizarr(
                         release_quality = client.get_release_quality_name(release)
                         if release_quality == "Unknown":
                             continue  # Skip releases with unknown quality
+                        
+                        # Check if freeleech is in indexerFlags
+                        indexer_flags = release.get("indexerFlags", [])
+                        is_freeleech = "G_Freeleech" in indexer_flags or "Freeleech" in str(indexer_flags)
+
                         candidate_releases.append({
                             "release": release,
                             "size_gb": release_size_gb,
@@ -495,7 +500,8 @@ async def run_resizarr(
                             "guid": release.get("guid"),
                             "download_url": release.get("downloadUrl") or release.get("magnetUrl"),
                             "peers": peers,
-                            "language": release_language
+                            "language": release_language,
+                            "freeleech": is_freeleech
                         })
 
                 if not candidate_releases:
@@ -574,8 +580,13 @@ async def run_resizarr(
                 
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
-                    candidate_releases.sort(key=lambda x: x["size_gb"])
+                    # Sort by: smallest size first, then freeleech as tie-breaker
+                    candidate_releases.sort(key=lambda x: (
+                        x["size_gb"],
+                        0 if x.get("freeleech", False) else 1
+                    ))
                     best_candidate = candidate_releases[0]
+                     
                     found_size_gb = best_candidate["size_gb"]
                     found_quality = best_candidate["quality"]
 
