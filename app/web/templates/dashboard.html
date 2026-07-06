@@ -489,26 +489,58 @@
     }
     
     async function quickApprove(id) {
+        // Find and disable the button
+        const buttons = document.querySelectorAll(`button[onclick*="quickApprove(${id})"]`);
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        });
+
         try {
             const res = await fetch(`/api/pending/${id}/approve`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ override_quality: true })
             });
-             if (res.ok) {
+            if (res.ok) {
                 showToast('Approved!', 'success');
                 await loadCategory('pending');
                 await loadStatus();
             } else {
                 const data = await res.json();
                 showToast(data.detail || 'Failed to approve', 'error');
+                // Re-enable buttons on error so user can retry
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.textContent = 'Approve';
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                });
             }
         } catch (e) {
             showToast('Request failed: ' + e.message, 'error');
+            // Re-enable buttons on error so user can retry
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = 'Approve';
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            });
         }
     }
-    
+
     async function quickReject(id) {
+        // Disable the reject button too
+        const buttons = document.querySelectorAll(`button[onclick*="quickReject(${id})"]`);
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.textContent = '⏳ Rejecting...';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        });
+
         try {
             const res = await fetch(`/api/pending/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -517,9 +549,22 @@
                 await loadStatus();
             } else {
                 showToast('Failed to reject', 'error');
+                // Re-enable buttons on error
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.textContent = 'Reject';
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                });
             }
         } catch (e) {
             showToast('Request failed: ' + e.message, 'error');
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = 'Reject';
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            });
         }
     }
 
