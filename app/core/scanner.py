@@ -482,6 +482,12 @@ async def run_resizarr(
                     if custom_score < 0:
                         logger.debug(f"Skipping release with negative custom score: {custom_score} - {release.get('title', 'Unknown')}")
                         continue
+
+                    # Skip releases with "Extras" in the title
+                    title = release.get("title", "")
+                    if "Extras" in title or "extras" in title.lower():
+                        logger.debug(f"Skipping Extras release: {title}")
+                        continue
     
                     peers = (release.get("seeders", 0) + release.get("leechers", 0) or
                         release.get("peers", 0) or release.get("peerCount", 0))
