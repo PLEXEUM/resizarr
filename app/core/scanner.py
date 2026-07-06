@@ -417,24 +417,35 @@ async def run_resizarr(
 
             releases = await client.search_for_releases(movie_id)
 
-            # === SIMPLE TITLE + YEAR MATCHING ===
-            filter_title = movie.get("title", "").lower()
+            # === MATCH BY TMDB ID FIRST (most reliable) ===
+            movie_tmdb_id = movie.get("tmdbId")
             movie_year = str(movie.get("year", ""))
             original_count = len(releases)
 
-            # Filter by title (regex word boundary for short titles)
-            if len(filter_title) <= 3:
-                pattern = r'\b' + re.escape(filter_title) + r'\b'
-                releases = [r for r in releases if re.search(pattern, r.get('title', ''), re.IGNORECASE)]
-            else:
-                releases = [r for r in releases if filter_title in r.get('title', '').lower()]
+            if movie_tmdb_id:
+                # Exact TMDB ID match - most reliable
+                releases = [r for r in releases if r.get("tmdbId") == movie_tmdb_id]
+                logger.info(f"TMDB ID filter: kept {len(releases)} of {original_count} releases for '{movie.get('title', '')}' (TMDB: {movie_tmdb_id})")
 
-            # Filter by year (if available)
-            if movie_year:
-                releases = [r for r in releases if movie_year in r.get('title', '')]
-
-            if original_count != len(releases):
-                logger.info(f"Title+year filter: kept {len(releases)} of {original_count} releases for '{filter_title} ({movie_year})'")
+            # If no TMDB matches or no TMDB ID, fall back to title + year matching
+            if not releases:
+                filter_title = movie.get("title", "").lower()
+                # Normalize title by removing all non-alphanumeric characters
+                filter_title_normalized = re.sub(r'[^a-z0-9]', '', filter_title)
+    
+                # Filter by title (regex word boundary for short titles)
+                if len(filter_title) <= 3:
+                    pattern = r'\b' + re.escape(filter_title) + r'\b'
+                    releases = [r for r in releases if re.search(pattern, r.get('title', ''), re.IGNORECASE)]
+                else:
+                    # Normalize release title and compare
+                    releases = [r for r in releases if filter_title_normalized in re.sub(r'[^a-z0-9]', '', r.get('title', '').lower())]
+    
+                # Filter by year (if available)
+                if movie_year:
+                    releases = [r for r in releases if movie_year in r.get('title', '')]
+    
+                logger.info(f"Title+year fallback filter: kept {len(releases)} of {original_count} releases for '{movie.get('title', '')}'")
             
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
