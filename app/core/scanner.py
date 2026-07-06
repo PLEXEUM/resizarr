@@ -11,6 +11,7 @@ from app.core.radarr_client import RadarrClient
 from app.core.quality_checker import check_quality
 from app.db.database import get_connection
 from app.api.pending import add_completed_job
+from app.utils.quality_ranking import get_quality_resolution
 
 logger = get_logger()
 
@@ -66,28 +67,8 @@ def extract_proper_guid(release: dict) -> str:
     return guid
 
 def extract_quality_value(quality_name: str) -> int:
-    """Extract resolution from quality name (e.g., 'BluRay-1080p' -> 1080, '4K' -> 2160)"""
-    if not quality_name:
-        return 0
-    quality_lower = str(quality_name).lower()
-    
-    # Handle 4K/2160p
-    if '4k' in quality_lower or '2160p' in quality_lower:
-        return 2160
-    # Handle 1080p
-    if '1080p' in quality_lower:
-        return 1080
-    # Handle 720p
-    if '720p' in quality_lower:
-        return 720
-    # Handle 480p/DVD
-    if '480p' in quality_lower or 'dvd' in quality_lower:
-        return 480
-    
-    # Generic pattern matching
-    import re
-    match = re.search(r'(\d+)p', quality_lower)
-    return int(match.group(1)) if match else 0
+    """Extract resolution from quality name using the comprehensive ranking system."""
+    return get_quality_resolution(quality_name)
 
 def check_quality_threshold(found_quality: str, threshold: str) -> tuple:
     """Check if found quality meets or exceeds the minimum threshold.
@@ -103,9 +84,13 @@ def check_quality_threshold(found_quality: str, threshold: str) -> tuple:
     found_value = extract_quality_value(found_quality)
     threshold_value = extract_quality_value(threshold)
     
-    if found_value == 0 or threshold_value == 0:
-        # If we can't parse, assume it passes (don't block)
-        return True, f"Could not parse quality values (found: {found_quality}, threshold: {threshold})"
+    # If threshold can't be parsed, assume it passes (shouldn't happen with valid thresholds)
+    if threshold_value == 0:
+        return True, f"Could not parse threshold value: {threshold}"
+    
+    # If found quality can't be parsed, fail the check
+    if found_value == 0:
+        return False, f"Could not parse found quality: {found_quality}"
     
     if found_value >= threshold_value:
         return True, f"Quality {found_quality} ({found_value}p) meets threshold {threshold} ({threshold_value}p)"
