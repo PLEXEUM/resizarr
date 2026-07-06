@@ -517,15 +517,49 @@ async def run_resizarr(
 
                 if not candidate_releases:
                     summary["quality_skipped"] += 1
-    
+
                     # Only consider releases with KNOWN quality (ignore Unknown)
                     known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown" and r.get("customScore", 0) >= 0]
-    
+
                     if known_quality_releases:
-                        smallest_release = min(known_quality_releases, key=lambda r: r.get('size', 0))
+                        # Score each release by how many filters it fails (lower is better)
+                        def calculate_failure_count(release):
+                            failures = 0
+                            release_size_gb = release.get("size", 0) / (1024 ** 3)
+            
+                            # Check size
+                            if not matches_condition(release_size_gb, rules["target_operator"], target_threshold_gb):
+                                failures += 1
+            
+                            # Check peers
+                            peers = (release.get("seeders", 0) + release.get("leechers", 0) or
+                                    release.get("peers", 0) or release.get("peerCount", 0))
+                            if min_peers > 0 and peers < min_peers:
+                                failures += 1
+            
+                            # Check language
+                            languages = release.get("languages", [])
+                            release_language = (languages[0].get("name", "Unknown")
+                                               if languages and isinstance(languages[0], dict) else "Unknown")
+                            if preferred_language.lower() != "any" and preferred_language.lower() not in release_language.lower():
+                                failures += 1
+            
+                            # Check quality threshold
+                            release_quality = client.get_release_quality_name(release)
+                            min_quality_threshold = rules.get("min_quality_threshold")
+                            if release_quality and release_quality != "Unknown" and min_quality_threshold and min_quality_threshold != "":
+                                threshold_passed, _ = check_quality_threshold(release_quality, min_quality_threshold)
+                                if not threshold_passed:
+                                    failures += 1
+            
+                            return failures
+        
+                        # Sort by: fewest failures first, then smallest size
+                        known_quality_releases.sort(key=lambda r: (calculate_failure_count(r), r.get("size", 0)))
+                        smallest_release = known_quality_releases[0]
                         smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
                         smallest_release_quality = client.get_release_quality_name(smallest_release)
-        
+
                         # Get closest release details
                         closest_peers = (smallest_release.get("seeders", 0) + smallest_release.get("leechers", 0) or 
                                         smallest_release.get("peers", 0))
