@@ -214,6 +214,8 @@ async def run_resizarr(
         run_state = conn.execute("SELECT * FROM run_state WHERE id = 1").fetchone()
         last_processed_id = run_state["last_processed_movie_id"] if run_state else None
         last_processed_index = run_state["last_processed_index"] if run_state else 0
+        candidate_snapshot_json = run_state["candidate_snapshot"] if run_state else None
+        candidate_snapshot = json.loads(candidate_snapshot_json) if candidate_snapshot_json else None
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
         movies = await client.get_movies()
@@ -236,6 +238,10 @@ async def run_resizarr(
                 1 if dry_run else 0,
                 "shrink" if rules["current_operator"] == ">" else "upgrade"
             ))
+
+        # Initialize these variables for later use (even if no candidates or batch_limit=0)
+        start_index = 0
+        candidate_snapshot = None
         
         # Get the run_id for this run
         run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -262,7 +268,6 @@ async def run_resizarr(
                 continue
 
             size_gb = movie_file.get("size", 0) / (1024 ** 3)
-            # No minimum size check for current files - process all that match the condition
 
             path = movie_file.get("relativePath", "")
             ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
@@ -282,36 +287,69 @@ async def run_resizarr(
         # Largest-first sorting (biggest space savings first)
         candidates.sort(key=lambda x: x["size_gb"], reverse=True)
 
+        # ========== NEW CODE: Snapshot-based tracking ==========
+        # ========== NEW CODE: Snapshot-based tracking ==========
         if batch_limit > 0 and candidates:
-            # Get the current starting index from run_state
-            if run_state and run_state["last_processed_index"]:
-                start_index = run_state["last_processed_index"]
-            else:
+            # Check if we have a snapshot
+            if not candidate_snapshot:
+                # First run in this cycle - create snapshot of ALL candidate movie IDs
+                candidate_snapshot = [c["movie"]["id"] for c in candidates]
                 start_index = 0
+                logger.info(f"Created new snapshot with {len(candidate_snapshot)} candidates")
+            else:
+                # We have a snapshot - filter candidates to only those in the snapshot
+                snapshot_ids = set(candidate_snapshot)
+                existing_candidates = [c for c in candidates if c["movie"]["id"] in snapshot_ids]
+        
+                # Find new candidates (not in snapshot)
+                new_candidates = [c for c in candidates if c["movie"]["id"] not in snapshot_ids]
+        
+                if new_candidates:
+                    # Add new candidates to the end of the snapshot
+                    candidate_snapshot.extend([c["movie"]["id"] for c in new_candidates])
+                    existing_candidates.extend(new_candidates)
+                    logger.info(f"Added {len(new_candidates)} new candidates to snapshot (total: {len(candidate_snapshot)})")
+        
+                candidates = existing_candidates
+                start_index = last_processed_index
+                logger.info(f"Filtered to {len(candidates)} candidates from snapshot (saved index: {start_index})")
 
-            # Store total count for calculating next start
-            total_candidates = len(candidates)
+            # Store total count from snapshot for calculating next start
+            total_candidates = len(candidate_snapshot)
 
-            # Calculate end index
-            end_index = start_index + batch_limit
-
-            # If we've reached the end, start over
+            # If we've reached the end of the snapshot, start over
             if start_index >= total_candidates:
                 start_index = 0
-                end_index = batch_limit
-                logger.info(f"Batch rotation: Reached end of candidates, starting over from beginning")
+                # Clear snapshot and start fresh
+                candidate_snapshot = None
+                logger.info(f"Batch rotation: Reached end of snapshot, starting over from beginning")
+                # Recreate snapshot from current candidates
+                candidate_snapshot = [c["movie"]["id"] for c in candidates]
+                total_candidates = len(candidate_snapshot)
+                logger.info(f"Created new snapshot with {total_candidates} candidates")
 
-            # Slice the candidates
-            candidates = candidates[start_index:end_index]
+            # Calculate end index
+            end_index = min(start_index + batch_limit, total_candidates)
 
-            # Store the next start index for the next run (use total_candidates, not sliced)
+            # Slice the candidates (only if we have candidates)
+            if candidates:
+                candidates = candidates[start_index:end_index]
+
+            # Store the next start index for the next run
             next_start = end_index if end_index < total_candidates else 0
+
+            # Save the index, snapshot, AND last_processed_movie_id
+            # Use movie_id from the last processed movie (or None if none processed yet)
+            last_movie_id = candidates[-1]["movie"]["id"] if candidates else None
+    
             conn.execute("""
-                INSERT OR REPLACE INTO run_state (id, last_processed_index, last_run_date)
-                VALUES (1, ?, datetime('now'))
-            """, (next_start,))
+                INSERT OR REPLACE INTO run_state (id, last_processed_index, candidate_snapshot, last_run_date, last_processed_movie_id)
+                VALUES (1, ?, ?, datetime('now'), ?)
+            """, (next_start, json.dumps(candidate_snapshot) if candidate_snapshot else None, last_movie_id))
             conn.commit()
             logger.info(f"Batch processing: {len(candidates)} candidates from index {start_index} to {end_index-1} (next start: {next_start})")
+
+        # ========== END NEW CODE ==========
 
         csv_rows = []
 
@@ -949,12 +987,8 @@ async def run_resizarr(
     
                 logger.info(f"[AUTO MODE] Queued release for {movie_title}: {found_size_gb:.2f} GB")
 
-            # Save resume point
-            conn.execute("""
-                INSERT OR REPLACE INTO run_state (id, last_processed_movie_id, last_run_date)
-                VALUES (1, ?, ?)
-            """, (movie_id, datetime.utcnow()))
-            conn.commit()
+            # NOTE: last_processed_movie_id is now saved in the batch update above
+            # No need for separate update here
 
             # Configurable delay between movies
             await asyncio.sleep(delay_seconds)
@@ -1065,9 +1099,11 @@ async def run_resizarr(
         # ========== END TRACKING SAVE ==========
         conn.commit()
 
-        if batch_limit == 0 or len(candidates) < batch_limit:
+        # Only clear run_state if we've processed ALL candidates in the snapshot
+        if candidate_snapshot and start_index >= len(candidate_snapshot):
             conn.execute("DELETE FROM run_state WHERE id = 1")
             conn.commit()
+            logger.info("Completed full cycle, cleared run_state")
 
         logger.info(f"Run complete: {summary['total_movies_processed']} processed, "
                     f"{summary['replacements_queued']} queued, "

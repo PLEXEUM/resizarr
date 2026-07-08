@@ -290,6 +290,13 @@ def init_db():
         cursor.execute("ALTER TABLE run_state ADD COLUMN last_processed_index INTEGER DEFAULT 0")
         print("Added 'last_processed_index' column to run_state table")
 
+    # Migration: Add candidate_snapshot to run_state
+    cursor.execute("PRAGMA table_info(run_state)")
+    run_state_columns = [row[1] for row in cursor.fetchall()]
+    if 'candidate_snapshot' not in run_state_columns:
+        cursor.execute("ALTER TABLE run_state ADD COLUMN candidate_snapshot TEXT")
+        print("Added 'candidate_snapshot' column to run_state table")
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")
