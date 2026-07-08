@@ -248,14 +248,9 @@ async def run_resizarr(
         logger.info(f"Created run history record with ID: {run_id_from_db}")
 
         candidates = []
-        resume_processing = last_processed_id is None
 
         for movie in movies:
-            movie_id = movie.get("id")
-            if not resume_processing:
-                if movie_id == last_processed_id:
-                    resume_processing = True
-                continue
+            # No resume_processing needed - snapshot handles everything
 
             # Folder pattern filter
             if folder_pattern:
@@ -282,6 +277,13 @@ async def run_resizarr(
                 })
 
         logger.info(f"Found {len(candidates)} candidates matching condition")
+        # ========== DEBUG: Log filter details ==========
+        logger.info(f"Current threshold: {rules['current_operator']} {rules['current_size']}{rules['current_unit']}")
+        logger.info(f"Target threshold: {rules['target_operator']} {rules['target_size']}{rules['target_unit']}")
+        logger.info(f"Excluded extensions: {excluded_extensions}")
+        logger.info(f"Folder pattern: {folder_pattern}")
+        # ========== END DEBUG ==========
+        
         summary["candidates_found"] = len(candidates)
 
         # Largest-first sorting (biggest space savings first)
