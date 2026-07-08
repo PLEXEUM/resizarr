@@ -214,8 +214,18 @@ async def run_resizarr(
         run_state = conn.execute("SELECT * FROM run_state WHERE id = 1").fetchone()
         last_processed_id = run_state["last_processed_movie_id"] if run_state else None
         last_processed_index = run_state["last_processed_index"] if run_state else 0
+        
         candidate_snapshot_json = run_state["candidate_snapshot"] if run_state else None
-        candidate_snapshot = json.loads(candidate_snapshot_json) if candidate_snapshot_json else None
+        candidate_snapshot = None
+        if candidate_snapshot_json:
+            try:
+                candidate_snapshot = json.loads(candidate_snapshot_json)
+                logger.info(f"Loaded snapshot with {len(candidate_snapshot)} candidates from database")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse candidate_snapshot: {e}")
+                candidate_snapshot = None
+        else:
+            logger.info("ℹ️ No snapshot found in database, will create new one")
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
         movies = await client.get_movies()
@@ -238,10 +248,9 @@ async def run_resizarr(
                 1 if dry_run else 0,
                 "shrink" if rules["current_operator"] == ">" else "upgrade"
             ))
-
-        # Initialize these variables for later use (even if no candidates or batch_limit=0)
+       
+        # Initialize start_index for later use (even if no candidates or batch_limit=0)
         start_index = 0
-        candidate_snapshot = None
         
         # Get the run_id for this run
         run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -343,12 +352,17 @@ async def run_resizarr(
             # Save the index, snapshot, AND last_processed_movie_id
             # Use movie_id from the last processed movie (or None if none processed yet)
             last_movie_id = candidates[-1]["movie"]["id"] if candidates else None
-    
+
+            # Serialize the snapshot to JSON
+            snapshot_json = json.dumps(candidate_snapshot) if candidate_snapshot else None
+
             conn.execute("""
                 INSERT OR REPLACE INTO run_state (id, last_processed_index, candidate_snapshot, last_run_date, last_processed_movie_id)
                 VALUES (1, ?, ?, datetime('now'), ?)
-            """, (next_start, json.dumps(candidate_snapshot) if candidate_snapshot else None, last_movie_id))
+            """, (next_start, snapshot_json, last_movie_id))
             conn.commit()
+            logger.info(f"💾 Saved snapshot to database ({len(candidate_snapshot) if candidate_snapshot else 0} candidates, next start: {next_start})")
+            
             logger.info(f"Batch processing: {len(candidates)} candidates from index {start_index} to {end_index-1} (next start: {next_start})")
 
         # ========== END NEW CODE ==========
