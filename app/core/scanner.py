@@ -584,15 +584,13 @@ async def run_resizarr(
 
                         # Check source types
                         if not skip_release:
-                            release_source = release.get('source', {})
-                            if isinstance(release_source, dict):
-                                source_id = release_source.get('id')
-                            else:
-                                source_id = release.get('sourceId') or release.get('source')
-        
+                            quality_obj = release.get('quality', {})
+                            quality_info = quality_obj.get('quality', {})
+                            source_value = quality_info.get('source')
+    
                             for exclusion in exclusion_patterns['source_types']:
-                                if source_id == exclusion['source_value']:
-                                    logger.debug(f"Skipping {release.get('title', 'Unknown')} - matches exclusion: {exclusion['format_name']} (source type: {source_id})")
+                                if source_value == exclusion['source_name']:
+                                    logger.debug(f"Skipping {release.get('title', 'Unknown')} - matches exclusion: {exclusion['format_name']} (source: {source_value})")
                                     skip_release = True
                                     break
 

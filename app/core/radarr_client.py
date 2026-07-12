@@ -258,10 +258,19 @@ class RadarrClient:
                 elif impl == 'SourceSpecification':
                     for field in fields:
                         if field.get('name') == 'value':
-                            patterns['source_types'].append({
-                                'format_name': cf.get('name'),
-                                'source_value': field.get('value')
-                            })
+                            # Get the source name from selectOptions
+                            select_options = field.get('selectOptions', [])
+                            source_value = field.get('value')
+                            source_name = None
+                            for opt in select_options:
+                                if opt.get('value') == source_value:
+                                    source_name = opt.get('name', '').lower()
+                                    break
+                            if source_name:
+                                patterns['source_types'].append({
+                                    'format_name': cf.get('name'),
+                                    'source_name': source_name  # e.g., "webrip"
+                                })
     
         return patterns
     
