@@ -259,8 +259,8 @@ async def run_resizarr(
                 "shrink" if rules["current_operator"] == ">" else "upgrade"
             ))
        
-        # Initialize start_index for later use (even if no candidates or batch_limit=0)
-        start_index = 0
+        # Initialize start_index from database (or 0 if no run_state)
+        start_index = last_processed_index if last_processed_index is not None else 0
         
         # Get the run_id for this run
         run_id_from_db = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -330,15 +330,15 @@ async def run_resizarr(
                 missing_ids = [cid for cid in candidate_snapshot if cid not in [c["movie"]["id"] for c in candidates]]
                 if missing_ids:
                     logger.info(f"Removing {len(missing_ids)} candidates from snapshot that no longer exist")
-                    # Rebuild snapshot from existing candidates
+                    # Rebuild snapshot from existing candidates (only trim, don't reset)
                     candidate_snapshot = [c["movie"]["id"] for c in candidates]
                     snapshot_ids = set(candidate_snapshot)
                     existing_candidates = candidates.copy()
                     new_candidates = []
-                    # Reset start_index if it's beyond the new snapshot
+                    # Only reset if start_index is out of bounds after trimming
                     if start_index >= len(candidate_snapshot):
                         start_index = 0
-                        logger.info(f"Reset start_index to 0 after trimming snapshot")
+                        logger.info(f"Reset start_index to 0 after trimming (was out of bounds)")
 
                 if new_candidates:
                     # Add new candidates to the end of the snapshot
@@ -352,16 +352,10 @@ async def run_resizarr(
             # Store total count from snapshot for calculating next start
             total_candidates = len(candidate_snapshot)
 
-            # If we've reached the end of the snapshot, start over
+            # If start_index is beyond the snapshot, reset to 0
             if start_index >= total_candidates:
                 start_index = 0
-                # Clear snapshot and start fresh
-                candidate_snapshot = None
-                logger.info(f"Batch rotation: Reached end of snapshot, starting over from beginning")
-                # Recreate snapshot from current candidates
-                candidate_snapshot = [c["movie"]["id"] for c in candidates]
-                total_candidates = len(candidate_snapshot)
-                logger.info(f"Created new snapshot with {total_candidates} candidates")
+                logger.info(f"Reset start_index to 0 (reached end of snapshot)")
 
             # Calculate how many candidates we can process in this batch
             remaining = total_candidates - start_index
