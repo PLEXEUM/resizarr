@@ -18,6 +18,7 @@ Resizarr scans your Radarr library for movies that exceed your size rules, finds
 - **Clear buttons** — Quickly clear pending list or run history
 - **Docker-ready** — One-command deploy with persistent SQLite database
 - **Quality downgrade bypass** — Works even when Radarr says the new release is lower quality
+- **Radarr Custom Format support** — Automatically respects your Radarr exclusion formats (Exclude WEBRIP, Exclude Extras, etc.)
 
 ---
 
@@ -25,13 +26,14 @@ Resizarr scans your Radarr library for movies that exceed your size rules, finds
 
 1. You run a scan (manual or scheduled)
 2. Resizarr checks every movie against your size rules
-3. It asks Radarr for smaller releases
-4. Matching candidates are saved to the **Pending Approvals** table
-5. You review and click **Approve** (or enable auto-approve)
-6. Resizarr:
+3. Resizarr fetches your Radarr Custom Formats and filters out any releases matching your exclusions
+4. It asks Radarr for smaller releases
+5. Matching candidates are saved to the **Pending Approvals** table
+6. You review and click **Approve** (or enable auto-approve)
+7. Resizarr:
    - Deletes the old oversized file
    - Pushes the exact smaller release to Radarr using the correct GUID/download URL
-7. Radarr downloads the smaller version and your library is updated
+8. Radarr downloads the smaller version and your library is updated
 
 **Supported Trackers**: PixelHD, Beyond-HD, Aither, HDBits, and any tracker with a numeric torrent ID in the URL.
 
