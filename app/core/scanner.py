@@ -319,20 +319,34 @@ async def run_resizarr(
                 logger.info(f"Created new snapshot with {len(candidate_snapshot)} candidates")
             else:
                 # We have a snapshot - filter candidates to only those in the snapshot
+                # We have a snapshot - filter candidates to only those in the snapshot
                 snapshot_ids = set(candidate_snapshot)
                 existing_candidates = [c for c in candidates if c["movie"]["id"] in snapshot_ids]
-        
+
                 # Find new candidates (not in snapshot)
                 new_candidates = [c for c in candidates if c["movie"]["id"] not in snapshot_ids]
-        
+
+                # Find candidates in snapshot that no longer exist (removed from Radarr or no longer match)
+                missing_ids = [cid for cid in candidate_snapshot if cid not in [c["movie"]["id"] for c in candidates]]
+                if missing_ids:
+                    logger.info(f"Removing {len(missing_ids)} candidates from snapshot that no longer exist")
+                    # Rebuild snapshot from existing candidates
+                    candidate_snapshot = [c["movie"]["id"] for c in candidates]
+                    snapshot_ids = set(candidate_snapshot)
+                    existing_candidates = candidates.copy()
+                    new_candidates = []
+                    # Reset start_index if it's beyond the new snapshot
+                    if start_index >= len(candidate_snapshot):
+                        start_index = 0
+                        logger.info(f"Reset start_index to 0 after trimming snapshot")
+
                 if new_candidates:
                     # Add new candidates to the end of the snapshot
                     candidate_snapshot.extend([c["movie"]["id"] for c in new_candidates])
                     existing_candidates.extend(new_candidates)
                     logger.info(f"Added {len(new_candidates)} new candidates to snapshot (total: {len(candidate_snapshot)})")
-        
+
                 candidates = existing_candidates
-                start_index = last_processed_index
                 logger.info(f"Filtered to {len(candidates)} candidates from snapshot (saved index: {start_index})")
 
             # Store total count from snapshot for calculating next start
@@ -349,15 +363,38 @@ async def run_resizarr(
                 total_candidates = len(candidate_snapshot)
                 logger.info(f"Created new snapshot with {total_candidates} candidates")
 
-            # Calculate end index
-            end_index = min(start_index + batch_limit, total_candidates)
+            # Calculate how many candidates we can process in this batch
+            remaining = total_candidates - start_index
 
-            # Slice the candidates (only if we have candidates)
-            if candidates:
+            # If start_index is beyond the candidate list, reset to 0
+            if start_index >= len(candidates):
+                start_index = 0
+                remaining = total_candidates
+
+            if remaining >= batch_limit:
+                # Normal case: process full batch
+                end_index = start_index + batch_limit
                 candidates = candidates[start_index:end_index]
+                next_start = end_index
+            else:
+                # Wrap-around case: process remaining + some from beginning
+                # Process remaining candidates first
+                end_index = total_candidates
+                first_batch = candidates[start_index:end_index] if start_index < len(candidates) else []
+    
+                # Then process the first (batch_limit - remaining) from the start
+                wrap_count = batch_limit - remaining
+                if wrap_count > len(candidates):
+                    wrap_count = len(candidates)
+                second_batch = candidates[0:wrap_count]
+    
+                candidates = first_batch + second_batch
+                next_start = wrap_count
+    
+                logger.info(f"Batch wrap-around: processed {len(first_batch)} remaining + {len(second_batch)} from beginning")
 
             # Store the next start index for the next run
-            next_start = end_index if end_index < total_candidates else 0
+            # If we wrapped around and next_start is 0, we completed a full cycle
 
             # Save the index, snapshot, AND last_processed_movie_id
             # Use movie_id from the last processed movie (or None if none processed yet)
