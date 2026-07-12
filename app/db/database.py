@@ -123,6 +123,12 @@ def init_db():
             last_updated DATETIME
         );
 
+        CREATE TABLE IF NOT EXISTS custom_formats_cache (
+            id INTEGER PRIMARY KEY,
+            formats_json TEXT,
+            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- ========== NEW TABLE FOR TRACKING RUN DETAILS ==========
         CREATE TABLE IF NOT EXISTS run_details (
             id INTEGER PRIMARY KEY,

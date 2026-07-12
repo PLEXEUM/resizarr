@@ -189,6 +189,16 @@ async def run_resizarr(
             summary["error"] = "Radarr not configured"
             return summary
 
+        # Fetch custom formats from Radarr
+        client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
+        custom_formats = await client.get_custom_formats()
+        exclusion_patterns = client.extract_exclusion_patterns(custom_formats)
+        logger.info(f"Loaded {len(exclusion_patterns['title_patterns'])} title exclusions and {len(exclusion_patterns['source_types'])} source exclusions from custom formats")
+
+        # If no custom formats found, log a warning but continue
+        if not exclusion_patterns['title_patterns'] and not exclusion_patterns['source_types']:
+            logger.warning("No custom format exclusions found - WEBRIP/Extras may not be filtered")
+        
         # Load rules
         rules_row = conn.execute("SELECT * FROM rules WHERE id = 1").fetchone()
         if not rules_row:
@@ -559,6 +569,35 @@ async def run_resizarr(
                         release_quality = client.get_release_quality_name(release)
                         if release_quality == "Unknown":
                             continue  # Skip releases with unknown quality
+                        
+                        # Check custom format exclusions
+                        skip_release = False
+
+                        # Check title patterns
+                        for exclusion in exclusion_patterns['title_patterns']:
+                            import re
+                            pattern = exclusion['pattern']
+                            if re.search(pattern, release.get('title', ''), re.IGNORECASE):
+                                logger.debug(f"Skipping {release.get('title', 'Unknown')} - matches exclusion: {exclusion['format_name']}")
+                                skip_release = True
+                                break
+
+                        # Check source types
+                        if not skip_release:
+                            release_source = release.get('source', {})
+                            if isinstance(release_source, dict):
+                                source_id = release_source.get('id')
+                            else:
+                                source_id = release.get('sourceId') or release.get('source')
+        
+                            for exclusion in exclusion_patterns['source_types']:
+                                if source_id == exclusion['source_value']:
+                                    logger.debug(f"Skipping {release.get('title', 'Unknown')} - matches exclusion: {exclusion['format_name']} (source type: {source_id})")
+                                    skip_release = True
+                                    break
+
+                        if skip_release:
+                            continue  # Skip this release entirely
                         
                         # Check if freeleech is in indexerFlags
                         indexer_flags = release.get("indexerFlags", [])

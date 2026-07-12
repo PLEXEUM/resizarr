@@ -217,6 +217,54 @@ class RadarrClient:
             logger.error(f"Failed to search releases for movie {movie_id} after {elapsed:.1f}s: {e}")
             return []
 
+    async def get_custom_formats(self) -> list:
+        """Fetch custom formats from Radarr."""
+        try:
+            return await self._request("GET", "customformat")
+        except Exception as e:
+            logger.error(f"Failed to fetch custom formats: {e}")
+            return []
+
+    def extract_exclusion_patterns(self, custom_formats: list) -> dict:
+        """Extract exclusion patterns from custom formats.
+    
+        Returns:
+            dict: {
+                'title_patterns': [regex strings for title-based exclusions],
+                'source_types': [source type values to exclude (e.g., 8 for WEBRIP)]
+            }
+        """
+        patterns = {'title_patterns': [], 'source_types': []}
+    
+        for cf in custom_formats:
+            name = cf.get('name', '').lower()
+        
+            # Only process exclusion formats (names starting with "Exclude")
+            if not name.startswith('exclude'):
+                continue
+            
+            for spec in cf.get('specifications', []):
+                impl = spec.get('implementation', '')
+                fields = spec.get('fields', [])
+            
+                if impl == 'ReleaseTitleSpecification':
+                    for field in fields:
+                        if field.get('name') == 'value':
+                            patterns['title_patterns'].append({
+                                'format_name': cf.get('name'),
+                                'pattern': field.get('value', '')
+                            })
+            
+                elif impl == 'SourceSpecification':
+                    for field in fields:
+                        if field.get('name') == 'value':
+                            patterns['source_types'].append({
+                                'format_name': cf.get('name'),
+                                'source_value': field.get('value')
+                            })
+    
+        return patterns
+    
     def get_release_quality_name(self, release: dict) -> str:
         """Extract quality name from a release."""
         quality_wrapper = release.get("quality", {})
