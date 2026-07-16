@@ -682,12 +682,9 @@ async def run_resizarr(
             
                             return failures
         
-
-                        # Find the SMALLEST release (by size) that meets quality threshold
-                        min_quality_threshold = rules.get("min_quality_threshold")
-                        filtered_by_quality = [r for r in known_quality_releases if check_quality_threshold(client.get_release_quality_name(r), min_quality_threshold)[0]] if min_quality_threshold else known_quality_releases
-                        filtered_by_quality.sort(key=lambda r: r.get("size", 0))
-                        smallest_release = filtered_by_quality[0] if filtered_by_quality else None
+                        # Sort by: fewest failures first, then smallest size
+                        known_quality_releases.sort(key=lambda r: (calculate_failure_count(r), r.get("size", 0)))
+                        smallest_release = known_quality_releases[0]
                         smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
                         smallest_release_quality = client.get_release_quality_name(smallest_release)
 
@@ -756,31 +753,6 @@ async def run_resizarr(
                 
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
-                    # Filter by quality threshold first, then sort by size
-                    min_quality_threshold = rules.get("min_quality_threshold")
-                    if min_quality_threshold and min_quality_threshold != "":
-                        filtered_candidates = []
-                        for c in candidate_releases:
-                            threshold_passed, _ = check_quality_threshold(c["quality"], min_quality_threshold)
-                            if threshold_passed:
-                                filtered_candidates.append(c)
-                        if filtered_candidates:
-                            candidate_releases = filtered_candidates
-                        else:
-                            # No releases meet quality threshold - skip this movie
-                            logger.info(f"[{rules['trigger_logic'].upper()}] No releases meet quality threshold - Skipping")
-                            summary["quality_skipped"] += 1
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': None,
-                                'found_quality': None,
-                                'skip_reason': '❌ No releases meet quality threshold',
-                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
-                            })
-                            continue
                     # Sort by: smallest size first, then freeleech as tie-breaker
                     candidate_releases.sort(key=lambda x: (
                         x["size_gb"],
