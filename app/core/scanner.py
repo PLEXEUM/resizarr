@@ -766,6 +766,21 @@ async def run_resizarr(
                                 filtered_candidates.append(c)
                         if filtered_candidates:
                             candidate_releases = filtered_candidates
+                        else:
+                            # No releases meet quality threshold - skip this movie
+                            logger.info(f"[{rules['trigger_logic'].upper()}] No releases meet quality threshold - Skipping")
+                            summary["quality_skipped"] += 1
+                            quality_skipped_movies.append({
+                                'title': movie_title,
+                                'year': movie.get('year'),
+                                'current_size_gb': size_gb,
+                                'current_quality': current_quality,
+                                'found_size_gb': None,
+                                'found_quality': None,
+                                'skip_reason': '❌ No releases meet quality threshold',
+                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
+                            })
+                            continue
                     # Sort by: smallest size first, then freeleech as tie-breaker
                     candidate_releases.sort(key=lambda x: (
                         x["size_gb"],
