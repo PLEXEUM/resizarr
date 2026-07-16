@@ -682,8 +682,8 @@ async def run_resizarr(
             
                             return failures
         
-                        # Sort by: fewest failures first, then smallest size
-                        known_quality_releases.sort(key=lambda r: (calculate_failure_count(r), r.get("size", 0)))
+                        # Find the SMALLEST release (by size) with known quality
+                        known_quality_releases.sort(key=lambda r: r.get("size", 0))
                         smallest_release = known_quality_releases[0]
                         smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
                         smallest_release_quality = client.get_release_quality_name(smallest_release)
