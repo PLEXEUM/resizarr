@@ -756,6 +756,16 @@ async def run_resizarr(
                 
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
+                    # Filter by quality threshold first, then sort by size
+                    min_quality_threshold = rules.get("min_quality_threshold")
+                    if min_quality_threshold and min_quality_threshold != "":
+                        filtered_candidates = []
+                        for c in candidate_releases:
+                            threshold_passed, _ = check_quality_threshold(c["quality"], min_quality_threshold)
+                            if threshold_passed:
+                                filtered_candidates.append(c)
+                        if filtered_candidates:
+                            candidate_releases = filtered_candidates
                     # Sort by: smallest size first, then freeleech as tie-breaker
                     candidate_releases.sort(key=lambda x: (
                         x["size_gb"],
