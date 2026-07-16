@@ -682,9 +682,12 @@ async def run_resizarr(
             
                             return failures
         
-                        # Find the SMALLEST release (by size) with known quality
-                        known_quality_releases.sort(key=lambda r: r.get("size", 0))
-                        smallest_release = known_quality_releases[0]
+
+                        # Find the SMALLEST release (by size) that meets quality threshold
+                        min_quality_threshold = rules.get("min_quality_threshold")
+                        filtered_by_quality = [r for r in known_quality_releases if check_quality_threshold(client.get_release_quality_name(r), min_quality_threshold)[0]] if min_quality_threshold else known_quality_releases
+                        filtered_by_quality.sort(key=lambda r: r.get("size", 0))
+                        smallest_release = filtered_by_quality[0] if filtered_by_quality else known_quality_releases[0] if known_quality_releases else None   
                         smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
                         smallest_release_quality = client.get_release_quality_name(smallest_release)
 
