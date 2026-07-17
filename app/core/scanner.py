@@ -531,7 +531,7 @@ async def run_resizarr(
                 if movie_tmdb_id and release_tmdb == movie_tmdb_id:
                     tmdb_matched.append(release)
                 # Check title match (catches releases without TMDB IDs)
-                elif movie_title and movie_title.lower() in release_title.lower():
+                elif movie_title and re.sub(r'[^a-z0-9]', '', movie_title.lower()) in re.sub(r'[^a-z0-9]', '', release_title.lower()):
                     title_matched.append(release)
                 else:
                     # Track why releases were filtered
