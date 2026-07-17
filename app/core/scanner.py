@@ -775,97 +775,77 @@ async def run_resizarr(
                 
                 else:
                     logger.info(f"[CANDIDATE FOUND] {movie_title} has {len(candidate_releases)} candidate releases")
-                    # Sort by: smallest size first, then freeleech as tie-breaker
+                    
+                    # Sort by size first (smallest first), then freeleech as tie-breaker
                     candidate_releases.sort(key=lambda x: (
                         x["size_gb"],
                         0 if x.get("freeleech", False) else 1
                     ))
-                    best_candidate = candidate_releases[0]
-                     
-                    found_size_gb = best_candidate["size_gb"]
-                    found_quality = best_candidate["quality"]
-
-                    is_allowed, is_downgrade, reason = check_quality(
-                        current_quality, found_quality, rules["quality_rule"]
-                    )
-
-                    # === THRESHOLD CHECK FOR ALL MODES ===
-                    threshold_passed = True
-                    threshold_reason = "No threshold set"
-
-                    # Always check threshold if one is configured
-                    min_quality_threshold = rules.get("min_quality_threshold")
-                    if min_quality_threshold and min_quality_threshold != "":
-                        threshold_passed, threshold_reason = check_quality_threshold(found_quality, min_quality_threshold)
                     
-                    # If threshold fails, skip regardless of mode
-                    if not threshold_passed:
-                        should_proceed = False
-                        combined_reason = f"{reason} | {threshold_reason}"
-                        logger.info(f"[{rules['trigger_logic'].upper()}] Quality threshold failed: {threshold_reason} - Skipping")
+                    # Find the smallest candidate that passes ALL checks
+                    best_candidate = None
+                    found_size_gb = None
+                    found_quality = None
+                    reason = ""
+                    is_downgrade = False
+                    
+                    for candidate in candidate_releases:
+                        candidate_quality = candidate["quality"]
+                        candidate_size = candidate["size_gb"]
+                        
+                        # Check quality rule
+                        is_allowed, is_downgrade, reason = check_quality(
+                            current_quality, candidate_quality, rules["quality_rule"]
+                        )
+                        
+                        # Check quality threshold
+                        threshold_passed = True
+                        threshold_reason = "No threshold set"
+                        min_quality_threshold = rules.get("min_quality_threshold")
+                        if min_quality_threshold and min_quality_threshold != "":
+                            threshold_passed, threshold_reason = check_quality_threshold(candidate_quality, min_quality_threshold)
+                        
+                        # Log this candidate
+                        status = "✅ PASSED" if (is_allowed and threshold_passed) else "❌ FAILED"
+                        logger.info(f"   Candidate: {candidate_size:.2f}GB | {candidate_quality} | {status} | {reason} | {threshold_reason}")
+                        
+                        # If both pass, use this candidate (it's the smallest that passes)
+                        if is_allowed and threshold_passed:
+                            best_candidate = candidate
+                            found_size_gb = candidate_size
+                            found_quality = candidate_quality
+                            logger.info(f"✅ Selected smallest candidate that passes: {found_size_gb:.2f}GB | {found_quality}")
+                            break
+                    
+                    # If no candidate passed all checks, skip this movie
+                    if best_candidate is None:
+                        logger.info(f"[{rules['trigger_logic'].upper()}] No candidate passed quality and threshold checks - Skipping")
                         summary["quality_skipped"] += 1
+                        closest = candidate_releases[0] if candidate_releases else None
                         quality_skipped_movies.append({
                             'title': movie_title,
                             'year': movie.get('year'),
                             'current_size_gb': size_gb,
                             'current_quality': current_quality,
-                            'found_size_gb': found_size_gb,
-                            'found_quality': found_quality,
-                            'skip_reason': combined_reason,
+                            'found_size_gb': closest["size_gb"] if closest else None,
+                            'found_quality': closest["quality"] if closest else None,
+                            'skip_reason': f"No candidate passed quality checks (closest: {closest['size_gb']:.2f}GB, {closest['quality']})" if closest else "No candidates available",
                             'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
                         })
-                        continue  # Skip this movie entirely
+                        continue
                     
                     # === DETERMINE MODE-SPECIFIC BEHAVIOR ===
                     if rules["trigger_logic"] == "auto":
-                        # Auto mode: queue automatically if quality rule passes
-                        if is_allowed:
-                            should_proceed = True
-                            logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
-                        else:
-                            should_proceed = False
-                            logger.info(f"[AUTO MODE] Quality check failed: {reason} - Skipping")
-                            summary["quality_skipped"] += 1
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': found_size_gb,
-                                'found_quality': found_quality,
-                                'skip_reason': reason,
-                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
-                            })
+                        # Auto mode: queue automatically since quality already passed
+                        should_proceed = True
+                        logger.info(f"[AUTO MODE] Quality check passed: {reason} - Will queue automatically")
                     elif rules["trigger_logic"] == "quality_match":
-                        # Quality match mode: queue only if quality rule passes
-                        should_proceed = is_allowed
-                        if not should_proceed:
-                            logger.info(f"[QUALITY MATCH] Quality check failed: {reason} - Skipping")
-                            summary["quality_skipped"] += 1
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': found_size_gb,
-                                'found_quality': found_quality,
-                                'skip_reason': reason,
-                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
-                            })
+                        # Quality match mode: queue since quality already passed
+                        should_proceed = True
+                        logger.info(f"[QUALITY MATCH] Quality check passed: {reason} - Will queue automatically")
                     else:  # Manual mode
-                        should_proceed = is_allowed
-                        if not should_proceed:
-                            summary["quality_skipped"] += 1
-                            quality_skipped_movies.append({
-                                'title': movie_title,
-                                'year': movie.get('year'),
-                                'current_size_gb': size_gb,
-                                'current_quality': current_quality,
-                                'found_size_gb': found_size_gb,
-                                'found_quality': found_quality,
-                                'skip_reason': reason,
-                                'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating') 
-                            })
+                        should_proceed = True
+                        logger.info(f"[MANUAL MODE] Quality check passed: {reason} - Will add to pending approvals")
 
             # ========== DRY RUN CSV LOGGING ==========
             if dry_run:
