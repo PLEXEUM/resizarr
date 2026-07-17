@@ -626,7 +626,6 @@ async def run_resizarr(
 
                         # Check title patterns
                         for exclusion in exclusion_patterns['title_patterns']:
-                            import re
                             pattern = exclusion['pattern']
                             if re.search(pattern, release.get('title', ''), re.IGNORECASE):
                                 logger.debug(f"Skipping {release.get('title', 'Unknown')} - matches exclusion: {exclusion['format_name']}")
