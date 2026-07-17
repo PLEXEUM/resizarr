@@ -188,10 +188,18 @@ input[type="range"]::-webkit-slider-thumb {
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--text-secondary);">
                             Minimum Quality Threshold
+                            <span class="font-normal lowercase text-xs" style="color: var(--text-secondary);">
+                                (qualities below this will be skipped)
+                            </span>
                         </label>
                         <select id="min-quality-threshold" class="w-full px-3 py-2 rounded-lg text-sm border">
                             <option value="">No minimum</option>
                         </select>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="text-xs" style="color: var(--text-secondary);">Better ⬆</span>
+                            <div class="flex-1 h-1 rounded-full" style="background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);"></div>
+                            <span class="text-xs" style="color: var(--text-secondary);">⬇ Worse</span>
+                        </div>
                         <p class="text-xs mt-1" style="color: var(--text-secondary);">
                             Only replace if found quality is at least this quality
                         </p>
@@ -423,12 +431,59 @@ async function loadQualityTypes() {
 
 function populateQualityDropdown(select, qualityTypes) {
     select.innerHTML = '<option value="">No minimum</option>';
-    qualityTypes.forEach(quality => {
+    
+    // Sort by quality score DESCENDING (best first)
+    const sortedQualities = [...qualityTypes].sort((a, b) => {
+        return getQualityScore(b) - getQualityScore(a);
+    });
+    
+    sortedQualities.forEach(quality => {
         const opt = document.createElement('option');
         opt.value = quality;
-        opt.textContent = quality;
+        const score = getQualityScore(quality);
+        
+        // Add emoji indicators
+        let emoji = '📀';  // Default
+        if (score >= 90) emoji = '🌟';      // 4K / Best
+        else if (score >= 80) emoji = '⭐';  // 1080p Bluray
+        else if (score >= 70) emoji = '🎬';  // 1080p Web
+        else if (score >= 50) emoji = '💿';  // 720p
+        else if (score >= 30) emoji = '📀';  // 480p/DVD
+        else emoji = '⚫';                   // SD/Low
+        
+        opt.textContent = `${emoji} ${quality}`;
         select.appendChild(opt);
     });
+}
+
+// Helper function (matching Python's get_quality_score)
+function getQualityScore(quality) {
+    const scores = {
+        // 4K / 2160p
+        '4K': 100, '2160p': 100, 'Bluray-2160p': 100, 'BluRay-2160p': 100,
+        'Bluray-4K': 100, 'BluRay-4K': 100, 'Remux-2160p': 100, 'Remux-4K': 100,
+        'WEBDL-2160p': 95, 'WEB-DL-2160p': 95, 'WEBRip-2160p': 90, 'WEB-Rip-2160p': 90,
+        'HDTV-2160p': 85, 'HDTV-4K': 85,
+        // 1080p
+        'Remux-1080p': 85, 'Bluray-1080p': 80, 'BluRay-1080p': 80,
+        'Bluray-1080i': 75, 'WEBDL-1080p': 75, 'WEB-DL-1080p': 75,
+        'WEBRip-1080p': 70, 'WEB-Rip-1080p': 70, 'HDTV-1080p': 65, 'HDTV-1080i': 65,
+        // 720p
+        'Remux-720p': 65, 'Bluray-720p': 60, 'BluRay-720p': 60,
+        'WEBDL-720p': 55, 'WEB-DL-720p': 55, 'WEBRip-720p': 50, 'WEB-Rip-720p': 50,
+        'HDTV-720p': 45,
+        // 576p / PAL
+        'Bluray-576p': 40, 'BluRay-576p': 40, 'WEBDL-576p': 38, 'WEB-DL-576p': 38,
+        'WEBRip-576p': 35, 'WEB-Rip-576p': 35, 'DVD': 35, 'DVD-Rip': 33, 'DVDRip': 33,
+        // 480p / SD
+        'Bluray-480p': 30, 'BluRay-480p': 30, 'WEBDL-480p': 28, 'WEB-DL-480p': 28,
+        'WEBRip-480p': 25, 'WEB-Rip-480p': 25, '480p': 25,
+        'SDTV': 20, 'SD': 20,
+        // Lowest
+        'TELESYNC': 5, 'TS': 5, 'CAM': 5, 'Cam': 5,
+        'Unknown': 0
+    };
+    return scores[quality] || 0;
 }
 
 // ========== LOAD RULES FROM SERVER ==========

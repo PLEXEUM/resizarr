@@ -241,5 +241,25 @@ def is_quality_same(current_quality: str, found_quality: str) -> bool:
     """Check if qualities are the same (ignoring minor differences)."""
     current_score = get_quality_score(current_quality)
     found_score = get_quality_score(found_quality)
+    return current_score == found_score   # ✅ Inside the function
+
+
+def get_quality_order_descending() -> list:
+    """Return qualities sorted by rank (highest to lowest / best to worst)."""
+    quality_scores = {}
+    for quality, score in QUALITY_RANKING.items():
+        quality_scores[quality] = score
     
-    return current_score == found_score
+    # Sort by score descending (best first)
+    sorted_qualities = sorted(quality_scores.items(), key=lambda x: x[1], reverse=True)
+    return [q[0] for q in sorted_qualities]
+
+
+def get_quality_order_with_scores_descending() -> list:
+    """Return qualities with their scores, sorted highest to lowest (best to worst)."""
+    quality_scores = {}
+    for quality, score in QUALITY_RANKING.items():
+        quality_scores[quality] = score
+    
+    sorted_qualities = sorted(quality_scores.items(), key=lambda x: x[1], reverse=True)
+    return [{"name": q[0], "score": q[1]} for q in sorted_qualities]

@@ -60,11 +60,12 @@ async def get_rules():
         "folder_pattern": rules["folder_pattern"] or ""
     }
 
-# ========== ADD THIS NEW ENDPOINT HERE ==========
+
 @router.get("/quality-types")
 async def get_quality_types():
-    """Get unique quality types from existing movie files."""
+    """Get unique quality types from existing movie files, ordered by quality (best to worst)."""
     from app.core.radarr_client import RadarrClient
+    from app.utils.quality_ranking import get_quality_score
     
     conn = get_connection()
     config = conn.execute("SELECT * FROM config WHERE id = 1").fetchone()
@@ -81,7 +82,6 @@ async def get_quality_types():
         for movie in movies:
             movie_file = movie.get("movieFile")
             if movie_file:
-                # Extract quality from file metadata (same logic as scanner.py)
                 file_quality_wrapper = movie_file.get("quality", {})
                 if isinstance(file_quality_wrapper, dict):
                     file_quality_obj = file_quality_wrapper.get("quality", {})
@@ -101,12 +101,15 @@ async def get_quality_types():
         for q in common_qualities:
             quality_types.add(q)
         
-        return {"quality_types": sorted(list(quality_types))}
+        # Sort by quality score DESCENDING (best first)
+        quality_list = list(quality_types)
+        quality_list.sort(key=lambda q: get_quality_score(q), reverse=True)
+        
+        return {"quality_types": quality_list}
         
     except Exception as e:
         logger.error(f"Failed to fetch quality types: {e}")
         return {"quality_types": []}
-# ========== END NEW ENDPOINT ==========
 
 @router.post("/rules")
 async def save_rules(data: RulesInput):

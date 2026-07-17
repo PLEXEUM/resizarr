@@ -512,35 +512,38 @@ async def run_resizarr(
 
             releases = await client.search_for_releases(movie_id)
 
-            # === MATCH BY TMDB ID FIRST (most reliable) ===
+            # === MATCH BY TMDB ID OR TITLE (hybrid - captures more releases) ===
             movie_tmdb_id = movie.get("tmdbId")
+            movie_title = movie.get("title", "")
             movie_year = str(movie.get("year", ""))
             original_count = len(releases)
 
-            if movie_tmdb_id:
-                # Exact TMDB ID match - most reliable
-                releases = [r for r in releases if r.get("tmdbId") == movie_tmdb_id]
-                logger.info(f"TMDB ID filter: kept {len(releases)} of {original_count} releases for '{movie.get('title', '')}' (TMDB: {movie_tmdb_id})")
+            tmdb_matched = []
+            title_matched = []
 
-            # If no TMDB matches or no TMDB ID, fall back to title + year matching
-            if not releases:
-                filter_title = movie.get("title", "").lower()
-                # Normalize title by removing all non-alphanumeric characters
-                filter_title_normalized = re.sub(r'[^a-z0-9]', '', filter_title)
+            for release in releases:
+                release_tmdb = release.get("tmdbId")
+                release_title = release.get("title", "")
     
-                # Filter by title (regex word boundary for short titles)
-                if len(filter_title) <= 3:
-                    pattern = r'\b' + re.escape(filter_title) + r'\b'
-                    releases = [r for r in releases if re.search(pattern, r.get('title', ''), re.IGNORECASE)]
-                else:
-                    # Normalize release title and compare
-                    releases = [r for r in releases if filter_title_normalized in re.sub(r'[^a-z0-9]', '', r.get('title', '').lower())]
-    
-                # Filter by year (if available)
-                if movie_year:
-                    releases = [r for r in releases if movie_year in r.get('title', '')]
-    
-                logger.info(f"Title+year fallback filter: kept {len(releases)} of {original_count} releases for '{movie.get('title', '')}'")
+                # Check TMDB match first (most reliable)
+                if movie_tmdb_id and release_tmdb == movie_tmdb_id:
+                    tmdb_matched.append(release)
+                # Check title match (catches releases without TMDB IDs)
+                elif movie_title and movie_title.lower() in release_title.lower():
+                    title_matched.append(release)
+
+            # Use TMDB matched releases if we have any
+            if tmdb_matched:
+                releases = tmdb_matched
+                logger.info(f"TMDB ID filter: kept {len(releases)} of {original_count} releases for '{movie_title}' (TMDB: {movie_tmdb_id})")
+            # Otherwise use title matched releases
+            elif title_matched:
+                releases = title_matched
+                logger.info(f"Title fallback: kept {len(releases)} of {original_count} releases for '{movie_title}'")
+            # If still nothing, keep ALL releases (last resort - captures everything)
+            else:
+                logger.info(f"No TMDB or title matches, keeping all {original_count} releases for '{movie_title}' (last resort)")
+                # Keep all releases - better to have false positives than miss valid releases
             
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
