@@ -517,9 +517,11 @@ async def run_resizarr(
             movie_title = movie.get("title", "")
             movie_year = str(movie.get("year", ""))
             original_count = len(releases)
-
+       
             tmdb_matched = []
             title_matched = []
+            no_tmdb_id = []
+            wrong_tmdb_id = []
 
             for release in releases:
                 release_tmdb = release.get("tmdbId")
@@ -531,6 +533,23 @@ async def run_resizarr(
                 # Check title match (catches releases without TMDB IDs)
                 elif movie_title and movie_title.lower() in release_title.lower():
                     title_matched.append(release)
+                else:
+                    # Track why releases were filtered
+                    if not release_tmdb:
+                        no_tmdb_id.append(release)
+                    else:
+                        wrong_tmdb_id.append(release)
+            
+            # Log ONLY if we have releases without TMDB IDs or wrong TMDB IDs
+            if no_tmdb_id or wrong_tmdb_id:
+                logger.info(f"🔍 Release mismatch for '{movie_title}': {len(tmdb_matched)} TMDB matches, {len(title_matched)} title matches, {len(no_tmdb_id)} no TMDB ID, {len(wrong_tmdb_id)} wrong TMDB ID")
+                # Log first 3 titles without TMDB IDs as examples
+                if no_tmdb_id:
+                    sample_titles = [r.get('title', 'Unknown')[:50] for r in no_tmdb_id[:3]]
+                    logger.info(f"   📌 Sample releases without TMDB ID: {', '.join(sample_titles)}")
+                if wrong_tmdb_id:
+                    sample_titles = [r.get('title', 'Unknown')[:50] for r in wrong_tmdb_id[:3]]
+                    logger.info(f"   📌 Sample releases with wrong TMDB ID: {', '.join(sample_titles)}")
 
             # Use TMDB matched releases if we have any
             if tmdb_matched:
