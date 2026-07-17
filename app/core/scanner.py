@@ -551,18 +551,16 @@ async def run_resizarr(
                     sample_titles = [r.get('title', 'Unknown')[:50] for r in wrong_tmdb_id[:3]]
                     logger.info(f"   📌 Sample releases with wrong TMDB ID: {', '.join(sample_titles)}")
 
-            # Use TMDB matched releases if we have any
-            if tmdb_matched:
-                releases = tmdb_matched
-                logger.info(f"TMDB ID filter: kept {len(releases)} of {original_count} releases for '{movie_title}' (TMDB: {movie_tmdb_id})")
-            # Otherwise use title matched releases
-            elif title_matched:
-                releases = title_matched
-                logger.info(f"Title fallback: kept {len(releases)} of {original_count} releases for '{movie_title}'")
+            # COMBINE TMDB and title matches (don't just fall back - include ALL matches)
+            releases = tmdb_matched + title_matched
+            
             # If still nothing, keep ALL releases (last resort - captures everything)
+            if releases:
+                logger.info(f"Kept {len(releases)} of {original_count} releases for '{movie_title}' ({len(tmdb_matched)} TMDB matches, {len(title_matched)} title matches)")
             else:
-                logger.info(f"No TMDB or title matches, keeping all {original_count} releases for '{movie_title}' (last resort)")
                 # Keep all releases - better to have false positives than miss valid releases
+                releases = releases  # Keep the original list (all releases)
+                logger.info(f"No TMDB or title matches, keeping all {original_count} releases for '{movie_title}' (last resort)")
             
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
