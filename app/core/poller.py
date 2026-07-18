@@ -36,24 +36,24 @@ async def poll_pending_replacements():
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
 
-        # Get all queued replacements
+        # Get all queued AND failed replacements (failed might have actually completed)
         queued = conn.execute("""
             SELECT * FROM pending_replacements
-            WHERE status = 'queued'
+            WHERE status IN ('queued', 'failed')
         """).fetchall()
 
         if not queued:
-            # Check for any queued completed_jobs (with or without pending records)
+            # Check for any queued OR failed completed_jobs
             orphaned = conn.execute("""
                 SELECT COUNT(*) FROM completed_jobs
-                WHERE status = 'queued'
+                WHERE status IN ('queued', 'failed')
             """).fetchone()[0]
             
             if orphaned > 0:
-                logger.info(f"Found {orphaned} queued jobs, checking directly")
+                logger.info(f"Found {orphaned} queued/failed jobs, checking directly")
                 jobs = conn.execute("""
                     SELECT * FROM completed_jobs
-                    WHERE status = 'queued'
+                    WHERE status IN ('queued', 'failed')
                 """).fetchall()
                 
                 for job in jobs:
@@ -67,14 +67,14 @@ async def poll_pending_replacements():
         for record in queued:
             await check_record_status(client, conn, record)
 
-        # Also check any queued completed_jobs without pending records
+        # Also check any queued OR failed completed_jobs without pending records
         orphaned_jobs = conn.execute("""
             SELECT * FROM completed_jobs
-            WHERE status = 'queued'
+            WHERE status IN ('queued', 'failed')
             AND NOT EXISTS (
                 SELECT 1 FROM pending_replacements 
                 WHERE pending_replacements.movie_id = completed_jobs.movie_id 
-                AND pending_replacements.status = 'queued'
+                AND pending_replacements.status IN ('queued', 'failed')
             )
         """).fetchall()
         
@@ -128,23 +128,17 @@ async def check_record_status(client, conn, record):
         conn.commit()
         return
 
-    # Check if too many failures
+    # Check if too many failures - but don't permanently fail, just continue checking
     if fail_count >= MAX_FAIL_COUNT:
-        logger.warning(f"Replacement for '{movie_title}' failed {fail_count} times, cancelling")
+        logger.warning(f"Replacement for '{movie_title}' has {fail_count} failures, but will continue checking")
+        # Don't mark as failed - just continue checking
+        # Reset fail_count to avoid infinite logs
         conn.execute("""
             UPDATE pending_replacements
-            SET status = 'failed', completed_at = ?, error_message = 'Max failures exceeded'
+            SET fail_count = 0
             WHERE id = ?
-        """, (datetime.utcnow(), record_id))
-        
-        conn.execute("""
-            UPDATE completed_jobs
-            SET status = 'failed', completed_at = ?
-            WHERE movie_id = ? AND status = 'queued'
-        """, (datetime.utcnow(), movie_id))
-        
+        """, (record_id,))
         conn.commit()
-        return
 
     try:
         # Fetch current movie state from Radarr
@@ -259,6 +253,17 @@ async def check_job_status(client, conn, job):
     movie_id = job["movie_id"]
     movie_title = job["movie_title"]
     
+    # If job already has found_size_gb populated, it's completed
+    if job["found_size_gb"] is not None and job["found_size_gb"] > 0:
+        logger.info(f"✅ Job already completed for '{movie_title}': {job['found_size_gb']:.2f}GB")
+        conn.execute("""
+            UPDATE completed_jobs
+            SET status = 'completed'
+            WHERE id = ? AND status IN ('queued', 'failed')
+        """, (job["id"],))
+        conn.commit()
+        return
+    
     try:
         movie = await client.get_movie(movie_id)
         movie_file = movie.get("movieFile")
@@ -298,7 +303,7 @@ async def check_job_status(client, conn, job):
                     seeders = COALESCE(seeders, ?),
                     tmdb_rating = COALESCE(tmdb_rating, ?),
                     movie_year = COALESCE(movie_year, ?)
-                WHERE id = ? AND status = 'queued'
+                WHERE id = ? AND status IN ('queued', 'failed')
             """, (
                 datetime.utcnow(), 
                 current_size_gb,
