@@ -177,11 +177,15 @@ async def check_record_status(client, conn, record):
         size_changed = abs(current_size_gb - original_size_gb) > 0.01
         quality_changed = current_quality != original_quality and current_quality != "Unknown"
         
+        # If found_size_gb is already populated, it's completed
+        already_completed = record.get("found_size_gb") is not None and record.get("found_size_gb") > 0
+        
         # Mark as completed if ANY of these are true
         replacement_completed = (
             size_changed or 
             quality_changed or 
-            current_size_gb < original_size_gb * 0.95
+            current_size_gb < original_size_gb * 0.95 or
+            already_completed
         )
 
         if replacement_completed:
@@ -272,19 +276,17 @@ async def check_job_status(client, conn, job):
             if isinstance(file_quality_obj, dict):
                 current_quality = file_quality_obj.get("name", "Unknown")
         
-        # Check if size changed from the recorded found_size OR original size
-        original_found = job["found_size_gb"]
+        # Check if size changed from original size (the file was replaced)
         original_size = job["current_size_gb"]
-        
-        # If found_size is NULL or 0, use original_size as fallback
-        size_to_compare = original_found if original_found and original_found > 0 else original_size
-        
-        # Also check if quality changed
         original_quality = job["current_quality"]
+        
+        # Check if quality changed
         quality_changed = current_quality != original_quality and current_quality != "Unknown"
         
         # Check if size changed significantly OR quality changed
-        if (size_to_compare and abs(current_size_gb - size_to_compare) > 0.01) or quality_changed:
+        # For jobs that already have found_size_gb populated, they're already completed
+        # Just update status to completed
+        if (abs(current_size_gb - original_size) > 0.01) or quality_changed or job["found_size_gb"] is not None:
             logger.info(f"✅ Job completed for '{movie_title}': {current_size_gb:.2f}GB ({current_quality})")
             conn.execute("""
                 UPDATE completed_jobs
