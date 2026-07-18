@@ -172,7 +172,7 @@ async def check_record_status(client, conn, record):
         quality_changed = current_quality != original_quality and current_quality != "Unknown"
         
         # If found_size_gb is already populated, it's completed
-        already_completed = record.get("found_size_gb") is not None and record.get("found_size_gb") > 0
+        already_completed = record["found_size_gb"] is not None and record["found_size_gb"] > 0
         
         # Mark as completed if ANY of these are true
         replacement_completed = (
@@ -215,10 +215,10 @@ async def check_record_status(client, conn, record):
                 datetime.utcnow(), 
                 current_size_gb, 
                 current_quality,
-                record.get("indexer"),
-                record.get("seeders", 0),
-                record.get("tmdb_rating"),
-                record.get("movie_year", 0),
+                record["indexer"] if record["indexer"] is not None else None,
+                record["seeders"] if record["seeders"] is not None else 0,
+                record["tmdb_rating"] if record["tmdb_rating"] is not None else None,
+                record["movie_year"] if record["movie_year"] is not None else 0,
                 movie_id
             ))
             
