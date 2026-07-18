@@ -444,6 +444,28 @@ async def get_total_space_saved():
     }
 
 
+@router.post("/backfill-stats")
+async def backfill_stats():
+    """Backfill the stats table from existing completed jobs."""
+    conn = get_connection()
+    
+    result = conn.execute("""
+        UPDATE stats 
+        SET total_space_saved_gb = (
+            SELECT COALESCE(SUM(current_size_gb - found_size_gb), 0)
+            FROM completed_jobs
+            WHERE status IN ('completed', 'queued')
+            AND found_size_gb IS NOT NULL
+            AND found_size_gb > 0
+        )
+        WHERE id = 1
+    """)
+    conn.commit()
+    conn.close()
+    
+    return {"success": True, "message": "Stats backfilled successfully"}
+
+
 # ========== CLEAR DASHBOARD ENDPOINT ==========
 @router.delete("/dashboard/clear")
 async def clear_dashboard():
