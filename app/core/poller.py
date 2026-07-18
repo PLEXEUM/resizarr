@@ -177,16 +177,10 @@ async def check_record_status(client, conn, record):
         size_changed = abs(current_size_gb - original_size_gb) > 0.01
         quality_changed = current_quality != original_quality and current_quality != "Unknown"
         
-        # Check if the file is completely different (new file ID)
-        file_id = movie_file.get("id")
-        original_file_id = record.get("original_file_id")
-        file_id_changed = original_file_id and file_id != original_file_id
-
         # Mark as completed if ANY of these are true
         replacement_completed = (
             size_changed or 
             quality_changed or 
-            file_id_changed or
             current_size_gb < original_size_gb * 0.95
         )
 
