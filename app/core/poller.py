@@ -264,15 +264,34 @@ async def check_job_status(client, conn, job):
         
         current_size_gb = movie_file.get("size", 0) / (1024 ** 3)
         
-        # Check if size changed from the recorded found_size
+        # Get current quality
+        current_quality = "Unknown"
+        file_quality_wrapper = movie_file.get("quality", {})
+        if isinstance(file_quality_wrapper, dict):
+            file_quality_obj = file_quality_wrapper.get("quality", {})
+            if isinstance(file_quality_obj, dict):
+                current_quality = file_quality_obj.get("name", "Unknown")
+        
+        # Check if size changed from the recorded found_size OR original size
         original_found = job["found_size_gb"]
-        if original_found and abs(current_size_gb - original_found) > 0.01:
-            logger.info(f"✅ Job completed for '{movie_title}': {current_size_gb:.2f}GB")
+        original_size = job["current_size_gb"]
+        
+        # If found_size is NULL or 0, use original_size as fallback
+        size_to_compare = original_found if original_found and original_found > 0 else original_size
+        
+        # Also check if quality changed
+        original_quality = job["current_quality"]
+        quality_changed = current_quality != original_quality and current_quality != "Unknown"
+        
+        # Check if size changed significantly OR quality changed
+        if (size_to_compare and abs(current_size_gb - size_to_compare) > 0.01) or quality_changed:
+            logger.info(f"✅ Job completed for '{movie_title}': {current_size_gb:.2f}GB ({current_quality})")
             conn.execute("""
                 UPDATE completed_jobs
                 SET status = 'completed', 
                     completed_at = ?,
                     found_size_gb = ?,
+                    found_quality = ?,
                     indexer = COALESCE(indexer, ?),
                     seeders = COALESCE(seeders, ?),
                     tmdb_rating = COALESCE(tmdb_rating, ?),
@@ -281,6 +300,7 @@ async def check_job_status(client, conn, job):
             """, (
                 datetime.utcnow(), 
                 current_size_gb,
+                current_quality,
                 job.get("indexer"),
                 job.get("seeders", 0),
                 job.get("tmdb_rating"),
