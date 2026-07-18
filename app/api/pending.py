@@ -399,68 +399,16 @@ async def add_completed_job(movie_id: int, movie_title: str, movie_year: int,
 
 @router.post("/completed/update-missing-details")
 async def update_missing_completed_details():
-    """Update missing indexer, seeders, tmdb_rating, and year in completed_jobs from pending_replacements."""
-    conn = get_connection()
-
-    # Update indexer, seeders, tmdb_rating
-    result1 = conn.execute("""
-        UPDATE completed_jobs 
-        SET indexer = (
-            SELECT indexer FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            ORDER BY id DESC LIMIT 1
-        ),
-        seeders = (
-            SELECT seeders FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            ORDER BY id DESC LIMIT 1
-        ),
-        tmdb_rating = (
-            SELECT tmdb_rating FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            ORDER BY id DESC LIMIT 1
-        )
-        WHERE indexer IS NULL OR seeders IS NULL OR tmdb_rating IS NULL
-    """)
-
-    # Update movie_year
-    result2 = conn.execute("""
-        UPDATE completed_jobs 
-        SET movie_year = (
-            SELECT movie_year FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            AND pending_replacements.movie_year > 0 
-            ORDER BY id DESC LIMIT 1
-        )
-        WHERE movie_year IS NULL OR movie_year = 0
-    """)
-
-    # Refresh status for items that are 'completed' in pending_replacements but still 'queued' in completed_jobs
-    result3 = conn.execute("""
-        UPDATE completed_jobs 
-        SET status = 'completed', completed_at = (
-            SELECT completed_at FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            AND pending_replacements.status = 'completed'
-            ORDER BY completed_at DESC LIMIT 1
-        )
-        WHERE status = 'queued' 
-        AND EXISTS (
-            SELECT 1 FROM pending_replacements 
-            WHERE pending_replacements.movie_title = completed_jobs.movie_title 
-            AND pending_replacements.status = 'completed'
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "success": True,
-        "details_updated": result1.rowcount,
-        "years_updated": result2.rowcount,
-        "status_updated": result3.rowcount,
-        "message": f"Updated {result1.rowcount} details, {result2.rowcount} years, {result3.rowcount} statuses to completed"
-    }
-
-# ========== END COMPLETED JOBS ENDPOINTS ==========
+    """Manually check status of queued jobs using the poller logic."""
+    from app.core.poller import poll_pending_replacements
+    
+    try:
+        logger.info("Manual status refresh triggered via Update Missing Details button")
+        await poll_pending_replacements()
+        return {
+            "success": True,
+            "message": "Status refresh completed - queued jobs updated"
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh status: {str(e)}")

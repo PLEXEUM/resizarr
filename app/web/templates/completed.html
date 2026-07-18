@@ -14,8 +14,8 @@
             </div>
             <div class="ml-auto flex gap-2">
                 <button onclick="updateMissingDetails()"
-                    class="btn-sm btn-outline">
-                    Update Missing Details
+                    title="Manually check if queued replacements have completed">
+                    🔄 Refresh Status
                 </button>
                 <button onclick="clearCompletedJobs()"
                     class="btn-sm btn-danger">
@@ -170,8 +170,12 @@
     }
 
     async function updateMissingDetails() {
-        if (!confirm('This will try to fill in missing Indexer, Peers, TMDB Rating, and Year from pending replacement data. Continue?')) return;
-        
+        if (!confirm('This will manually check all queued replacements to see if they have completed. Continue?')) return;
+    
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Checking...';
+    
         try {
             const res = await fetch('/api/completed/update-missing-details', { method: 'POST' });
             const data = await res.json();
@@ -179,10 +183,13 @@
                 showToast(data.message, 'success');
                 loadCompleted(currentPage);
             } else {
-                showToast(data.detail || 'Failed to update details', 'error');
+                showToast(data.detail || 'Failed to refresh status', 'error');
             }
         } catch (e) {
             showToast('Error: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🔄 Refresh Status';
         }
     }
     

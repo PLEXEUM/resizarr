@@ -36,129 +36,50 @@ async def poll_pending_replacements():
 
         client = RadarrClient(config["radarr_url"], config["radarr_api_key"])
 
-        # Get all pending or queued replacements (EXCLUDE manual mode)
-        pending = conn.execute("""
+        # Get all queued replacements
+        queued = conn.execute("""
             SELECT * FROM pending_replacements
-            WHERE status IN ('pending', 'queued')
-            AND mode IN ('auto', 'quality_match', 'manual')
+            WHERE status = 'queued'
         """).fetchall()
 
-        # Get count of skipped manual items for logging
-        manual_count = conn.execute("""
-            SELECT COUNT(*) FROM pending_replacements
-            WHERE status IN ('pending', 'queued')
-            AND mode = 'manual'
-        """).fetchone()[0]
-
-        if manual_count > 0:
-            logger.info(f"Skipping {manual_count} manual pending approvals (waiting for user action)")
-
-        if not pending:
-            if manual_count > 0:
-                logger.info(f"No auto/quality-match replacements to poll ({manual_count} manual pending)")
+        if not queued:
+            # Check for any queued completed_jobs (with or without pending records)
+            orphaned = conn.execute("""
+                SELECT COUNT(*) FROM completed_jobs
+                WHERE status = 'queued'
+            """).fetchone()[0]
+            
+            if orphaned > 0:
+                logger.info(f"Found {orphaned} queued jobs, checking directly")
+                jobs = conn.execute("""
+                    SELECT * FROM completed_jobs
+                    WHERE status = 'queued'
+                """).fetchall()
+                
+                for job in jobs:
+                    await check_job_status(client, conn, job)
             else:
-                logger.info("No pending replacements to poll")
+                logger.info("No queued replacements to poll")
             return
 
-        logger.info(f"Polling {len(pending)} pending replacements...")
+        logger.info(f"Polling {len(queued)} queued replacements...")
 
-        for record in pending:
-            record_id = record["id"]
-            movie_id = record["movie_id"]
-            movie_title = record["movie_title"]
-            created_at = datetime.fromisoformat(record["created_at"])
-            fail_count = record["fail_count"] or 0
+        for record in queued:
+            await check_record_status(client, conn, record)
 
-            # Check if too old
-            age = datetime.utcnow() - created_at
-            if age > timedelta(hours=MAX_AGE_HOURS):
-                logger.warning(
-                    f"Replacement for '{movie_title}' expired after 24h, marking failed"
-                )
-                conn.execute("""
-                    UPDATE pending_replacements
-                    SET status = 'failed', completed_at = ?
-                    WHERE id = ?
-                """, (datetime.utcnow(), record_id))
-                conn.commit()
-                continue
-
-            # Check if too many failures
-            if fail_count >= MAX_FAIL_COUNT:
-                logger.warning(
-                    f"Replacement for '{movie_title}' failed {fail_count} times, cancelling"
-                )
-                conn.execute("""
-                    UPDATE pending_replacements
-                    SET status = 'failed', completed_at = ?
-                    WHERE id = ?
-                """, (datetime.utcnow(), record_id))
-                conn.commit()
-                continue
-
-            try:
-                # Fetch current movie state from Radarr
-                movie = await client.get_movie(movie_id)
-                movie_file = movie.get("movieFile")
-
-                if not movie_file:
-                    logger.info(
-                        f"No file found for '{movie_title}', may still be downloading"
-                    )
-                    conn.execute("""
-                        UPDATE pending_replacements
-                        SET fail_count = fail_count + 1
-                        WHERE id = ?
-                    """, (record_id,))
-                    conn.commit()
-                    continue
-
-                # Get current size
-                current_size_gb = movie_file.get("size", 0) / (1024 ** 3)
-                original_size_gb = record["current_size_gb"]
-
-                # Check if size has changed meaningfully (> 1% difference)
-                size_changed = abs(current_size_gb - original_size_gb) / max(original_size_gb, 0.001) > 0.01
-
-                if size_changed:
-                    logger.info(
-                        f"Replacement completed for '{movie_title}': "
-                        f"{original_size_gb:.2f}GB → {current_size_gb:.2f}GB"
-                    )
-                    conn.execute("""
-                        UPDATE pending_replacements
-                        SET status = 'completed', completed_at = ?, found_size_gb = ?
-                        WHERE id = ?
-                    """, (datetime.utcnow(), current_size_gb, record_id))
-
-                    conn.execute("""
-                        UPDATE completed_jobs
-                        SET status = 'completed', completed_at = ?
-                        WHERE movie_title = ? AND status = 'queued'
-                    """, (datetime.utcnow(), movie_title))
-                else:
-                    logger.info(
-                        f"No change yet for '{movie_title}' "
-                        f"({current_size_gb:.2f}GB)"
-                    )
-                    conn.execute("""
-                        UPDATE pending_replacements
-                        SET fail_count = fail_count + 1
-                        WHERE id = ?
-                    """, (record_id,))
-
-                conn.commit()
-
-            except Exception as e:
-                logger.error(
-                    f"Poll failed for '{movie_title}': {e}"
-                )
-                conn.execute("""
-                    UPDATE pending_replacements
-                    SET fail_count = fail_count + 1
-                    WHERE id = ?
-                """, (record_id,))
-                conn.commit()
+        # Also check any queued completed_jobs without pending records
+        orphaned_jobs = conn.execute("""
+            SELECT * FROM completed_jobs
+            WHERE status = 'queued'
+            AND NOT EXISTS (
+                SELECT 1 FROM pending_replacements 
+                WHERE pending_replacements.movie_id = completed_jobs.movie_id 
+                AND pending_replacements.status = 'queued'
+            )
+        """).fetchall()
+        
+        for job in orphaned_jobs:
+            await check_job_status(client, conn, job)
 
         # Purge old run history (keep last 100)
         conn.execute("""
@@ -176,6 +97,206 @@ async def poll_pending_replacements():
         logger.error(f"Poller error: {e}")
     finally:
         _poller_in_progress = False
+
+
+async def check_record_status(client, conn, record):
+    """Check status of a pending replacement record."""
+    record_id = record["id"]
+    movie_id = record["movie_id"]
+    movie_title = record["movie_title"]
+    created_at = datetime.fromisoformat(record["created_at"])
+    fail_count = record["fail_count"] or 0
+    original_size_gb = record["current_size_gb"]
+    original_quality = record["current_quality"]
+
+    # Check if too old
+    age = datetime.utcnow() - created_at
+    if age > timedelta(hours=MAX_AGE_HOURS):
+        logger.warning(f"Replacement for '{movie_title}' expired after 24h, marking failed")
+        conn.execute("""
+            UPDATE pending_replacements
+            SET status = 'failed', completed_at = ?, error_message = 'Expired after 24 hours'
+            WHERE id = ?
+        """, (datetime.utcnow(), record_id))
+        
+        conn.execute("""
+            UPDATE completed_jobs
+            SET status = 'failed', completed_at = ?
+            WHERE movie_id = ? AND status = 'queued'
+        """, (datetime.utcnow(), movie_id))
+        
+        conn.commit()
+        return
+
+    # Check if too many failures
+    if fail_count >= MAX_FAIL_COUNT:
+        logger.warning(f"Replacement for '{movie_title}' failed {fail_count} times, cancelling")
+        conn.execute("""
+            UPDATE pending_replacements
+            SET status = 'failed', completed_at = ?, error_message = 'Max failures exceeded'
+            WHERE id = ?
+        """, (datetime.utcnow(), record_id))
+        
+        conn.execute("""
+            UPDATE completed_jobs
+            SET status = 'failed', completed_at = ?
+            WHERE movie_id = ? AND status = 'queued'
+        """, (datetime.utcnow(), movie_id))
+        
+        conn.commit()
+        return
+
+    try:
+        # Fetch current movie state from Radarr
+        movie = await client.get_movie(movie_id)
+        movie_file = movie.get("movieFile")
+
+        if not movie_file:
+            # No file yet - still downloading or deleted
+            logger.debug(f"No file found for '{movie_title}', still downloading")
+            conn.execute("""
+                UPDATE pending_replacements
+                SET fail_count = fail_count + 1
+                WHERE id = ?
+            """, (record_id,))
+            conn.commit()
+            return
+
+        # Get current size and quality
+        current_size_gb = movie_file.get("size", 0) / (1024 ** 3)
+        
+        # Get current quality
+        current_quality = "Unknown"
+        file_quality_wrapper = movie_file.get("quality", {})
+        if isinstance(file_quality_wrapper, dict):
+            file_quality_obj = file_quality_wrapper.get("quality", {})
+            if isinstance(file_quality_obj, dict):
+                current_quality = file_quality_obj.get("name", "Unknown")
+
+        # Check if replacement completed
+        size_changed = abs(current_size_gb - original_size_gb) > 0.01
+        quality_changed = current_quality != original_quality and current_quality != "Unknown"
+        
+        # Check if the file is completely different (new file ID)
+        file_id = movie_file.get("id")
+        original_file_id = record.get("original_file_id")
+        file_id_changed = original_file_id and file_id != original_file_id
+
+        # Mark as completed if ANY of these are true
+        replacement_completed = (
+            size_changed or 
+            quality_changed or 
+            file_id_changed or
+            current_size_gb < original_size_gb * 0.95
+        )
+
+        if replacement_completed:
+            logger.info(
+                f"✅ Replacement completed for '{movie_title}': "
+                f"{original_size_gb:.2f}GB → {current_size_gb:.2f}GB "
+                f"({current_quality})"
+            )
+            
+            # Update pending_replacements
+            conn.execute("""
+                UPDATE pending_replacements
+                SET status = 'completed', 
+                    completed_at = ?, 
+                    found_size_gb = ?,
+                    found_quality = ?
+                WHERE id = ?
+            """, (datetime.utcnow(), current_size_gb, current_quality, record_id))
+
+            # Update completed_jobs
+            conn.execute("""
+                UPDATE completed_jobs
+                SET status = 'completed', 
+                    completed_at = ?,
+                    found_size_gb = ?,
+                    found_quality = ?,
+                    indexer = COALESCE(indexer, ?),
+                    seeders = COALESCE(seeders, ?),
+                    tmdb_rating = COALESCE(tmdb_rating, ?),
+                    movie_year = COALESCE(movie_year, ?)
+                WHERE movie_id = ? AND status = 'queued'
+            """, (
+                datetime.utcnow(), 
+                current_size_gb, 
+                current_quality,
+                record.get("indexer"),
+                record.get("seeders", 0),
+                record.get("tmdb_rating"),
+                record.get("movie_year", 0),
+                movie_id
+            ))
+            
+            conn.commit()
+            logger.info(f"✅ Updated status to 'completed' for '{movie_title}'")
+        else:
+            # Still waiting
+            logger.debug(
+                f"⏳ No change yet for '{movie_title}' "
+                f"({current_size_gb:.2f}GB, {current_quality})"
+            )
+            conn.execute("""
+                UPDATE pending_replacements
+                SET fail_count = fail_count + 1
+                WHERE id = ?
+            """, (record_id,))
+            conn.commit()
+
+    except Exception as e:
+        logger.error(f"Poll failed for '{movie_title}': {e}")
+        conn.execute("""
+            UPDATE pending_replacements
+            SET fail_count = fail_count + 1,
+                error_message = ?
+            WHERE id = ?
+        """, (str(e)[:200], record_id))
+        conn.commit()
+
+
+async def check_job_status(client, conn, job):
+    """Check status of a completed_job directly (no pending record)."""
+    movie_id = job["movie_id"]
+    movie_title = job["movie_title"]
+    
+    try:
+        movie = await client.get_movie(movie_id)
+        movie_file = movie.get("movieFile")
+        
+        if not movie_file:
+            return
+        
+        current_size_gb = movie_file.get("size", 0) / (1024 ** 3)
+        
+        # Check if size changed from the recorded found_size
+        original_found = job["found_size_gb"]
+        if original_found and abs(current_size_gb - original_found) > 0.01:
+            logger.info(f"✅ Job completed for '{movie_title}': {current_size_gb:.2f}GB")
+            conn.execute("""
+                UPDATE completed_jobs
+                SET status = 'completed', 
+                    completed_at = ?,
+                    found_size_gb = ?,
+                    indexer = COALESCE(indexer, ?),
+                    seeders = COALESCE(seeders, ?),
+                    tmdb_rating = COALESCE(tmdb_rating, ?),
+                    movie_year = COALESCE(movie_year, ?)
+                WHERE id = ? AND status = 'queued'
+            """, (
+                datetime.utcnow(), 
+                current_size_gb,
+                job.get("indexer"),
+                job.get("seeders", 0),
+                job.get("tmdb_rating"),
+                job.get("movie_year", 0),
+                job["id"]
+            ))
+            conn.commit()
+            
+    except Exception as e:
+        logger.error(f"Failed to check job status for '{movie_title}': {e}")
 
 
 async def start_poller(interval_minutes: int = 5):
