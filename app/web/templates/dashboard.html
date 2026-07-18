@@ -33,8 +33,14 @@
                     Loading...
                 </div>
                 <div id="space-saved" class="mt-4 pt-3 border-t text-sm" style="border-color: var(--border-color);">
-                    <span class="font-semibold">💾 Total Space Saved:</span>
+                    <span class="font-semibold">💾 Space Saved:</span>
                     <span id="total-saved-value">Calculating...</span>
+                    <span class="mx-1" style="color: var(--text-secondary)">|</span>
+                    <span class="font-semibold">🎬 Movies:</span>
+                    <span id="total-movies-value">Calculating...</span>
+                    <span class="mx-1" style="color: var(--text-secondary)">|</span>
+                    <span class="font-semibold">📊 Avg:</span>
+                    <span id="avg-saved-value">Calculating...</span>
                 </div>
             </div>
         </div>
@@ -241,7 +247,10 @@
             const res = await fetch('/api/total-space-saved');
             const data = await res.json();
             const totalGb = data.total_saved_gb;
-        
+            const totalMovies = data.total_movies || 0;
+            const avgSaved = data.avg_saved_gb || 0;
+    
+            // Format total space
             let displayText = '';
             if (totalGb >= 1024) {
                 displayText = `${(totalGb / 1024).toFixed(2)} TB`;
@@ -252,11 +261,25 @@
             } else {
                 displayText = '0 GB';
             }
-        
+    
             document.getElementById('total-saved-value').textContent = displayText;
+            document.getElementById('total-movies-value').textContent = totalMovies;
+        
+            // Format average
+            let avgDisplay = '';
+            if (avgSaved >= 1) {
+                avgDisplay = `${avgSaved.toFixed(2)} GB`;
+            } else if (avgSaved > 0) {
+                avgDisplay = `${(avgSaved * 1024).toFixed(2)} MB`;
+            } else {
+                avgDisplay = '0 GB';
+            }
+            document.getElementById('avg-saved-value').textContent = avgDisplay;
         } catch (e) {
-            console.error('Failed to load total space saved:', e);
-            document.getElementById('total-saved-value').textContent = 'Error loading';
+            console.error('Failed to load stats:', e);
+            document.getElementById('total-saved-value').textContent = 'Error';
+            document.getElementById('total-movies-value').textContent = 'Error';
+            document.getElementById('avg-saved-value').textContent = 'Error';
         }
     }
 

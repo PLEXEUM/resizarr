@@ -223,7 +223,20 @@ async def check_record_status(client, conn, record):
             ))
             
             conn.commit()
+            
+            # Add to cumulative total
+            space_saved = original_size_gb - current_size_gb
+            if space_saved > 0:
+                conn.execute("""
+                    UPDATE stats 
+                    SET total_space_saved_gb = total_space_saved_gb + ?
+                    WHERE id = 1
+                """, (space_saved,))
+                conn.commit()
+            
             logger.info(f"✅ Updated status to 'completed' for '{movie_title}'")
+        
+        
         else:
             # Still waiting
             logger.debug(
@@ -315,6 +328,17 @@ async def check_job_status(client, conn, job):
                 job["id"]
             ))
             conn.commit()
+            
+            # Add to cumulative total
+            original_size = job["current_size_gb"]
+            space_saved = original_size - current_size_gb
+            if space_saved > 0:
+                conn.execute("""
+                    UPDATE stats 
+                    SET total_space_saved_gb = total_space_saved_gb + ?
+                    WHERE id = 1
+                """, (space_saved,))
+                conn.commit()
             
     except Exception as e:
         logger.error(f"Failed to check job status for '{movie_title}': {e}")

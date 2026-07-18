@@ -303,6 +303,18 @@ def init_db():
         cursor.execute("ALTER TABLE run_state ADD COLUMN candidate_snapshot TEXT")
         print("Added 'candidate_snapshot' column to run_state table")
 
+    # Migration: Add stats table for cumulative space saved
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stats'")
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE TABLE stats (
+                id INTEGER PRIMARY KEY,
+                total_space_saved_gb REAL DEFAULT 0
+            )
+        """)
+        cursor.execute("INSERT INTO stats (id, total_space_saved_gb) VALUES (1, 0)")
+        print("Added stats table for cumulative space tracking")
+
     conn.commit()
     conn.close()
     print("Database initialized successfully.")

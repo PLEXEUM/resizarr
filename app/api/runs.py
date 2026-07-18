@@ -409,22 +409,39 @@ async def get_run_details(category: str, run_started: str = None):
 
 @router.get("/total-space-saved")
 async def get_total_space_saved():
-    """Calculate total space saved from completed jobs (queued/completed status)."""
+    """Get cumulative total space saved with additional stats."""
     conn = get_connection()
     
-    result = conn.execute("""
-        SELECT SUM(current_size_gb - found_size_gb) as total_saved
-        FROM completed_jobs
-        WHERE status IN ('queued', 'completed')
-        AND found_size_gb IS NOT NULL
+    # Ensure stats table exists
+    conn.execute("INSERT OR IGNORE INTO stats (id, total_space_saved_gb) VALUES (1, 0)")
+    conn.commit()
+    
+    # Get cumulative total
+    result = conn.execute("SELECT total_space_saved_gb FROM stats WHERE id = 1").fetchone()
+    total_saved = result["total_space_saved_gb"] if result else 0
+    
+    # Get total movies processed (completed jobs)
+    total_movies = conn.execute("""
+        SELECT COUNT(*) FROM completed_jobs 
+        WHERE status IN ('completed', 'queued')
+    """).fetchone()[0]
+    
+    # Get average saved per movie
+    avg_saved = conn.execute("""
+        SELECT AVG(current_size_gb - found_size_gb) 
+        FROM completed_jobs 
+        WHERE status IN ('completed', 'queued')
+        AND found_size_gb IS NOT NULL 
         AND found_size_gb > 0
-    """).fetchone()
+    """).fetchone()[0]
     
     conn.close()
     
-    total_saved = result["total_saved"] if result and result["total_saved"] else 0
-    
-    return {"total_saved_gb": round(total_saved, 2)}
+    return {
+        "total_saved_gb": round(total_saved, 2),
+        "total_movies": total_movies,
+        "avg_saved_gb": round(avg_saved, 2) if avg_saved else 0
+    }
 
 
 # ========== CLEAR DASHBOARD ENDPOINT ==========
