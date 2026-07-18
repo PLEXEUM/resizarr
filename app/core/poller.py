@@ -301,10 +301,10 @@ async def check_job_status(client, conn, job):
                 datetime.utcnow(), 
                 current_size_gb,
                 current_quality,
-                job.get("indexer"),
-                job.get("seeders", 0),
-                job.get("tmdb_rating"),
-                job.get("movie_year", 0),
+                job["indexer"] if job["indexer"] is not None else None,
+                job["seeders"] if job["seeders"] is not None else 0,
+                job["tmdb_rating"] if job["tmdb_rating"] is not None else None,
+                job["movie_year"] if job["movie_year"] is not None else 0,
                 job["id"]
             ))
             conn.commit()
