@@ -312,8 +312,31 @@ def init_db():
                 total_space_saved_gb REAL DEFAULT 0
             )
         """)
-        cursor.execute("INSERT INTO stats (id, total_space_saved_gb) VALUES (1, 0)")
         print("Added stats table for cumulative space tracking")
+    
+    # Backfill stats only if it's currently 0 or NULL (first time or lost data)
+    cursor.execute("""
+        UPDATE stats 
+        SET total_space_saved_gb = (
+            SELECT COALESCE(SUM(current_size_gb - found_size_gb), 0)
+            FROM completed_jobs
+            WHERE status IN ('completed', 'queued')
+            AND found_size_gb IS NOT NULL
+            AND found_size_gb > 0
+        )
+        WHERE id = 1 
+        AND (total_space_saved_gb IS NULL OR total_space_saved_gb = 0)
+    """)
+    
+    # If no stats row exists, insert one
+    cursor.execute("""
+        INSERT OR IGNORE INTO stats (id, total_space_saved_gb) 
+        SELECT 1, COALESCE(SUM(current_size_gb - found_size_gb), 0)
+        FROM completed_jobs
+        WHERE status IN ('completed', 'queued')
+        AND found_size_gb IS NOT NULL
+        AND found_size_gb > 0
+    """)
 
     conn.commit()
     conn.close()
