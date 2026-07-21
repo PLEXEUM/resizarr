@@ -39,7 +39,7 @@ async def poll_pending_replacements():
         # Get all queued AND failed replacements (failed might have actually completed)
         queued = conn.execute("""
             SELECT * FROM pending_replacements
-            WHERE status IN ('queued', 'failed')
+            WHERE status = 'queued'
         """).fetchall()
 
         if not queued:
