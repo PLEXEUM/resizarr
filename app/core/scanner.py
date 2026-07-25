@@ -562,6 +562,9 @@ async def run_resizarr(
                 releases = releases  # Keep the original list (all releases)
                 logger.info(f"No TMDB or title matches, keeping all {original_count} releases for '{movie_title}' (last resort)")
             
+            # Filter out releases that Radarr couldn't parse
+            releases = [r for r in releases if "Unable to parse release" not in r.get("rejections", [])]
+            
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
 
