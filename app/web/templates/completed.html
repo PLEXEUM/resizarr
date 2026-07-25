@@ -90,7 +90,7 @@
                     </td>
                     <td>
                         <div class="size-from">${r.current_size_gb?.toFixed(2) || 'N/A'} GB (${r.current_quality || 'N/A'})</div>
-                        <div class="size-to">→ ${r.found_size_gb?.toFixed(2) || 'N/A'} GB (${r.found_quality || 'N/A'})</div>
+                        <div class="size-to">→ ${formatSize(r.found_size_gb)} (${r.found_quality || 'N/A'})</div>
                         <div class="text-xs" style="color: var(--text-secondary)">
                             ${((r.current_size_gb - r.found_size_gb) || 0).toFixed(2)} GB saved
                         </div>
@@ -147,6 +147,12 @@
             if (m === '>') return '&gt;';
             return m;
         });
+    }
+
+    function formatSize(sizeGB) {
+        if (!sizeGB) return 'N/A';
+        if (sizeGB < 0.1) return '< 0.1 GB';
+        return sizeGB.toFixed(2) + ' GB';
     }
 
     function getModeClass(mode) {

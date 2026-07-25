@@ -422,7 +422,7 @@
                     <td>${tmdbRating}</td>
                     <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
                     <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--accent)">${formatSize(movie.found_size_gb)}</td>
                     <td style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
                     <td class="text-xs" style="color: var(--text-secondary)">${movie.indexer || 'Unknown'}</td>
                     <td><span class="peer-count">▼</span> ${movie.seeders || 0}</td>
@@ -448,7 +448,7 @@
                     <td>${tmdbRating}</td>
                     <td style="color: var(--text-primary)">${movie.current_size_gb?.toFixed(2) || 'N/A'} GB</td>
                     <td style="color: var(--text-secondary)">${movie.current_quality || 'N/A'}</td>
-                    <td style="color: var(--accent)">${movie.found_size_gb?.toFixed(2) || 'N/A'} GB</td>
+                    <td style="color: var(--accent)">${formatSize(movie.found_size_gb)}</td>
                     <td style="color: var(--text-secondary)">${movie.found_quality || 'N/A'}</td>
                     <td class="text-xs" style="color: var(--text-secondary)">${movie.indexer || 'N/A'}</td>
                     <td><span class="peer-count">▼</span> ${movie.seeders || 0}</td>
@@ -456,7 +456,7 @@
                 `;
             } else if (category === 'skipped') {
                 const tmdbRating = movie.tmdb_rating ? `<div class="flex items-center gap-1"><span class="star">★</span><span>${movie.tmdb_rating.toFixed(1)}</span></div>` : 'N/A';
-                const foundSize = movie.found_size_gb ? `${movie.found_size_gb.toFixed(2)} GB` : 'N/A';
+                const foundSize = formatSize(movie.found_size_gb);
                 const foundQuality = movie.found_quality || 'N/A';
                 html += `
                     <td class="font-medium" style="color: var(--text-primary)">${escapeHtml(movie.title)}</td>
@@ -509,6 +509,12 @@
     function capitalizeFirstLetter(str) {
         if (!str) return '';
         return str.replace(/^([❌⚠️ℹ️✅]?\s*)(.)/, (match, prefix, letter) => prefix + letter.toUpperCase());
+    }
+
+    function formatSize(sizeGB) {
+        if (!sizeGB) return 'N/A';
+        if (sizeGB < 0.1) return '< 0.1 GB';
+        return sizeGB.toFixed(2) + ' GB';
     }
     
     async function quickApprove(id) {
