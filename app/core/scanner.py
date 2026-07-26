@@ -723,7 +723,7 @@ async def run_resizarr(
                         # Sort by: fewest failures first, then smallest size
                         known_quality_releases.sort(key=lambda r: (calculate_failure_count(r), r.get("size", 0)))
                         smallest_release = known_quality_releases[0]
-                        smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3)
+                        smallest_release_size = smallest_release.get("size", 0) / (1024 ** 3) if smallest_release else None
                         smallest_release_quality = client.get_release_quality_name(smallest_release)
 
                         # Get closest release details
@@ -772,10 +772,12 @@ async def run_resizarr(
                     # Build the skip reason with emoji prefix
                     if failed_filters:
                         skip_reason = "❌ " + " | ❌ ".join(failed_filters)
-                    elif smallest_release is None:
-                        skip_reason = "❌ no releases found with known quality"
                     else:
-                        skip_reason = f"❌ no matching release (closest: {smallest_release_size:.1f}GB)" if smallest_release_size else "❌ no releases found"
+                        # Show the closest release even if it failed size
+                        if smallest_release_size is not None:
+                            skip_reason = f"❌ no matching release (closest: {smallest_release_size:.1f}GB)"
+                        else:
+                            skip_reason = "❌ no releases found"
 
                     quality_skipped_movies.append({
                         'title': movie_title,
