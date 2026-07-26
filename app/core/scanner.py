@@ -4,7 +4,7 @@ import io
 import asyncio
 import re
 from typing import Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.utils.logger import get_logger
 from app.core.radarr_client import RadarrClient
@@ -282,6 +282,22 @@ async def run_resizarr(
                 continue
 
             size_gb = movie_file.get("size", 0) / (1024 ** 3)
+
+            # ===== SKIP RECENTLY ADDED FILES (90 DAYS) =====
+            date_added = movie_file.get("dateAdded")
+            if date_added:
+                try:
+                    if date_added.endswith("Z"):
+                        date_added = date_added.replace("Z", "+00:00")
+                    added_date = datetime.fromisoformat(date_added)
+                    days_ago = (datetime.now(timezone.utc) - added_date).days
+                    if days_ago < 90:
+                        logger.debug(f"Skipping {movie.get('title', 'Unknown')} - file added {days_ago} days ago (< 90)")
+                        continue
+                except Exception as e:
+                    logger.warning(f"Could not parse dateAdded for {movie.get('title', 'Unknown')}: {e}")
+                    # Process anyway if we can't parse
+                    pass
 
             path = movie_file.get("relativePath", "")
             ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
