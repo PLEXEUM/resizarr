@@ -612,7 +612,7 @@ async def run_resizarr(
                         continue
 
                     # Skip releases with low custom score (ignored by Radarr)
-                    custom_score = release.get("customScore", 0)
+                    custom_score = release.get("customFormatScore", 0)
                     if custom_score < 0:
                         logger.debug(f"Skipping release with negative custom score: {custom_score} - {release.get('title', 'Unknown')}")
                         continue
@@ -685,7 +685,7 @@ async def run_resizarr(
                     summary["quality_skipped"] += 1
 
                     # Only consider releases with KNOWN quality (ignore Unknown)
-                    known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown" and r.get("customScore", 0) >= 0]
+                    known_quality_releases = [r for r in valid_releases if client.get_release_quality_name(r) != "Unknown" and r.get("customFormatScore", 0) >= 0]
 
                     if known_quality_releases:
                         # Score each release by how many filters it fails (lower is better)
