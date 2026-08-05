@@ -580,6 +580,7 @@ async def run_resizarr(
             
             # Filter out releases that Radarr couldn't parse
             releases = [r for r in releases if "Unable to parse release" not in r.get("rejections", [])]
+            releases = [r for r in releases if "Unknown Movie" not in str(r.get("rejections", []))]
             
             # Filter for valid releases (has title AND size > 0)
             valid_releases = [r for r in releases if r.get('title') and r.get('size', 0) > 0]
