@@ -283,20 +283,23 @@ async def run_resizarr(
 
             size_gb = movie_file.get("size", 0) / (1024 ** 3)
 
-            # ===== SKIP RECENTLY ADDED FILES (90 DAYS) =====
+            # ===== SKIP RECENTLY ADDED FILES =====
+            # DISABLED: Radarr's movieFile.dateAdded was reset by a Dropbox remap/rescan,
+            # so it reports every file as "added recently". We now use a Resizarr-action
+            # cooldown instead (see below). Set to 0 to disable entirely.
+            skip_recent_days = 0
             date_added = movie_file.get("dateAdded")
-            if date_added:
+            if skip_recent_days > 0 and date_added:
                 try:
                     if date_added.endswith("Z"):
                         date_added = date_added.replace("Z", "+00:00")
                     added_date = datetime.fromisoformat(date_added)
                     days_ago = (datetime.now(timezone.utc) - added_date).days
-                    if days_ago < 90:
-                        logger.debug(f"Skipping {movie.get('title', 'Unknown')} - file added {days_ago} days ago (< 90)")
+                    if days_ago < skip_recent_days:
+                        logger.debug(f"Skipping {movie.get('title', 'Unknown')} - file added {days_ago} days ago (< {skip_recent_days})")
                         continue
                 except Exception as e:
                     logger.warning(f"Could not parse dateAdded for {movie.get('title', 'Unknown')}: {e}")
-                    # Process anyway if we can't parse
                     pass
 
             path = movie_file.get("relativePath", "")
@@ -521,6 +524,33 @@ async def run_resizarr(
                     'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
                 })
                 continue
+
+            # ===== SKIP IF RESIZARR RESIZED THIS MOVIE IN THE PAST 90 DAYS =====
+            # Uses Resizarr's own completed_jobs history instead of Radarr's
+            # (unreliable) movieFile.dateAdded field.
+            resizarr_cooldown_days = 90
+            if resizarr_cooldown_days > 0:
+                recently_resized = conn.execute("""
+                    SELECT 1 FROM completed_jobs
+                    WHERE movie_id = ?
+                      AND status IN ('queued', 'completed')
+                      AND completed_at > datetime('now', ?)
+                    LIMIT 1
+                """, (movie_id, f'-{resizarr_cooldown_days} days')).fetchone()
+                if recently_resized:
+                    logger.info(f"Skipping {movie_title} - Resizarr resized this within {resizarr_cooldown_days} days")
+                    summary["quality_skipped"] += 1
+                    quality_skipped_movies.append({
+                        'title': movie_title,
+                        'year': movie.get('year'),
+                        'current_size_gb': size_gb,
+                        'current_quality': current_quality,
+                        'found_size_gb': None,
+                        'found_quality': None,
+                        'skip_reason': f'⏳ Resizarr resized this within {resizarr_cooldown_days} days',
+                        'tmdb_rating': movie.get('ratings', {}).get('tmdb', {}).get('value') or movie.get('tmdbRating')
+                    })
+                    continue
 
             target_threshold_gb = size_to_gb(rules["target_size"], rules["target_unit"])
             min_peers = rules.get("min_peers", 0)
